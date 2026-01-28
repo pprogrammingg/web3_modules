@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 1.3: State Machines & Event-Driven Architecture</title>
+    <link rel="stylesheet" href="../../shared/styles.css">
+</head>
+<body>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Module 1.3: State Machines & Event-Driven Architecture</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 1.5-2 hours</span>
+                <span>📊 Difficulty: Basic</span>
+                <span>📅 Month 1, Week 3</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand the state machine pattern</li>
+                <li>Learn event-driven design principles</li>
+                <li>Explore Event and Action types in hyperscale-rs</li>
+                <li>Understand determinism and why it matters</li>
+                <li>See how state machines compose in hyperscale-rs</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>1. What is a State Machine?</h2>
+            
+            <h3>Definition</h3>
+            <p>A <strong>state machine</strong> is a computational model that consists of:</p>
+            <ul>
+                <li><strong>States</strong> - The possible configurations of the system</li>
+                <li><strong>Transitions</strong> - Rules for moving from one state to another</li>
+                <li><strong>Inputs</strong> - Events that trigger transitions</li>
+                <li><strong>Outputs</strong> - Actions produced by transitions</li>
+            </ul>
+
+            <h3>Simple Example</h3>
+            <div class="code-block">
+Light Switch State Machine:
+  States: {ON, OFF}
+  Transitions:
+    - If state is OFF and event is "flip" → state becomes ON
+    - If state is ON and event is "flip" → state becomes OFF
+            </div>
+
+            <h3>Why State Machines?</h3>
+            <ul>
+                <li><strong>Deterministic</strong> - Same state + same event = same result</li>
+                <li><strong>Testable</strong> - Easy to test all state transitions</li>
+                <li><strong>Predictable</strong> - Behavior is well-defined</li>
+                <li><strong>Composable</strong> - Can combine multiple state machines</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>2. The StateMachine Trait</h2>
+            
+            <h3>Core Interface</h3>
+            <p>In hyperscale-rs, everything implements the <code>StateMachine</code> trait:</p>
+
+            <div class="code-block">
+trait StateMachine {
+    fn handle(&mut self, event: Event) -> Vec&lt;Action&gt;;
+    fn set_time(&mut self, now: Duration);
+    fn now(&self) -> Duration;
+}
+            </div>
+
+            <h3>Key Properties</h3>
+            <ul>
+                <li><strong>Synchronous</strong> - No async, no .await</li>
+                <li><strong>Pure</strong> - No I/O, no locks, no side effects</li>
+                <li><strong>Deterministic</strong> - Same inputs always produce same outputs</li>
+                <li><strong>Simple</strong> - Just state + event → actions</li>
+            </ul>
+
+            <div class="info">
+                <strong>Why No I/O?</strong> I/O (networking, storage, timers) is handled by "runners" that execute actions and feed results back as events. This separation makes the consensus logic testable and deterministic.
+            </div>
+
+            <h3>Exploring the Trait</h3>
+            <p>Open <code>crates/core/src/traits.rs</code> and find the <code>StateMachine</code> trait. Notice:</p>
+            <ul>
+                <li>It's very simple - just three methods</li>
+                <li>The <code>handle</code> method takes an event and returns actions</li>
+                <li>Time is managed explicitly (for determinism)</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>3. Events: What Happens</h2>
+            
+            <h3>What are Events?</h3>
+            <p><strong>Events</strong> are passive data structures that describe something that happened. They flow <strong>into</strong> state machines.</p>
+
+            <h3>Event Types</h3>
+            <p>Open <code>crates/core/src/event.rs</code> to see all event types. Examples:</p>
+
+            <div class="code-block">
+enum Event {
+    // Timers
+    ProposalTimer,
+    CleanupTimer,
+    
+    // Network Messages
+    BlockHeaderReceived { header: BlockHeader, ... },
+    BlockVoteReceived { vote: BlockVote },
+    
+    // Internal Events
+    QuorumCertificateFormed { block_hash: Hash, qc: QuorumCertificate },
+    BlockCommitted { block_hash: Hash, ... },
+    
+    // ... many more
+}
+            </div>
+
+            <h3>Event Sources</h3>
+            <ul>
+                <li><strong>Network</strong> - Messages from other validators</li>
+                <li><strong>Timers</strong> - Scheduled events (e.g., proposal timer)</li>
+                <li><strong>Internal</strong> - Generated by other state machines</li>
+                <li><strong>Client</strong> - User-submitted transactions</li>
+            </ul>
+
+            <h3>Event Priority</h3>
+            <p>Events at the same timestamp are processed by priority:</p>
+            <ol>
+                <li><strong>Internal (0)</strong> - Consequences of prior processing</li>
+                <li><strong>Timer (1)</strong> - Scheduled timers</li>
+                <li><strong>Network (2)</strong> - External messages</li>
+                <li><strong>Client (3)</strong> - User submissions</li>
+            </ol>
+
+            <div class="success">
+                <strong>Why Priority?</strong> Preserves causality - internal events (like QC formation) must be processed before new external inputs arrive.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>4. Actions: What to Do</h2>
+            
+            <h3>What are Actions?</h3>
+            <p><strong>Actions</strong> are commands that describe what the state machine wants to do. They flow <strong>out</strong> of state machines and are executed by runners.</p>
+
+            <h3>Action Types</h3>
+            <p>Open <code>crates/core/src/action.rs</code> to see all action types. Examples:</p>
+
+            <div class="code-block">
+enum Action {
+    // Network
+    BroadcastToShard { shard: ShardGroupId, message: OutboundMessage },
+    BroadcastStateVote { shard: ShardGroupId, vote: StateVoteBlock },
+    
+    // Timers
+    SetTimer { id: TimerId, duration: Duration },
+    
+    // Internal
+    EnqueueInternal { event: Event },
+    
+    // Storage
+    CommitBlock { block: Block, qc: QuorumCertificate },
+    
+    // ... many more
+}
+            </div>
+
+            <h3>Action Execution</h3>
+            <p>Actions are executed by <strong>runners</strong>:</p>
+            <ul>
+                <li><strong>SimulationRunner</strong> - Deterministic simulation</li>
+                <li><strong>ProductionRunner</strong> - Real networking, storage, async</li>
+            </ul>
+
+            <div class="info">
+                <strong>Key Insight:</strong> The same state machine code runs in both simulation and production. This means bugs found in simulation will also exist in production (and vice versa).
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>5. Event-Driven Flow</h2>
+            
+            <h3>The Flow</h3>
+            <div class="code-block">
+1. Runner receives network message
+2. Runner creates Event::BlockHeaderReceived
+3. Runner calls state_machine.handle(event)
+4. State machine processes event, updates state
+5. State machine returns Vec&lt;Action&gt;
+6. Runner executes actions (send network, store, etc.)
+7. Actions may generate new events
+8. Loop continues...
+            </div>
+
+            <h3>Example: Block Proposal Flow</h3>
+            <ol>
+                <li><strong>Timer fires</strong> → <code>Event::ProposalTimer</code></li>
+                <li><strong>State machine handles</strong> → Checks if this node is proposer</li>
+                <li><strong>If proposer</strong> → Builds block, returns <code>Action::BroadcastToShard</code></li>
+                <li><strong>Runner executes</strong> → Sends block header to network</li>
+                <li><strong>Other nodes receive</strong> → Create <code>Event::BlockHeaderReceived</code></li>
+                <li><strong>They vote</strong> → Return <code>Action::BroadcastToShard</code> (vote)</li>
+                <li><strong>Votes collected</strong> → <code>Event::QuorumCertificateFormed</code></li>
+                <li><strong>QC processed</strong> → Chain state updated, commit checked</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>6. Determinism: Why It Matters</h2>
+            
+            <h3>What is Determinism?</h3>
+            <p><strong>Deterministic</strong> means: given the same initial state and same sequence of events, you always get the same final state and same sequence of actions.</p>
+
+            <h3>Why Determinism Matters</h3>
+            <ul>
+                <li><strong>Testing</strong> - Can reproduce bugs exactly</li>
+                <li><strong>Debugging</strong> - Can replay execution step-by-step</li>
+                <li><strong>Simulation</strong> - Can test in controlled environment</li>
+                <li><strong>Consistency</strong> - All nodes produce same results</li>
+            </ul>
+
+            <h3>What Breaks Determinism?</h3>
+            <ul>
+                <li>❌ Random number generation (without seed)</li>
+                <li>❌ System time (use explicit time parameter)</li>
+                <li>❌ Network timing (simulate with delays)</li>
+                <li>❌ Thread scheduling (single-threaded in state machine)</li>
+            </ul>
+
+            <h3>How Hyperscale-rs Maintains Determinism</h3>
+            <ul>
+                <li>✅ Explicit time parameter (<code>set_time</code>)</li>
+                <li>✅ No random number generation in state machine</li>
+                <li>✅ Synchronous execution (no async in state machine)</li>
+                <li>✅ Deterministic event ordering (priority system)</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>7. Composing State Machines</h2>
+            
+            <h3>NodeStateMachine</h3>
+            <p>The <code>NodeStateMachine</code> composes multiple sub-state machines:</p>
+
+            <div class="code-block">
+NodeStateMachine
+├── BftState          (consensus)
+├── ExecutionState    (transaction execution)
+├── MempoolState      (transaction pool)
+├── ProvisionCoordinator (cross-shard coordination)
+└── LivelockState     (deadlock prevention)
+            </div>
+
+            <h3>How They Compose</h3>
+            <ol>
+                <li><code>NodeStateMachine</code> receives an event</li>
+                <li>Routes event to appropriate sub-state machines</li>
+                <li>Each sub-state machine processes the event</li>
+                <li>Actions from all sub-machines are collected</li>
+                <li>Sub-machines can generate internal events for each other</li>
+            </ol>
+
+            <h3>Exploring Composition</h3>
+            <p>Open <code>crates/node/src/state.rs</code> and find the <code>handle</code> method. Notice how it:</p>
+            <ul>
+                <li>Routes events to different sub-machines</li>
+                <li>Collects actions from all sub-machines</li>
+                <li>Coordinates between sub-machines</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>8. Knowledge Check Quiz</h2>
+            <div id="quiz-03" class="quiz-container"></div>
+        </div>
+
+        <div class="section">
+            <h2>9. Practical Assignment</h2>
+            <div class="assignment">
+                <h3>Assignment: Trace an Event Through the System</h3>
+                
+                <h4>Tasks:</h4>
+                <ol>
+                    <li><strong>Choose an Event</strong>:
+                        <ul>
+                            <li>Pick <code>Event::BlockHeaderReceived</code> or <code>Event::ProposalTimer</code></li>
+                            <li>Read its definition in <code>crates/core/src/event.rs</code></li>
+                        </ul>
+                    </li>
+                    <li><strong>Trace Through NodeStateMachine</strong>:
+                        <ul>
+                            <li>Open <code>crates/node/src/state.rs</code></li>
+                            <li>Find where your chosen event is handled</li>
+                            <li>Trace which sub-state machines it goes to</li>
+                            <li>Note what actions are generated</li>
+                        </ul>
+                    </li>
+                    <li><strong>Trace Through Sub-State Machine</strong>:
+                        <ul>
+                            <li>Open the relevant sub-state machine file (e.g., <code>crates/bft/src/state.rs</code>)</li>
+                            <li>Find the handler for your event</li>
+                            <li>Trace the logic step-by-step</li>
+                            <li>Note what state changes occur</li>
+                            <li>Note what actions are returned</li>
+                        </ul>
+                    </li>
+                    <li><strong>Create a Diagram</strong>:
+                        <ul>
+                            <li>Draw a flow diagram showing: Event → State Machine → Actions</li>
+                            <li>Include state changes</li>
+                            <li>Include any internal events generated</li>
+                        </ul>
+                    </li>
+                    <li><strong>Write a Summary</strong>:
+                        <ul>
+                            <li>Document the flow in your learning journal</li>
+                            <li>Explain what happens at each step</li>
+                            <li>List any questions you have</li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h4>Success Criteria:</h4>
+                <ul>
+                    <li>✅ You can trace an event from entry to actions</li>
+                    <li>✅ You understand which state machines are involved</li>
+                    <li>✅ You can explain the flow to someone else</li>
+                    <li>✅ You have a diagram showing the flow</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="navigation">
+            <a href="module-02-consensus-basics.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="../../index.html" class="btn btn-primary">Back to Index →</a>
+        </div>
+    </div>
+
+    <script src="../../shared/course-data.js"></script>
+    <script src="../../shared/navigation.js"></script>
+    <script>
+        initializeModulePage('basic-04');
+
+        const quizQuestions = [
+            {
+                question: "What does the StateMachine trait's handle method do?",
+                options: [
+                    "Executes network I/O",
+                    "Takes an event and returns actions",
+                    "Manages async operations",
+                    "Handles storage operations"
+                ],
+                correct: 1
+            },
+            {
+                question: "What is the key property of state machines in hyperscale-rs?",
+                options: [
+                    "They are async",
+                    "They perform I/O",
+                    "They are deterministic and pure",
+                    "They use locks"
+                ],
+                correct: 2
+            },
+            {
+                question: "What is the priority order for events at the same timestamp?",
+                options: [
+                    "Network, Timer, Internal, Client",
+                    "Internal, Timer, Network, Client",
+                    "Client, Network, Timer, Internal",
+                    "Timer, Network, Client, Internal"
+                ],
+                correct: 1
+            },
+            {
+                question: "Who executes Actions?",
+                options: [
+                    "The state machine itself",
+                    "Runners (SimulationRunner or ProductionRunner)",
+                    "Other state machines",
+                    "Network directly"
+                ],
+                correct: 1
+            },
+            {
+                question: "Why is determinism important?",
+                options: [
+                    "It makes code faster",
+                    "It allows reproducible testing and debugging",
+                    "It reduces memory usage",
+                    "It's not important"
+                ],
+                correct: 1
+            }
+        ];
+
+        initializeQuiz('quiz-03', quizQuestions, 70);
+    </script>
+</body>
+</html>

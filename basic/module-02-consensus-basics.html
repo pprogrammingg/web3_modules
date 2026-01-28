@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 1.2: Consensus Algorithms - From Basics to BFT</title>
+    <link rel="stylesheet" href="../../shared/styles.css">
+</head>
+<body>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Module 1.2: Consensus Algorithms - From Basics to BFT</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 1.5-2 hours</span>
+                <span>📊 Difficulty: Basic</span>
+                <span>📅 Month 1, Week 2</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand the consensus problem in distributed systems</li>
+                <li>Learn about Byzantine Fault Tolerance (BFT)</li>
+                <li>Understand quorum certificates and voting</li>
+                <li>Learn the basics of HotStuff-2 protocol</li>
+                <li>Compare BFT with Proof-of-Stake (PoS)</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>1. The Consensus Problem</h2>
+            
+            <h3>What is Consensus?</h3>
+            <p>In a distributed system, <strong>consensus</strong> is the process of getting all honest nodes to agree on a single value or sequence of values, even when some nodes may be faulty or malicious.</p>
+
+            <div class="info">
+                <strong>Example:</strong> Imagine 4 generals trying to coordinate an attack. One might be a traitor. How do the honest generals agree on a plan?
+            </div>
+
+            <h3>Why is Consensus Hard?</h3>
+            <ul>
+                <li><strong>Network delays</strong> - Messages arrive at different times</li>
+                <li><strong>Node failures</strong> - Nodes can crash or go offline</li>
+                <li><strong>Byzantine faults</strong> - Nodes can lie, send conflicting messages, or behave arbitrarily</li>
+                <li><strong>Network partitions</strong> - Network can split into isolated groups</li>
+            </ul>
+
+            <h3>The FLP Impossibility Result</h3>
+            <p>Fischer, Lynch, and Paterson proved that in an asynchronous network, it's <strong>impossible</strong> to guarantee consensus if even one node can fail. This is why blockchain systems make assumptions about network synchrony.</p>
+        </div>
+
+        <div class="section">
+            <h2>2. Byzantine Fault Tolerance (BFT)</h2>
+            
+            <h3>What is BFT?</h3>
+            <p><strong>Byzantine Fault Tolerance</strong> is the ability of a system to function correctly even when some nodes are Byzantine (malicious or faulty).</p>
+
+            <h3>Fault Model</h3>
+            <p>In a BFT system with <strong>n = 3f + 1</strong> nodes:</p>
+            <ul>
+                <li>Up to <strong>f</strong> nodes can be Byzantine (malicious)</li>
+                <li>At least <strong>2f + 1</strong> nodes must be honest</li>
+                <li>This ensures any two quorums (groups of 2f+1) must overlap in at least one honest node</li>
+            </ul>
+
+            <div class="code-block">
+Example: n = 4, f = 1
+- Total nodes: 4
+- Byzantine nodes: up to 1
+- Honest nodes: at least 3
+- Quorum size: 2f + 1 = 3
+
+Any two groups of 3 nodes must share at least 1 honest node.
+            </div>
+
+            <h3>BFT vs Crash Fault Tolerance (CFT)</h3>
+            <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                <tr style="background: var(--bg-secondary);">
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color);">Aspect</th>
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color);">CFT</th>
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color);">BFT</th>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Fault Model</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Nodes crash</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Nodes can be malicious</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Tolerance</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">f out of 2f+1</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">f out of 3f+1</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Use Case</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Databases, distributed systems</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Blockchains, critical systems</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>3. Quorum Certificates (QCs)</h2>
+            
+            <h3>What is a Quorum Certificate?</h3>
+            <p>A <strong>Quorum Certificate (QC)</strong> is cryptographic proof that at least 2f+1 validators have voted for a block. It's an aggregated signature from a quorum of validators.</p>
+
+            <h3>Properties of QCs</h3>
+            <ul>
+                <li><strong>Cryptographic proof</strong> - Cannot be forged</li>
+                <li><strong>Compact</strong> - Single aggregated signature (not 2f+1 individual signatures)</li>
+                <li><strong>Verifiable</strong> - Anyone can verify the QC</li>
+                <li><strong>Binding</strong> - Proves agreement on a specific block</li>
+            </ul>
+
+            <h3>How QCs Work</h3>
+            <ol>
+                <li>Proposer broadcasts a block header</li>
+                <li>Validators validate and vote (sign the block hash)</li>
+                <li>When 2f+1 votes are collected, they're aggregated into a QC</li>
+                <li>The QC is included in the next block's header</li>
+            </ol>
+
+            <div class="code-block">
+Block N:
+  - Contains transactions
+  - Contains QC for Block N-1
+  - Gets voted on by validators
+
+When Block N gets 2f+1 votes → QC formed
+QC is included in Block N+1's header
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>4. HotStuff-2 Protocol Basics</h2>
+            
+            <h3>What is HotStuff-2?</h3>
+            <p><strong>HotStuff-2</strong> is a BFT consensus protocol that uses a two-chain commit rule. It's an improvement over traditional BFT protocols like PBFT.</p>
+
+            <h3>Key Features</h3>
+            <ul>
+                <li><strong>Two-chain commit</strong> - Block commits when next block gets QC (vs 3-chain in PBFT)</li>
+                <li><strong>Implicit view changes</strong> - No coordinated view-change voting</li>
+                <li><strong>Optimistic pipelining</strong> - Multiple blocks can be in-flight</li>
+                <li><strong>Linear communication</strong> - O(n) messages per block (vs O(n²) in PBFT)</li>
+            </ul>
+
+            <h3>Basic Flow</h3>
+            <ol>
+                <li><strong>Proposal</strong>: Proposer creates and broadcasts block header</li>
+                <li><strong>Voting</strong>: Validators validate and vote</li>
+                <li><strong>QC Formation</strong>: When 2f+1 votes collected, QC is formed</li>
+                <li><strong>Commit</strong>: Block commits when next block gets QC (two-chain rule)</li>
+            </ol>
+
+            <h3>Two-Chain Commit Rule</h3>
+            <p>Block at height H commits when block at height H+1 gets a QC.</p>
+            <div class="code-block">
+Height:  H-1    H    H+1
+QC:      ✓      ✓    ✓
+Commit:  ✓      ✓    (H commits when H+1 gets QC)
+            </div>
+
+            <div class="success">
+                <strong>Why Two-Chain?</strong> Ensures finality even under network partitions. Only one chain can get consecutive QCs.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>5. BFT vs Proof-of-Stake (PoS)</h2>
+            
+            <h3>Key Differences</h3>
+            <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                <tr style="background: var(--bg-secondary);">
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color);">Aspect</th>
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color);">BFT</th>
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color);">PoS</th>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Validator Set</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Fixed, known</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Dynamic, stake-weighted</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Finality</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Immediate, deterministic</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Probabilistic, requires time</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Communication</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">O(n) per block</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">O(1) per block</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Fault Tolerance</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">f out of 3f+1</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Up to 50% stake</td>
+                </tr>
+            </table>
+
+            <h3>When to Use BFT</h3>
+            <ul>
+                <li>Need immediate finality</li>
+                <li>Fixed validator set is acceptable</li>
+                <li>High throughput is critical</li>
+                <li>Deterministic safety guarantees needed</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>6. Exploring BFT in Hyperscale-rs</h2>
+            
+            <h3>Key Files to Explore</h3>
+            <ol>
+                <li><code>crates/bft/src/lib.rs</code> - Read the module documentation</li>
+                <li><code>crates/bft/src/state.rs</code> - BFT state machine implementation</li>
+                <li><code>crates/bft/src/vote_set.rs</code> - Vote collection and QC formation</li>
+                <li><code>guides/04-consensus-protocol.md</code> - Detailed protocol documentation</li>
+            </ol>
+
+            <h3>Practical Exercise</h3>
+            <p>Open <code>crates/bft/src/lib.rs</code> and find:</p>
+            <ul>
+                <li>The definition of a quorum (how many votes needed?)</li>
+                <li>The commit rule (when does a block commit?)</li>
+                <li>The fault tolerance (how many Byzantine nodes can be tolerated?)</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>7. Knowledge Check Quiz</h2>
+            <div id="quiz-02" class="quiz-container"></div>
+        </div>
+
+        <div class="section">
+            <h2>8. Practical Assignment</h2>
+            <div class="assignment">
+                <h3>Assignment: Understanding BFT Consensus</h3>
+                
+                <h4>Tasks:</h4>
+                <ol>
+                    <li><strong>Read Protocol Documentation</strong>:
+                        <ul>
+                            <li>Read <code>guides/04-consensus-protocol.md</code> completely</li>
+                            <li>Read <code>crates/bft/src/lib.rs</code> documentation</li>
+                            <li>Take notes on key concepts</li>
+                        </ul>
+                    </li>
+                    <li><strong>Trace a Block Through Consensus</strong>:
+                        <ul>
+                            <li>Open <code>crates/bft/src/state.rs</code></li>
+                            <li>Find the block proposal function</li>
+                            <li>Find the vote handling function</li>
+                            <li>Find the QC formation logic</li>
+                            <li>Find the commit logic</li>
+                            <li>Create a diagram showing the flow</li>
+                        </ul>
+                    </li>
+                    <li><strong>Answer Questions</strong>:
+                        <ul>
+                            <li>In a system with 7 validators, how many can be Byzantine?</li>
+                            <li>How many votes are needed for a quorum in a 7-validator system?</li>
+                            <li>When does block H commit in HotStuff-2?</li>
+                            <li>What is the difference between a vote and a QC?</li>
+                        </ul>
+                    </li>
+                    <li><strong>Update Learning Journal</strong>:
+                        <ul>
+                            <li>Add a section on BFT consensus</li>
+                            <li>Document what you learned</li>
+                            <li>List questions you still have</li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h4>Success Criteria:</h4>
+                <ul>
+                    <li>✅ You can explain BFT to someone else</li>
+                    <li>✅ You understand quorum certificates</li>
+                    <li>✅ You can trace through the code</li>
+                    <li>✅ You can answer the questions correctly</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="navigation">
+            <a href="../../index.html" class="btn btn-secondary">← Back to Index</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="module-04-state-machines.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../../shared/course-data.js"></script>
+    <script src="../../shared/navigation.js"></script>
+    <script>
+        initializeModulePage('basic-02');
+
+        const quizQuestions = [
+            {
+                question: "In a BFT system with n=7 validators, how many can be Byzantine?",
+                options: [
+                    "1",
+                    "2",
+                    "3",
+                    "4"
+                ],
+                correct: 1
+            },
+            {
+                question: "What is the minimum number of votes needed for a quorum in a 7-validator BFT system?",
+                options: [
+                    "3",
+                    "4",
+                    "5",
+                    "6"
+                ],
+                correct: 2
+            },
+            {
+                question: "When does a block commit in HotStuff-2?",
+                options: [
+                    "When it gets a QC",
+                    "When the next block gets a QC (two-chain rule)",
+                    "When 2f+1 validators vote",
+                    "After a timeout period"
+                ],
+                correct: 1
+            },
+            {
+                question: "What is a Quorum Certificate (QC)?",
+                options: [
+                    "A certificate from a single validator",
+                    "Cryptographic proof that 2f+1 validators voted",
+                    "A block that contains transactions",
+                    "A network message"
+                ],
+                correct: 1
+            },
+            {
+                question: "What is the main advantage of BFT over PoS?",
+                options: [
+                    "Lower communication overhead",
+                    "Immediate, deterministic finality",
+                    "Dynamic validator set",
+                    "No need for cryptography"
+                ],
+                correct: 1
+            }
+        ];
+
+        initializeQuiz('quiz-02', quizQuestions, 70);
+    </script>
+</body>
+</html>

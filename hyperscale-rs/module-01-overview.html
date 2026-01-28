@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyperscale-rs Overview & Setup</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Hyperscale-rs Overview & Setup</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 1.5-2 hours</span>
+                <span>📊 Difficulty: Basic</span>
+                <span>🎯 Hyperscale-rs Specific</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <p>By the end of this module, you will:</p>
+            <ul>
+                <li>Understand what blockchain is and why it matters</li>
+                <li>Know what hyperscale-rs is and what it's not</li>
+                <li>Understand the project's goals and design philosophy</li>
+                <li>Have your development environment set up</li>
+                <li>Know where to find key information in the codebase</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>1. What is Blockchain?</h2>
+            
+            <h3>Core Concept</h3>
+            <p>A <strong>blockchain</strong> is a distributed ledger that maintains a continuously growing list of records (blocks) that are linked and secured using cryptography. Each block contains:</p>
+            <ul>
+                <li><strong>Transactions</strong> - The actual data being recorded</li>
+                <li><strong>Hash</strong> - A cryptographic fingerprint of the block</li>
+                <li><strong>Previous block hash</strong> - Links to the previous block, forming a chain</li>
+            </ul>
+
+            <div class="info">
+                <strong>Key Insight:</strong> The "chain" in blockchain comes from each block referencing the previous block's hash. If someone tries to modify an old block, all subsequent blocks become invalid, making tampering extremely difficult.
+            </div>
+
+            <h3>Why Blockchain Matters</h3>
+            <p>Blockchains provide:</p>
+            <ul>
+                <li><strong>Decentralization</strong> - No single point of control or failure</li>
+                <li><strong>Immutability</strong> - Once recorded, data is extremely difficult to change</li>
+                <li><strong>Transparency</strong> - All participants can verify the ledger</li>
+                <li><strong>Trust</strong> - Cryptographic proofs ensure data integrity</li>
+            </ul>
+
+            <h3>Types of Blockchains</h3>
+            <ul>
+                <li><strong>Public</strong> - Anyone can join and participate (Bitcoin, Ethereum)</li>
+                <li><strong>Permissioned</strong> - Only approved participants can join</li>
+                <li><strong>Consortium</strong> - Controlled by a group of organizations</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>2. What is Hyperscale-rs?</h2>
+            
+            <h3>Definition</h3>
+            <p><strong>Hyperscale-rs</strong> is a Rust implementation of the Hyperscale consensus protocol - a Byzantine Fault Tolerant (BFT) consensus system designed for high-throughput, sharded blockchain networks.</p>
+
+            <div class="highlight">
+                <strong>Key Point:</strong> Hyperscale-rs is NOT a full blockchain platform. It's a consensus layer - the "engine" that decides which transactions get included and in what order.
+            </div>
+
+            <h3>What Hyperscale-rs IS:</h3>
+            <ul>
+                <li>✅ A BFT consensus protocol implementation</li>
+                <li>✅ Designed for high throughput and low latency</li>
+                <li>✅ Supports sharding (dividing the network into parallel chains)</li>
+                <li>✅ Handles cross-shard transactions securely</li>
+                <li>✅ Pure consensus logic (no I/O, no locks, no async in core)</li>
+                <li>✅ Deterministic and testable</li>
+            </ul>
+
+            <h3>What Hyperscale-rs is NOT:</h3>
+            <ul>
+                <li>❌ A full blockchain platform (like Ethereum or Bitcoin)</li>
+                <li>❌ A cryptocurrency (no native token)</li>
+                <li>❌ A smart contract platform (though it integrates with Radix Engine)</li>
+                <li>❌ A wallet or user-facing application</li>
+                <li>❌ Production-ready (still work in progress)</li>
+            </ul>
+
+            <h3>Design Philosophy</h3>
+            <p>Hyperscale-rs follows several key design principles:</p>
+            <ol>
+                <li><strong>Pure Consensus Layer</strong> - No I/O, no locks, no async in consensus logic</li>
+                <li><strong>State Machine Model</strong> - Everything is a deterministic state machine</li>
+                <li><strong>Event-Driven</strong> - Events flow in, actions flow out</li>
+                <li><strong>Deterministic Testing</strong> - Same code runs in simulation and production</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>3. Project Structure</h2>
+            
+            <p>Hyperscale-rs is organized as a Cargo workspace with multiple crates:</p>
+
+            <div class="code-block">
+hyperscale-rs/
+├── crates/
+│   ├── core/          # Core types and traits
+│   ├── types/         # Shared types (blocks, votes, etc.)
+│   ├── bft/           # BFT consensus implementation
+│   ├── execution/     # Transaction execution
+│   ├── mempool/       # Transaction pool
+│   ├── node/          # Main node state machine
+│   ├── simulation/    # Deterministic simulator
+│   └── production/    # Production runner
+├── guides/            # Documentation (you are here!)
+└── scripts/          # Helper scripts
+            </div>
+
+            <h3>Key Files to Know</h3>
+            <ul>
+                <li><code>README.md</code> - Project overview and setup</li>
+                <li><code>guides/01-overview.md</code> - Detailed project overview</li>
+                <li><code>guides/02-architecture.md</code> - Architecture deep dive</li>
+                <li><code>guides/03-codebase-structure.md</code> - Codebase organization</li>
+                <li><code>crates/core/src/traits.rs</code> - StateMachine trait</li>
+                <li><code>crates/node/src/state.rs</code> - Main node implementation</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>4. Setting Up Your Environment</h2>
+            
+            <h3>Prerequisites</h3>
+            <ol>
+                <li><strong>Install Rust</strong> (if not already installed):
+                    <div class="code-block">curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh</div>
+                </li>
+                <li><strong>Install Build Dependencies</strong>:
+                    <ul>
+                        <li>macOS: <code>brew install llvm protobuf openssl pkg-config</code></li>
+                        <li>Linux: <code>sudo apt-get install clang lld pkg-config protobuf-compiler libssl-dev</code></li>
+                    </ul>
+                </li>
+                <li><strong>Clone the Repository</strong>:
+                    <div class="code-block">git clone --recurse-submodules https://github.com/flightofthefox/hyperscale-rs.git
+cd hyperscale-rs</div>
+                </li>
+                <li><strong>Build the Project</strong>:
+                    <div class="code-block">cargo build --release</div>
+                </li>
+                <li><strong>Run Tests</strong>:
+                    <div class="code-block">cargo test</div>
+                </li>
+            </ol>
+
+            <div class="warning">
+                <strong>Important:</strong> Make sure to clone with <code>--recurse-submodules</code> as the project uses git submodules for Radix Engine dependencies.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>5. Exploring the Codebase</h2>
+            
+            <h3>Practical Exercise</h3>
+            <p>Let's do a hands-on exploration:</p>
+            <ol>
+                <li>Open <code>README.md</code> and read the "What's different" section</li>
+                <li>Read <code>guides/01-overview.md</code> - focus on "What is Hyperscale?" and "Design Philosophy"</li>
+                <li>Look at <code>crates/core/src/traits.rs</code> - find the <code>StateMachine</code> trait</li>
+                <li>Browse <code>crates/bft/src/lib.rs</code> - read the module documentation</li>
+                <li>Check <code>Cargo.toml</code> - see all the workspace members</li>
+            </ol>
+
+            <h3>Questions to Answer</h3>
+            <ul>
+                <li>What makes hyperscale-rs different from other consensus implementations?</li>
+                <li>Why is the "pure consensus layer" design important?</li>
+                <li>What is the relationship between events and actions?</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>6. Knowledge Check Quiz</h2>
+            <div id="quiz-01" class="quiz-container"></div>
+        </div>
+
+        <div class="section">
+            <h2>7. Practical Assignment</h2>
+            <div class="assignment">
+                <h3>Assignment: Environment Setup & First Exploration</h3>
+                <p><strong>Goal:</strong> Set up your development environment and create a summary document.</p>
+                
+                <h4>Tasks:</h4>
+                <ol>
+                    <li><strong>Environment Setup</strong>:
+                        <ul>
+                            <li>Install all prerequisites</li>
+                            <li>Clone the repository with submodules</li>
+                            <li>Build the project successfully</li>
+                            <li>Run the test suite</li>
+                        </ul>
+                    </li>
+                    <li><strong>Codebase Exploration</strong>:
+                        <ul>
+                            <li>Read the README and overview guide</li>
+                            <li>Explore at least 3 different crates</li>
+                            <li>Find and read the StateMachine trait definition</li>
+                            <li>Identify one TODO or FIXME comment in the codebase</li>
+                        </ul>
+                    </li>
+                    <li><strong>Create Summary Document</strong>:
+                        <ul>
+                            <li>Create a file: <code>MY_LEARNING_JOURNEY.md</code> in the root</li>
+                            <li>Document what you learned about blockchain</li>
+                            <li>Document what hyperscale-rs is and isn't</li>
+                            <li>List 3 things you found interesting in the codebase</li>
+                            <li>List 3 questions you have</li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h4>Success Criteria:</h4>
+                <ul>
+                    <li>✅ Project builds without errors</li>
+                    <li>✅ All tests pass</li>
+                    <li>✅ Summary document created with meaningful content</li>
+                    <li>✅ You can explain what hyperscale-rs is to someone else</li>
+                </ul>
+
+                <h4>Next Steps:</h4>
+                <p>Once complete, move to the next module. Don't worry if you don't understand everything yet - we'll dive deeper in subsequent modules!</p>
+            </div>
+        </div>
+
+        <div class="navigation">
+            <a href="../../index.html" class="btn btn-secondary">← Back to Course Index</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="../basic/module-02-consensus-basics.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script>
+        // Initialize module
+        initializeModulePage('basic-05');
+
+        // Initialize quiz
+        const quizQuestions = [
+            {
+                question: "What is the primary purpose of hyperscale-rs?",
+                options: [
+                    "A full blockchain platform like Ethereum",
+                    "A BFT consensus protocol implementation",
+                    "A cryptocurrency wallet",
+                    "A smart contract development tool"
+                ],
+                correct: 1
+            },
+            {
+                question: "What does 'pure consensus layer' mean in hyperscale-rs?",
+                options: [
+                    "No I/O, no locks, no async in consensus logic",
+                    "Only consensus code, no execution",
+                    "Pure Rust code with no dependencies",
+                    "Consensus without any state management"
+                ],
+                correct: 0
+            },
+            {
+                question: "Which of the following is NOT a design principle of hyperscale-rs?",
+                options: [
+                    "State Machine Model",
+                    "Event-Driven Architecture",
+                    "Deterministic Testing",
+                    "Async-first design"
+                ],
+                correct: 3
+            },
+            {
+                question: "What is the relationship between Events and Actions?",
+                options: [
+                    "Events are actions that happened",
+                    "Events flow into state machines, Actions flow out",
+                    "Actions create events",
+                    "They are the same thing"
+                ],
+                correct: 1
+            },
+            {
+                question: "Why is deterministic testing important?",
+                options: [
+                    "It makes tests run faster",
+                    "Same code runs in simulation and production, bugs are consistent",
+                    "It reduces test complexity",
+                    "It's not important"
+                ],
+                correct: 1
+            }
+        ];
+
+        initializeQuiz('quiz-01', quizQuestions, 70);
+    </script>
+</body>
+</html>

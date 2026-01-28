@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Fundamentals</title>
+    <link rel="stylesheet" href="../../shared/styles.css">
+</head>
+<body>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Blockchain Fundamentals</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 1.5-2 hours</span>
+                <span>📊 Difficulty: Basic</span>
+                <span>📚 Basic Level</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand what blockchain is and how it works</li>
+                <li>Learn about decentralization and its benefits</li>
+                <li>Understand immutability and cryptographic trust</li>
+                <li>Learn about different types of blockchains</li>
+                <li>Understand the relationship between blockchain and distributed systems</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>1. What is Blockchain?</h2>
+            
+            <h3>Core Concept</h3>
+            <p>A <strong>blockchain</strong> is a distributed ledger that maintains a continuously growing list of records (blocks) that are linked and secured using cryptography. Each block contains:</p>
+            <ul>
+                <li><strong>Transactions</strong> - The actual data being recorded</li>
+                <li><strong>Hash</strong> - A cryptographic fingerprint of the block</li>
+                <li><strong>Previous block hash</strong> - Links to the previous block, forming a chain</li>
+            </ul>
+
+            <div class="info">
+                <strong>Key Insight:</strong> The "chain" in blockchain comes from each block referencing the previous block's hash. If someone tries to modify an old block, all subsequent blocks become invalid, making tampering extremely difficult.
+            </div>
+
+            <h3>Simple Analogy</h3>
+            <p>Think of a blockchain like a shared Google Doc where:</p>
+            <ul>
+                <li>Everyone has a copy (distributed)</li>
+                <li>Every change is recorded and timestamped (immutable history)</li>
+                <li>Changes must be verified by consensus (trust through verification)</li>
+                <li>You can't delete or modify past entries (immutability)</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>2. Why Blockchain Matters</h2>
+            
+            <h3>Key Properties</h3>
+            <p>Blockchains provide several important properties:</p>
+            
+            <h4>Decentralization</h4>
+            <p>No single point of control or failure. Instead of one central authority (like a bank), many participants maintain the ledger.</p>
+            <ul>
+                <li><strong>Resilience</strong> - System continues even if some nodes fail</li>
+                <li><strong>No single point of attack</strong> - Harder to compromise</li>
+                <li><strong>Democratic control</strong> - No central authority can unilaterally change rules</li>
+            </ul>
+
+            <h4>Immutability</h4>
+            <p>Once recorded, data is extremely difficult to change. This is achieved through:</p>
+            <ul>
+                <li><strong>Cryptographic hashing</strong> - Each block's hash depends on its content</li>
+                <li><strong>Chain linking</strong> - Each block references the previous block's hash</li>
+                <li><strong>Distributed copies</strong> - Many nodes have copies, making tampering obvious</li>
+            </ul>
+
+            <h4>Transparency</h4>
+            <p>All participants can verify the ledger. In public blockchains, anyone can:</p>
+            <ul>
+                <li>View all transactions</li>
+                <li>Verify the chain's integrity</li>
+                <li>Audit the system</li>
+            </ul>
+
+            <h4>Trust Through Cryptography</h4>
+            <p>Blockchains use cryptographic proofs instead of trusting a central authority:</p>
+            <ul>
+                <li><strong>Digital signatures</strong> - Prove who created a transaction</li>
+                <li><strong>Hash functions</strong> - Detect any changes to data</li>
+                <li><strong>Consensus mechanisms</strong> - Agree on what's valid</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>3. How Blockchain Works</h2>
+            
+            <h3>The Basic Flow</h3>
+            <ol>
+                <li><strong>Transaction Creation</strong> - Someone wants to record data (e.g., transfer value)</li>
+                <li><strong>Broadcasting</strong> - Transaction is broadcast to the network</li>
+                <li><strong>Validation</strong> - Network participants validate the transaction</li>
+                <li><strong>Block Formation</strong> - Valid transactions are grouped into a block</li>
+                <li><strong>Consensus</strong> - Network agrees this block is valid</li>
+                <li><strong>Chaining</strong> - Block is added to the chain with a link to the previous block</li>
+                <li><strong>Distribution</strong> - All nodes update their copy of the chain</li>
+            </ol>
+
+            <div class="code-block">
+Block Structure:
+┌─────────────────┐
+│ Block Header    │
+│ - Previous Hash │
+│ - Merkle Root   │
+│ - Timestamp     │
+│ - Nonce         │
+├─────────────────┤
+│ Transactions    │
+│ - TX 1          │
+│ - TX 2          │
+│ - TX 3          │
+└─────────────────┘
+         ↓
+    Hash of Block
+         ↓
+    Next Block's
+    "Previous Hash"
+            </div>
+
+            <h3>Cryptographic Hashing</h3>
+            <p>A <strong>hash function</strong> takes any input and produces a fixed-size output (hash). Key properties:</p>
+            <ul>
+                <li><strong>Deterministic</strong> - Same input always produces same hash</li>
+                <li><strong>One-way</strong> - Can't reverse a hash to get the original input</li>
+                <li><strong>Avalanche effect</strong> - Small change in input = completely different hash</li>
+                <li><strong>Fast to compute</strong> - Easy to calculate</li>
+            </ul>
+
+            <div class="success">
+                <strong>Example:</strong> If you change even one character in a block, its hash changes completely. This makes tampering immediately obvious.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>4. Types of Blockchains</h2>
+            
+            <h3>Public Blockchains</h3>
+            <p><strong>Anyone can join and participate</strong></p>
+            <ul>
+                <li>Examples: Bitcoin, Ethereum</li>
+                <li>Fully decentralized</li>
+                <li>Transparent - all transactions visible</li>
+                <li>Permissionless - no approval needed</li>
+                <li>Often slower and more expensive (due to consensus overhead)</li>
+            </ul>
+
+            <h3>Private Blockchains</h3>
+            <p><strong>Only approved participants can join</strong></p>
+            <ul>
+                <li>Examples: Hyperledger Fabric, Corda</li>
+                <li>Controlled access</li>
+                <li>Faster and cheaper (fewer nodes, trusted participants)</li>
+                <li>Less decentralized</li>
+                <li>Good for enterprise use cases</li>
+            </ul>
+
+            <h3>Consortium Blockchains</h3>
+            <p><strong>Controlled by a group of organizations</strong></p>
+            <ul>
+                <li>Hybrid between public and private</li>
+                <li>Multiple organizations share control</li>
+                <li>More decentralized than private, less than public</li>
+                <li>Good for industry collaborations</li>
+            </ul>
+
+            <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                <tr style="background: var(--bg-secondary);">
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color);">Aspect</th>
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color);">Public</th>
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color);">Private</th>
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color);">Consortium</th>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Access</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Anyone</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Invitation only</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Group members</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Decentralization</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">High</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Low</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Medium</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Speed</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Slower</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Faster</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Medium</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Transparency</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Full</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Limited</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Shared</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>5. Blockchain vs Traditional Databases</h2>
+            
+            <h3>Key Differences</h3>
+            <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                <tr style="background: var(--bg-secondary);">
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color);">Aspect</th>
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color);">Traditional DB</th>
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color);">Blockchain</th>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Control</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Central authority</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Distributed</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Modification</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Easy to update/delete</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Immutable (append-only)</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Trust</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Trust the authority</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Trust through cryptography</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Performance</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Fast</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Slower (consensus overhead)</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Use Case</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">General purpose</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color);">When trust/immutability needed</td>
+                </tr>
+            </table>
+
+            <div class="warning">
+                <strong>Important:</strong> Blockchains aren't always the right solution. Use them when you need decentralization, immutability, or trust without a central authority. For most applications, traditional databases are faster and more efficient.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>6. Common Use Cases</h2>
+            
+            <h3>Cryptocurrencies</h3>
+            <p>The original use case - digital money that doesn't require a central bank.</p>
+            <ul>
+                <li>Bitcoin - Digital gold/store of value</li>
+                <li>Ethereum - Programmable money and smart contracts</li>
+            </ul>
+
+            <h3>Smart Contracts</h3>
+            <p>Self-executing contracts with terms written in code. Automatically execute when conditions are met.</p>
+            <ul>
+                <li>DeFi (Decentralized Finance) - Lending, trading, insurance</li>
+                <li>NFTs - Unique digital assets</li>
+                <li>DAOs - Decentralized autonomous organizations</li>
+            </ul>
+
+            <h3>Supply Chain</h3>
+            <p>Track products from origin to consumer, ensuring authenticity and transparency.</p>
+
+            <h3>Identity & Credentials</h3>
+            <p>Self-sovereign identity - you control your own identity data.</p>
+
+            <h3>Voting Systems</h3>
+            <p>Transparent, verifiable voting systems.</p>
+        </div>
+
+        <div class="section">
+            <h2>7. Knowledge Check Quiz</h2>
+            <div id="quiz-01" class="quiz-container"></div>
+        </div>
+
+        <div class="section">
+            <h2>8. Practical Assignment</h2>
+            <div class="assignment">
+                <h3>Assignment: Understanding Blockchain Basics</h3>
+                
+                <h4>Tasks:</h4>
+                <ol>
+                    <li><strong>Research Exercise</strong>:
+                        <ul>
+                            <li>Find and read about 3 different blockchain projects (e.g., Bitcoin, Ethereum, Solana)</li>
+                            <li>Compare their approaches to consensus (if you can find this info)</li>
+                            <li>Note what makes each unique</li>
+                        </ul>
+                    </li>
+                    <li><strong>Conceptual Understanding</strong>:
+                        <ul>
+                            <li>Explain blockchain to someone else (or write it down)</li>
+                            <li>Use the analogy that makes most sense to you</li>
+                            <li>List 3 benefits and 3 limitations of blockchain</li>
+                        </ul>
+                    </li>
+                    <li><strong>Create Learning Journal</strong>:
+                        <ul>
+                            <li>Create a file: <code>MY_LEARNING_JOURNEY.md</code> in the repo root</li>
+                            <li>Document what you learned about blockchain</li>
+                            <li>List 3 questions you still have</li>
+                            <li>Note which use cases interest you most</li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h4>Success Criteria:</h4>
+                <ul>
+                    <li>✅ You can explain blockchain to someone else</li>
+                    <li>✅ You understand the key properties (decentralization, immutability, transparency)</li>
+                    <li>✅ You know the difference between public, private, and consortium blockchains</li>
+                    <li>✅ You have a learning journal started</li>
+                </ul>
+
+                <h4>Next Steps:</h4>
+                <p>Once complete, move to the next module: "Consensus Algorithms: From Basics to BFT"</p>
+            </div>
+        </div>
+
+        <div class="navigation">
+            <a href="../../index.html" class="btn btn-secondary">← Back to Course Index</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="module-02-consensus-basics.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../../shared/course-data.js"></script>
+    <script src="../../shared/navigation.js"></script>
+    <script>
+        // Initialize module
+        initializeModulePage('basic-01');
+
+        // Initialize quiz
+        const quizQuestions = [
+            {
+                question: "What is the main purpose of linking blocks in a blockchain?",
+                options: [
+                    "To make it faster",
+                    "To create immutability - changing one block invalidates all subsequent blocks",
+                    "To reduce storage space",
+                    "To enable smart contracts"
+                ],
+                correct: 1
+            },
+            {
+                question: "What is a key difference between public and private blockchains?",
+                options: [
+                    "Public blockchains are faster",
+                    "Private blockchains allow anyone to join, public blockchains require permission",
+                    "Public blockchains allow anyone to join, private blockchains require permission",
+                    "There is no difference"
+                ],
+                correct: 2
+            },
+            {
+                question: "What property of hash functions makes blockchain tamper-evident?",
+                options: [
+                    "They are reversible",
+                    "Avalanche effect - small changes produce completely different hashes",
+                    "They are slow to compute",
+                    "They require a central authority"
+                ],
+                correct: 1
+            },
+            {
+                question: "Which of the following is NOT a key property of blockchain?",
+                options: [
+                    "Decentralization",
+                    "Immutability",
+                    "High performance (faster than databases)",
+                    "Transparency"
+                ],
+                correct: 2
+            },
+            {
+                question: "When should you use blockchain instead of a traditional database?",
+                options: [
+                    "Always - blockchain is always better",
+                    "When you need decentralization, immutability, or trust without a central authority",
+                    "When you need the fastest possible performance",
+                    "When you have a small amount of data"
+                ],
+                correct: 1
+            }
+        ];
+
+        initializeQuiz('quiz-01', quizQuestions, 70);
+    </script>
+</body>
+</html>

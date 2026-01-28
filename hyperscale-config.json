@@ -1,0 +1,28 @@
+{
+  "repo": {
+    "url": "https://github.com/flightofthefox/hyperscale-rs",
+    "name": "hyperscale-rs",
+    "description": "Rust implementation of Hyperscale consensus protocol"
+  },
+  "codebase": {
+    "guides": "https://github.com/flightofthefox/hyperscale-rs/tree/main/guides",
+    "crates": "https://github.com/flightofthefox/hyperscale-rs/tree/main/crates",
+    "mainFiles": {
+      "overview": "guides/01-overview.md",
+      "architecture": "guides/02-architecture.md",
+      "codebase": "guides/03-codebase-structure.md",
+      "consensus": "guides/04-consensus-protocol.md",
+      "workflow": "guides/05-development-workflow.md"
+    },
+    "keyCrates": {
+      "core": "crates/core/src",
+      "bft": "crates/bft/src",
+      "node": "crates/node/src",
+      "execution": "crates/execution/src",
+      "mempool": "crates/mempool/src",
+      "simulation": "crates/simulation/src",
+      "production": "crates/production/src"
+    }
+  },
+  "instructions": "When creating hyperscale-rs specific modules, reference this config and the repo URL to understand the codebase structure and create accurate content."
+}

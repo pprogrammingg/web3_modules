@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyperscale-rs Learning Journey</title>
+    <link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Blockchain & Hyperscale-rs Learning Journey</h1>
+            <p class="subtitle">From Fundamentals to Expert Contributor - Organized by Difficulty Level</p>
+        </header>
+
+        <div class="progress-section">
+            <h2>Your Progress</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" id="overall-progress"></div>
+            </div>
+            <p id="progress-text">0% Complete</p>
+        </div>
+
+        <div class="info" style="margin: 2rem 0; padding: 1.5rem;">
+            <h3 style="margin-top: 0;">Course Structure</h3>
+            <p>This course is organized into <strong>three difficulty levels</strong>:</p>
+            <ul>
+                <li><strong>Basic</strong> - Foundation concepts in blockchain, consensus, and distributed systems</li>
+                <li><strong>Intermediate</strong> - Implementation details and meaningful contributions</li>
+                <li><strong>Advanced</strong> - Master advanced concepts, implement features, and optimize</li>
+            </ul>
+            <p>Modules are marked with a <span style="background: #fef3c7; color: #92400e; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.9rem;">Hyperscale-rs</span> badge when they're specific to the hyperscale-rs codebase. General modules cover concepts applicable to any blockchain system.</p>
+        </div>
+
+        <div class="timeline">
+            <div class="timeline-section">
+                <h2>📚 Basic Level</h2>
+                <p class="phase-description">Foundation concepts in blockchain, consensus, and distributed systems. Start here if you're new to blockchain or hyperscale-rs.</p>
+                <div class="module-grid" id="basic-modules"></div>
+            </div>
+
+            <div class="timeline-section">
+                <h2>🔧 Intermediate Level</h2>
+                <p class="phase-description">Dive deeper into implementation details and start making meaningful contributions. Prerequisites: Complete Basic level or have equivalent knowledge.</p>
+                <div class="module-grid" id="intermediate-modules"></div>
+            </div>
+
+            <div class="timeline-section">
+                <h2>⚡ Advanced Level</h2>
+                <p class="phase-description">Master advanced concepts, implement new features, and optimize performance. Prerequisites: Complete Intermediate level or have strong blockchain development experience.</p>
+                <div class="module-grid" id="advanced-modules"></div>
+            </div>
+
+            <div class="timeline-section">
+                <h2>🎯 Hyperscale-rs Specific Modules</h2>
+                <p class="phase-description">All modules that are specific to the hyperscale-rs codebase, organized by difficulty level. These modules focus on understanding and contributing to hyperscale-rs.</p>
+                <div class="module-grid" id="hyperscale-modules"></div>
+            </div>
+        </div>
+
+        <div class="resources">
+            <h2>📖 Resources</h2>
+            <ul>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank">Hyperscale-rs GitHub Repository</a></li>
+                <li><a href="CONTRIBUTING.md" target="_blank">Contributing Guide</a></li>
+                <li><a href="README.md" target="_blank">Course README</a></li>
+            </ul>
+        </div>
+
+        <div class="info" style="margin-top: 2rem;">
+            <h3>How to Use This Course</h3>
+            <ol>
+                <li><strong>Start with Basic Level</strong> - Even if you have some experience, the basic modules provide essential foundation</li>
+                <li><strong>Progress Sequentially</strong> - Each module builds on previous ones</li>
+                <li><strong>Complete All Sections</strong> - Read content, take quizzes, complete assignments</li>
+                <li><strong>Focus on Hyperscale-rs Modules</strong> - If your goal is to contribute to hyperscale-rs, prioritize those modules</li>
+                <li><strong>Take Your Time</strong> - Each module is designed for 1.5-2 hours. Don't rush!</li>
+            </ol>
+        </div>
+    </div>
+
+    <script src="shared/course-data.js"></script>
+    <script src="shared/navigation.js"></script>
+    <script>
+        // Initialize course navigation
+        initializeCourseIndex();
+    </script>
+</body>
+</html>
