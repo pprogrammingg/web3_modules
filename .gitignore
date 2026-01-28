@@ -12,3 +12,9 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Documentation files (internal use only)
+GITHUB_PAGES_SETUP.md
+HYPERSCALE_RS_CONTEXT.md
+TESTING.md
+SEPARATE_REPO_SETUP.md
