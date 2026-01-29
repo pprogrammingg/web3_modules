@@ -92,6 +92,68 @@ h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.2rem; }
 .warning { background: #fee2e2; border-left: 4px solid var(--danger); padding: 1rem; margin: 1rem 0; border-radius: 4px; }
 .success { background: #d1fae5; border-left: 4px solid var(--secondary); padding: 1rem; margin: 1rem 0; border-radius: 4px; }
 
+/* Block Diagram Styles */
+.block-diagram {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: var(--bg2);
+    border-radius: 8px;
+    text-align: center;
+}
+
+.diagram-block {
+    display: inline-block;
+    border: 2px solid var(--primary);
+    border-radius: 6px;
+    background: var(--bg);
+    min-width: 280px;
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+.block-header, .block-body {
+    padding: 1rem;
+}
+
+.block-header {
+    background: #eff6ff;
+    border-bottom: 2px solid var(--primary);
+}
+
+.block-divider {
+    height: 2px;
+    background: var(--primary);
+}
+
+.block-title {
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.block-field {
+    text-align: left;
+    padding: 0.25rem 0;
+    color: var(--text);
+    font-size: 0.9rem;
+    font-family: ui-monospace, monospace;
+}
+
+.diagram-arrow {
+    font-size: 1.5rem;
+    color: var(--primary);
+    margin: 0.75rem 0;
+    font-weight: bold;
+}
+
+.diagram-label {
+    color: var(--text2);
+    font-size: 0.9rem;
+    margin: 0.5rem 0;
+    font-style: italic;
+}
+
 ul, ol { margin: 1rem 0; padding-left: 2rem; }
 li { margin: 0.5rem 0; }
 p { margin: 1rem 0; }

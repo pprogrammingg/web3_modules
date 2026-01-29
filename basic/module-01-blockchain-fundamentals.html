@@ -106,25 +106,28 @@
                 <li><strong>Distribution</strong> - All nodes update their copy of the chain</li>
             </ol>
 
-            <div class="code-block">
-Block Structure:
-┌─────────────────┐
-│ Block Header    │
-│ - Previous Hash │
-│ - Merkle Root   │
-│ - Timestamp     │
-│ - Nonce         │
-├─────────────────┤
-│ Transactions    │
-│ - TX 1          │
-│ - TX 2          │
-│ - TX 3          │
-└─────────────────┘
-         ↓
-    Hash of Block
-         ↓
-    Next Block's
-    "Previous Hash"
+            <div class="block-diagram">
+                <h3 style="margin-top: 0; margin-bottom: 1rem; text-align: center;">Block Structure</h3>
+                <div class="diagram-block">
+                    <div class="block-header">
+                        <div class="block-title">Block Header</div>
+                        <div class="block-field">- Previous Hash</div>
+                        <div class="block-field">- Merkle Root</div>
+                        <div class="block-field">- Timestamp</div>
+                        <div class="block-field">- Nonce</div>
+                    </div>
+                    <div class="block-divider"></div>
+                    <div class="block-body">
+                        <div class="block-title">Transactions</div>
+                        <div class="block-field">- TX 1</div>
+                        <div class="block-field">- TX 2</div>
+                        <div class="block-field">- TX 3</div>
+                    </div>
+                </div>
+                <div class="diagram-arrow">↓</div>
+                <div class="diagram-label">Hash of Block</div>
+                <div class="diagram-arrow">↓</div>
+                <div class="diagram-label">Next Block's "Previous Hash"</div>
             </div>
 
             <h3>Cryptographic Hashing</h3>
