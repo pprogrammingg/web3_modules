@@ -14,7 +14,8 @@ Thumbs.db
 *~
 
 # Documentation files (internal use only)
+IMPLEMENTATION.md
 GITHUB_PAGES_SETUP.md
 HYPERSCALE_RS_CONTEXT.md
 TESTING.md
-SEPARATE_REPO_SETUP.md
+TROUBLESHOOTING_ACTIONS.md
