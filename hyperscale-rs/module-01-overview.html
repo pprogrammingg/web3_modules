@@ -98,10 +98,137 @@
                 <li><strong>Event-Driven</strong> - Events flow in, actions flow out</li>
                 <li><strong>Deterministic Testing</strong> - Same code runs in simulation and production</li>
             </ol>
+
+            <div class="warning" style="margin-top: 1.5rem;">
+                <strong>Important Context:</strong> Hyperscale-rs is not a toy repo. It touches distributed systems, async Rust at scale, networking/performance, and architectural correctness. Contributions require different levels of expertise.
+            </div>
         </div>
 
         <div class="section">
-            <h2>3. Project Structure</h2>
+            <h2>3. Contribution Roadmap & Realistic Expectations</h2>
+            
+            <p>Understanding what contribution levels actually mean helps set realistic expectations. Here's a breakdown of what each level entails:</p>
+
+            <table style="width: 100%; margin: 1.5rem 0;">
+                <tr>
+                    <th style="padding: 0.75rem; background: var(--bg2);">Level</th>
+                    <th style="padding: 0.75rem; background: var(--bg2);">What It Actually Means</th>
+                </tr>
+                <tr>
+                    <td style="padding: 0.75rem;"><strong>Basic</strong></td>
+                    <td style="padding: 0.75rem;">Docs, tests, small refactors, safe bug fixes</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.75rem;"><strong>Intermediate</strong></td>
+                    <td style="padding: 0.75rem;">New components, performance fixes, API design</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.75rem;"><strong>Advanced</strong></td>
+                    <td style="padding: 0.75rem;">Architecture changes, consensus/network logic, scaling</td>
+                </tr>
+            </table>
+
+            <div class="info">
+                <strong>Time estimates</strong> assume 1–2 hours per day of focused study and practice. These are realistic ranges based on the complexity of each level.
+            </div>
+
+            <h3>1️⃣ Basic Contributions to Hyperscale-rs</h3>
+            <p><strong>⏱️ ~1–2 months</strong></p>
+            
+            <h4>What you'll be able to do:</h4>
+            <ul>
+                <li>✅ Build & run the project locally</li>
+                <li>✅ Understand module boundaries</li>
+                <li>✅ Fix small bugs</li>
+                <li>✅ Improve documentation</li>
+                <li>✅ Add tests</li>
+                <li>✅ Make "safe" PRs that get merged</li>
+            </ul>
+
+            <h4>What you need to study:</h4>
+            <ul>
+                <li>Repo architecture</li>
+                <li>Async Rust patterns (tokio, channels, lifetimes)</li>
+                <li>Existing design docs / issues</li>
+            </ul>
+
+            <div class="success">
+                <strong>Why this is fast for you:</strong> You already know Rust. AI tools accelerate repo comprehension massively. You're not learning programming from scratch. <strong>This is very achievable and realistic.</strong>
+            </div>
+
+            <h3>2️⃣ Intermediate Contributions to Hyperscale-rs</h3>
+            <p><strong>⏱️ ~4–7 months total</strong> (including the first phase)</p>
+            
+            <h4>What "intermediate" really means:</h4>
+            <ul>
+                <li>Modify or extend subsystems</li>
+                <li>Improve performance or correctness</li>
+                <li>Design APIs used by others</li>
+                <li>Reason about tradeoffs (latency vs throughput vs safety)</li>
+            </ul>
+
+            <h4>New mental models required:</h4>
+            <ul>
+                <li><strong>Distributed systems basics:</strong>
+                    <ul>
+                        <li>Failure modes</li>
+                        <li>Partial failures</li>
+                        <li>Backpressure</li>
+                    </ul>
+                </li>
+                <li><strong>Blockchain internals:</strong>
+                    <ul>
+                        <li>State machines</li>
+                        <li>Gossip / networking</li>
+                        <li>Determinism</li>
+                    </ul>
+                </li>
+                <li><strong>Rust performance profiling</strong></li>
+            </ul>
+
+            <div class="highlight">
+                <strong>What changes here:</strong> You stop asking "What does this code do?" and start asking "What happens if this node is slow / malicious / partitioned?" That shift takes time. <strong>This is where many people stall. You probably won't.</strong>
+            </div>
+
+            <h3>3️⃣ Advanced Contributions to Hyperscale-rs</h3>
+            <p><strong>⏱️ ~12–24 months</strong></p>
+            
+            <div class="warning">
+                <strong>This is the hard jump.</strong>
+            </div>
+
+            <h4>What "advanced" really means:</h4>
+            <ul>
+                <li>Designing or changing core architecture</li>
+                <li>Modifying consensus or execution assumptions</li>
+                <li>Introducing new scalability mechanisms</li>
+                <li>Evaluating security tradeoffs</li>
+                <li>Reviewing other people's protocol PRs</li>
+            </ul>
+
+            <h4>You must deeply understand:</h4>
+            <ul>
+                <li>Consensus algorithms (BFT, PoS variants)</li>
+                <li>Network topology & message complexity</li>
+                <li>State growth & pruning</li>
+                <li>Cryptographic assumptions</li>
+                <li>Economic incentives</li>
+            </ul>
+
+            <h4>Why this takes longer:</h4>
+            <ul>
+                <li>Knowledge compounds non-linearly</li>
+                <li>Mistakes are expensive</li>
+                <li>You're now operating in adversarial environments</li>
+            </ul>
+
+            <div class="info">
+                <strong>Note:</strong> Age is not a disadvantage here — judgment matters more than speed.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>4. Project Structure</h2>
             
             <p>Hyperscale-rs is organized as a Cargo workspace with multiple crates:</p>
 
@@ -132,7 +259,7 @@ hyperscale-rs/
         </div>
 
         <div class="section">
-            <h2>4. Setting Up Your Environment</h2>
+            <h2>5. Setting Up Your Environment</h2>
             
             <h3>Prerequisites</h3>
             <ol>
@@ -163,7 +290,7 @@ cd hyperscale-rs</div>
         </div>
 
         <div class="section">
-            <h2>5. Exploring the Codebase</h2>
+            <h2>6. Exploring the Codebase</h2>
             
             <h3>Practical Exercise</h3>
             <p>Let's do a hands-on exploration:</p>
@@ -184,12 +311,12 @@ cd hyperscale-rs</div>
         </div>
 
         <div class="section">
-            <h2>6. Knowledge Check Quiz</h2>
+            <h2>7. Knowledge Check Quiz</h2>
             <div id="quiz-01" class="quiz-container"></div>
         </div>
 
         <div class="section">
-            <h2>7. Practical Assignment</h2>
+            <h2>8. Practical Assignment</h2>
             <div class="assignment">
                 <h3>Assignment: Environment Setup & First Exploration</h3>
                 <p><strong>Goal:</strong> Set up your development environment and create a summary document.</p>
@@ -243,8 +370,8 @@ cd hyperscale-rs</div>
         </div>
     </div>
 
-    <script src="/web3_modules/shared/course-data.js"></script>
-    <script src="/web3_modules/shared/navigation.js"></script>
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/navigation.js"></script>
     <script>
         // Initialize module
         initializeModulePage('basic-05');

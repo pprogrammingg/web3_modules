@@ -65,10 +65,8 @@ MODULES.forEach(({ file, id }) => {
         const cssPath = cssMatches[1];
         console.log(`  📝 CSS path: ${cssPath}`);
         
-        // Determine expected path based on module location
-        const expectedPath = file.includes('hyperscale-rs') 
-            ? '../shared/styles.css' 
-            : '../../shared/styles.css';
+        // All modules are one level deep, so path should be ../shared/styles.css
+        const expectedPath = '../shared/styles.css';
         
         if (cssPath === expectedPath) {
             console.log(`  ✅ CSS path is correct`);
@@ -88,14 +86,13 @@ MODULES.forEach(({ file, id }) => {
     if (jsPaths.length > 0) {
         console.log(`  📝 JS paths found: ${jsPaths.length}`);
         jsPaths.forEach(jsPath => {
-            const expectedPath = file.includes('hyperscale-rs')
-                ? jsPath.includes('course-data.js') ? '../shared/course-data.js' : '../shared/navigation.js'
-                : jsPath.includes('course-data.js') ? '../../shared/course-data.js' : '../../shared/navigation.js';
+            // All modules are one level deep, so path should be ../shared/
+            const expectedPath = jsPath.includes('course-data.js') ? '../shared/course-data.js' : '../shared/navigation.js';
             
-            if (jsPath === expectedPath || jsPath.includes('shared/')) {
+            if (jsPath === expectedPath) {
                 console.log(`  ✅ ${path.basename(jsPath)} path is correct`);
             } else {
-                warnings.push(`${file}: JS path '${jsPath}' might be incorrect`);
+                warnings.push(`${file}: JS path '${jsPath}' might be incorrect (expected: ${expectedPath})`);
                 console.log(`  ⚠️  ${path.basename(jsPath)} path might be incorrect`);
             }
         });

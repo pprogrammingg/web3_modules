@@ -85,17 +85,15 @@ function renderModuleCard(module, status) {
     const statusClassBadge = status === 'completed' ? 'status-completed' : 
                             status === 'in-progress' ? 'status-in-progress' : 'status-pending';
     
-    const badge = module.hyperscaleSpecific ? '<span style="background: #fef3c7; color: #92400e; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; margin-left: 0.5rem;">Hyperscale-rs</span>' : '';
-    
-    const availableBadge = isAvailable ? '<span style="background: #10b981; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; margin-left: 0.5rem; font-weight: bold;">✓ Available</span>' : '<span style="background: #9ca3af; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; margin-left: 0.5rem;">Coming Soon</span>';
-    
+    const badge = module.hyperscaleSpecific ? '<span class="badge-hyperscale">Hyperscale-rs</span>' : '';
+    const availableBadge = isAvailable ? '<span class="badge-available">✓ Available</span>' : '<span class="badge-coming">Coming Soon</span>';
     const cardClass = isAvailable ? `module-card available ${statusClass}` : `module-card unavailable ${statusClass}`;
     const href = isAvailable ? module.path : '#';
     const onClick = isAvailable ? '' : 'onclick="event.preventDefault(); return false;"';
     
     return `
         <a href="${href}" ${onClick} class="${cardClass}">
-            <h3>${module.title}${badge}${availableBadge}</h3>
+            <h3 class="module-title-with-badges">${module.title}${badge}${availableBadge}</h3>
             <p>${module.description}</p>
             <div class="module-meta">
                 <span>${module.duration} • ${module.difficulty}</span>
