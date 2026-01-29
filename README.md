@@ -16,14 +16,6 @@ Structured path from blockchain fundamentals to contributing to hyperscale-rs.
 
 Modules marked **Hyperscale-rs** are codebase-specific.
 
-## Creating Hyperscale-rs Modules
-
-When this course is in a separate repo, to create hyperscale-rs-specific modules:
-
-1. **Provide the repo URL**: `https://github.com/flightofthefox/hyperscale-rs`
-2. **Or update** `hyperscale-config.json` with the current repo location
-3. **See** [CONTRIBUTING.md](CONTRIBUTING.md) for details
-
 ## Testing
 
 ```bash
