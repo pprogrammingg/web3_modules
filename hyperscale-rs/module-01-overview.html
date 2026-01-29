@@ -232,8 +232,7 @@
             
             <p>Hyperscale-rs is organized as a Cargo workspace with multiple crates:</p>
 
-            <div class="code-block">
-hyperscale-rs/
+            <div class="code-block"><pre><code>hyperscale-rs/
 ├── crates/
 │   ├── core/          # Core types and traits
 │   ├── types/         # Shared types (blocks, votes, etc.)
@@ -244,8 +243,7 @@ hyperscale-rs/
 │   ├── simulation/    # Deterministic simulator
 │   └── production/    # Production runner
 ├── guides/            # Documentation (you are here!)
-└── scripts/          # Helper scripts
-            </div>
+└── scripts/          # Helper scripts</code></pre></div>
 
             <h3>Key Files to Know</h3>
             <ul>
@@ -264,7 +262,7 @@ hyperscale-rs/
             <h3>Prerequisites</h3>
             <ol>
                 <li><strong>Install Rust</strong> (if not already installed):
-                    <div class="code-block">curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh</div>
+                    <div class="code-block"><pre><code class="language-bash">curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh</code></pre></div>
                 </li>
                 <li><strong>Install Build Dependencies</strong>:
                     <ul>
@@ -273,14 +271,14 @@ hyperscale-rs/
                     </ul>
                 </li>
                 <li><strong>Clone the Repository</strong>:
-                    <div class="code-block">git clone --recurse-submodules https://github.com/flightofthefox/hyperscale-rs.git
-cd hyperscale-rs</div>
+                    <div class="code-block"><pre><code class="language-bash">git clone --recurse-submodules https://github.com/flightofthefox/hyperscale-rs.git
+cd hyperscale-rs</code></pre></div>
                 </li>
                 <li><strong>Build the Project</strong>:
-                    <div class="code-block">cargo build --release</div>
+                    <div class="code-block"><pre><code class="language-bash">cargo build --release</code></pre></div>
                 </li>
                 <li><strong>Run Tests</strong>:
-                    <div class="code-block">cargo test</div>
+                    <div class="code-block"><pre><code class="language-bash">cargo test</code></pre></div>
                 </li>
             </ol>
 
@@ -372,6 +370,7 @@ cd hyperscale-rs</div>
 
     <script src="../shared/course-data.js"></script>
     <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
     <script>
         // Initialize module
         initializeModulePage('basic-05');

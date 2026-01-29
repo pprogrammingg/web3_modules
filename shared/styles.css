@@ -78,7 +78,9 @@ h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.2rem; }
 .assignment { background: #fef3c7; border-left: 4px solid var(--warning); padding: 1.5rem; margin: 1.5rem 0; border-radius: 6px; }
 .assignment h3 { color: #92400e; margin-top: 0; }
 
-.code-block { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 6px; overflow-x: auto; font-family: monospace; font-size: 0.9rem; margin: 1rem 0; }
+.code-block { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace; font-size: 0.9rem; margin: 1rem 0; }
+.code-block pre { margin: 0; white-space: pre; }
+.code-block code { display: block; font-family: inherit; font-size: inherit; color: inherit; }
 
 .navigation { display: flex; justify-content: space-between; margin-top: 2rem; padding-top: 2rem; border-top: 2px solid var(--border); }
 
@@ -153,6 +155,50 @@ h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.2rem; }
     margin: 0.5rem 0;
     font-style: italic;
 }
+
+/* Glossary Tooltip Styles */
+.glossary-term {
+    color: var(--primary);
+    text-decoration: underline dotted;
+    text-underline-offset: 2px;
+    cursor: help;
+}
+
+.glossary-term:hover {
+    color: var(--primary-hover);
+    text-decoration-style: solid;
+}
+
+.glossary-tooltip {
+    display: none;
+    position: fixed;
+    z-index: 10000;
+    background: var(--bg);
+    border: 2px solid var(--primary);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-width: 350px;
+    min-width: 280px;
+    font-size: 0.9rem;
+    pointer-events: auto;
+}
+
+.tooltip-header {
+    background: #eff6ff;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    border-radius: 6px 6px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tooltip-header strong { color: var(--primary); font-size: 1rem; }
+.tooltip-category { background: var(--primary); color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+.tooltip-body { padding: 1rem; color: var(--text); line-height: 1.5; }
+.tooltip-footer { padding: 0.75rem 1rem; border-top: 1px solid var(--border); background: var(--bg2); border-radius: 0 0 6px 6px; }
+.tooltip-link { color: var(--primary); text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+.tooltip-link:hover { text-decoration: underline; }
 
 ul, ol { margin: 1rem 0; padding-left: 2rem; }
 li { margin: 0.5rem 0; }

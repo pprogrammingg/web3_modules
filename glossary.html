@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glossary - Web3 Modules</title>
+    <link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 Glossary</h1>
+            <p class="subtitle">Key terms and concepts in blockchain, consensus, and distributed systems</p>
+            <p><a href="index.html" class="btn btn-secondary">← Back to Course Index</a></p>
+        </header>
+
+        <div class="section">
+            <p>Hover over terms marked with <span class="glossary-term" data-glossary="blockchain">dotted underlines</span> in modules to see quick definitions.</p>
+        </div>
+
+        <div id="glossary-content"></div>
+    </div>
+
+    <script src="shared/glossary.js"></script>
+    <script>
+        const cats = {};
+        Object.entries(GLOSSARY).forEach(([k, v]) => {
+            if (!cats[v.cat]) cats[v.cat] = [];
+            cats[v.cat].push({ key: k, ...v });
+        });
+        
+        const container = document.getElementById('glossary-content');
+        Object.keys(cats).sort().forEach(cat => {
+            const s = document.createElement('div');
+            s.className = 'section';
+            s.innerHTML = `<h2>${cat}</h2><dl style="margin-top:1rem"></dl>`;
+            const dl = s.querySelector('dl');
+            
+            cats[cat].sort((a, b) => a.term.localeCompare(b.term)).forEach(item => {
+                const dt = document.createElement('dt');
+                Object.assign(dt.style, { fontWeight: '600', color: 'var(--primary)', marginTop: '1rem', marginBottom: '0.25rem' });
+                dt.textContent = item.term;
+                const dd = document.createElement('dd');
+                Object.assign(dd.style, { marginLeft: '1.5rem', marginBottom: '0.75rem', color: 'var(--text)' });
+                dd.textContent = item.def;
+                dl.appendChild(dt);
+                dl.appendChild(dd);
+            });
+            container.appendChild(s);
+        });
+    </script>
+</body>
+</html>

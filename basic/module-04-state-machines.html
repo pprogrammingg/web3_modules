@@ -41,13 +41,11 @@
             </ul>
 
             <h3>Simple Example</h3>
-            <div class="code-block">
-Light Switch State Machine:
+            <div class="code-block"><pre><code>Light Switch State Machine:
   States: {ON, OFF}
   Transitions:
     - If state is OFF and event is "flip" → state becomes ON
-    - If state is ON and event is "flip" → state becomes OFF
-            </div>
+    - If state is ON and event is "flip" → state becomes OFF</code></pre></div>
 
             <h3>Why State Machines?</h3>
             <ul>
@@ -64,13 +62,11 @@ Light Switch State Machine:
             <h3>Core Interface</h3>
             <p>In hyperscale-rs, everything implements the <code>StateMachine</code> trait:</p>
 
-            <div class="code-block">
-trait StateMachine {
-    fn handle(&mut self, event: Event) -> Vec&lt;Action&gt;;
-    fn set_time(&mut self, now: Duration);
-    fn now(&self) -> Duration;
-}
-            </div>
+            <div class="code-block"><pre><code class="language-rust">trait StateMachine {
+    fn handle(&amp;mut self, event: Event) -&gt; Vec&lt;Action&gt;;
+    fn set_time(&amp;mut self, now: Duration);
+    fn now(&amp;self) -&gt; Duration;
+}</code></pre></div>
 
             <h3>Key Properties</h3>
             <ul>
@@ -102,23 +98,21 @@ trait StateMachine {
             <h3>Event Types</h3>
             <p>Open <code>crates/core/src/event.rs</code> to see all event types. Examples:</p>
 
-            <div class="code-block">
-enum Event {
+            <div class="code-block"><pre><code class="language-rust">enum Event {
     // Timers
     ProposalTimer,
     CleanupTimer,
-    
+
     // Network Messages
-    BlockHeaderReceived { header: BlockHeader, ... },
+    BlockHeaderReceived { header: BlockHeader, .. },
     BlockVoteReceived { vote: BlockVote },
-    
+
     // Internal Events
     QuorumCertificateFormed { block_hash: Hash, qc: QuorumCertificate },
-    BlockCommitted { block_hash: Hash, ... },
-    
+    BlockCommitted { block_hash: Hash, .. },
+
     // ... many more
-}
-            </div>
+}</code></pre></div>
 
             <h3>Event Sources</h3>
             <ul>
@@ -151,24 +145,22 @@ enum Event {
             <h3>Action Types</h3>
             <p>Open <code>crates/core/src/action.rs</code> to see all action types. Examples:</p>
 
-            <div class="code-block">
-enum Action {
+            <div class="code-block"><pre><code class="language-rust">enum Action {
     // Network
     BroadcastToShard { shard: ShardGroupId, message: OutboundMessage },
     BroadcastStateVote { shard: ShardGroupId, vote: StateVoteBlock },
-    
+
     // Timers
     SetTimer { id: TimerId, duration: Duration },
-    
+
     // Internal
     EnqueueInternal { event: Event },
-    
+
     // Storage
     CommitBlock { block: Block, qc: QuorumCertificate },
-    
+
     // ... many more
-}
-            </div>
+}</code></pre></div>
 
             <h3>Action Execution</h3>
             <p>Actions are executed by <strong>runners</strong>:</p>
@@ -186,16 +178,14 @@ enum Action {
             <h2>5. Event-Driven Flow</h2>
             
             <h3>The Flow</h3>
-            <div class="code-block">
-1. Runner receives network message
+            <div class="code-block"><pre><code>1. Runner receives network message
 2. Runner creates Event::BlockHeaderReceived
 3. Runner calls state_machine.handle(event)
 4. State machine processes event, updates state
 5. State machine returns Vec&lt;Action&gt;
 6. Runner executes actions (send network, store, etc.)
 7. Actions may generate new events
-8. Loop continues...
-            </div>
+8. Loop continues...</code></pre></div>
 
             <h3>Example: Block Proposal Flow</h3>
             <ol>
@@ -247,14 +237,12 @@ enum Action {
             <h3>NodeStateMachine</h3>
             <p>The <code>NodeStateMachine</code> composes multiple sub-state machines:</p>
 
-            <div class="code-block">
-NodeStateMachine
+            <div class="code-block"><pre><code>NodeStateMachine
 ├── BftState          (consensus)
 ├── ExecutionState    (transaction execution)
 ├── MempoolState      (transaction pool)
 ├── ProvisionCoordinator (cross-shard coordination)
-└── LivelockState     (deadlock prevention)
-            </div>
+└── LivelockState     (deadlock prevention)</code></pre></div>
 
             <h3>How They Compose</h3>
             <ol>
@@ -344,6 +332,7 @@ NodeStateMachine
 
     <script src="../shared/course-data.js"></script>
     <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
     <script>
         initializeModulePage('basic-04');
 
