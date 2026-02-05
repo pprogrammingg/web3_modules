@@ -19,6 +19,26 @@ body {
     background: var(--bg2);
 }
 
+.site-home-bar {
+    padding: 0.5rem 1rem;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    max-width: 1200px;
+    margin: 0 auto;
+}
+.site-home-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--primary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+.site-home-link:hover {
+    text-decoration: underline;
+}
+
 .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
 .course-content { max-width: 900px; margin: 0 auto; padding: 2rem; background: var(--bg); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
