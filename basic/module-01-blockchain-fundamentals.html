@@ -48,8 +48,8 @@
             <ul>
                 <li>Everyone has a copy (distributed)</li>
                 <li>Every change is recorded and timestamped (immutable history)</li>
-                <li>Changes must be verified by consensus (trust through verification)</li>
-                <li>You can't delete or modify past entries (immutability)</li>
+                <li>Changes must be verified by <span data-glossary="consensus">consensus</span> (trust through verification)</li>
+                <li>You can't delete or modify past entries (<span data-glossary="immutability">immutability</span>)</li>
             </ul>
         </div>
 
@@ -59,7 +59,7 @@
             <h3>Key Properties</h3>
             <p>Blockchains provide several important properties:</p>
             
-            <h4>Decentralization</h4>
+            <h4><span data-glossary="decentralization">Decentralization</span></h4>
             <p>No single point of control or failure. Instead of one central authority (like a bank), many participants maintain the ledger.</p>
             <ul>
                 <li><strong>Resilience</strong> - System continues even if some nodes fail</li>
@@ -67,11 +67,11 @@
                 <li><strong>Democratic control</strong> - No central authority can unilaterally change rules</li>
             </ul>
 
-            <h4>Immutability</h4>
+            <h4><span data-glossary="immutability">Immutability</span></h4>
             <p>Once recorded, data is extremely difficult to change. This is achieved through:</p>
             <ul>
-                <li><strong>Cryptographic hashing</strong> - Each block's hash depends on its content</li>
-                <li><strong>Chain linking</strong> - Each block references the previous block's hash</li>
+                <li><strong><span data-glossary="cryptographic hash">Cryptographic hashing</span></strong> - Each <span data-glossary="block">block</span>'s hash depends on its content</li>
+                <li><strong>Chain linking</strong> - Each <span data-glossary="block">block</span> references the previous block's hash</li>
                 <li><strong>Distributed copies</strong> - Many nodes have copies, making tampering obvious</li>
             </ul>
 
@@ -86,9 +86,9 @@
             <h4>Trust Through Cryptography</h4>
             <p>Blockchains use cryptographic proofs instead of trusting a central authority:</p>
             <ul>
-                <li><strong>Digital signatures</strong> - Prove who created a transaction</li>
-                <li><strong>Hash functions</strong> - Detect any changes to data</li>
-                <li><strong>Consensus mechanisms</strong> - Agree on what's valid</li>
+                <li><strong><span data-glossary="digital signature">Digital signatures</span></strong> - Prove who created a transaction</li>
+                <li><strong><span data-glossary="cryptographic hash">Hash functions</span></strong> - Detect any changes to data</li>
+                <li><strong><span data-glossary="consensus">Consensus</span> mechanisms</strong> - Agree on what's valid</li>
             </ul>
         </div>
 
@@ -98,11 +98,11 @@
             <h3>The Basic Flow</h3>
             <ol>
                 <li><strong>Transaction Creation</strong> - Someone wants to record data (e.g., transfer value)</li>
-                <li><strong>Broadcasting</strong> - Transaction is broadcast to the network</li>
+                <li><strong><span data-glossary="broadcast">Broadcasting</span></strong> - Transaction is broadcast to the network</li>
                 <li><strong>Validation</strong> - Network participants validate the transaction</li>
-                <li><strong>Block Formation</strong> - Valid transactions are grouped into a block</li>
-                <li><strong>Consensus</strong> - Network agrees this block is valid</li>
-                <li><strong>Chaining</strong> - Block is added to the chain with a link to the previous block</li>
+                <li><strong>Block Formation</strong> - Valid transactions are grouped into a <span data-glossary="block">block</span></li>
+                <li><strong><span data-glossary="consensus">Consensus</span></strong> - Network agrees this <span data-glossary="block">block</span> is valid</li>
+                <li><strong>Chaining</strong> - <span data-glossary="block">Block</span> is added to the chain with a link to the previous block</li>
                 <li><strong>Distribution</strong> - All nodes update their copy of the chain</li>
             </ol>
 
@@ -131,9 +131,9 @@
             </div>
 
             <h3>Cryptographic Hashing</h3>
-            <p>A <strong>hash function</strong> takes any input and produces a fixed-size output (hash). Key properties:</p>
+            <p>A <strong><span data-glossary="cryptographic hash">hash function</span></strong> takes any input and produces a fixed-size output (hash). Key properties:</p>
             <ul>
-                <li><strong>Deterministic</strong> - Same input always produces same hash</li>
+                <li><strong><span data-glossary="deterministic">Deterministic</span></strong> - Same input always produces same hash</li>
                 <li><strong>One-way</strong> - Can't reverse a hash to get the original input</li>
                 <li><strong>Avalanche effect</strong> - Small change in input = completely different hash</li>
                 <li><strong>Fast to compute</strong> - Easy to calculate</li>
@@ -151,10 +151,10 @@
             <p><strong>Anyone can join and participate</strong></p>
             <ul>
                 <li>Examples: Bitcoin, Ethereum</li>
-                <li>Fully decentralized</li>
+                <li>Fully <span data-glossary="decentralization">decentralized</span></li>
                 <li>Transparent - all transactions visible</li>
                 <li>Permissionless - no approval needed</li>
-                <li>Often slower and more expensive (due to consensus overhead)</li>
+                <li>Often slower and more expensive (due to <span data-glossary="consensus">consensus</span> overhead)</li>
             </ul>
 
             <h3>Private Blockchains</h3>

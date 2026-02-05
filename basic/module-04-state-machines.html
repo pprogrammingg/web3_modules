@@ -32,7 +32,7 @@
             <h2>1. What is a State Machine?</h2>
             
             <h3>Definition</h3>
-            <p>A <strong>state machine</strong> is a computational model that consists of:</p>
+            <p>A <strong><span data-glossary="state machine">state machine</span></strong> is a computational model that consists of:</p>
             <ul>
                 <li><strong>States</strong> - The possible configurations of the system</li>
                 <li><strong>Transitions</strong> - Rules for moving from one state to another</li>
@@ -49,10 +49,10 @@
 
             <h3>Why State Machines?</h3>
             <ul>
-                <li><strong>Deterministic</strong> - Same state + same event = same result</li>
+                <li><strong><span data-glossary="deterministic">Deterministic</span></strong> - Same state + same event = same result</li>
                 <li><strong>Testable</strong> - Easy to test all state transitions</li>
                 <li><strong>Predictable</strong> - Behavior is well-defined</li>
-                <li><strong>Composable</strong> - Can combine multiple state machines</li>
+                <li><strong>Composable</strong> - Can combine multiple <span data-glossary="state machine">state machines</span></li>
             </ul>
         </div>
 
@@ -60,7 +60,7 @@
             <h2>2. The StateMachine Trait</h2>
             
             <h3>Core Interface</h3>
-            <p>In hyperscale-rs, everything implements the <code>StateMachine</code> trait:</p>
+            <p>In <span data-glossary="hyperscale-rs">hyperscale-rs</span>, everything implements the <code>StateMachine</code> trait:</p>
 
             <div class="code-block"><pre><code class="language-rust">trait StateMachine {
     fn handle(&amp;mut self, event: Event) -&gt; Vec&lt;Action&gt;;
@@ -72,12 +72,12 @@
             <ul>
                 <li><strong>Synchronous</strong> - No async, no .await</li>
                 <li><strong>Pure</strong> - No I/O, no locks, no side effects</li>
-                <li><strong>Deterministic</strong> - Same inputs always produce same outputs</li>
+                <li><strong><span data-glossary="deterministic">Deterministic</span></strong> - Same inputs always produce same outputs</li>
                 <li><strong>Simple</strong> - Just state + event → actions</li>
             </ul>
 
             <div class="info">
-                <strong>Why No I/O?</strong> I/O (networking, storage, timers) is handled by "runners" that execute actions and feed results back as events. This separation makes the consensus logic testable and deterministic.
+                <strong>Why No I/O?</strong> I/O (networking, storage, timers) is handled by "runners" that execute actions and feed results back as events. This separation makes the consensus logic testable and <span data-glossary="deterministic">deterministic</span>.
             </div>
 
             <h3>Exploring the Trait</h3>
@@ -132,7 +132,7 @@
             </ol>
 
             <div class="success">
-                <strong>Why Priority?</strong> Preserves causality - internal events (like QC formation) must be processed before new external inputs arrive.
+                <strong>Why Priority?</strong> Preserves causality - internal events (like <span data-glossary="quorum certificate">QC</span> formation) must be processed before new external inputs arrive.
             </div>
         </div>
 
@@ -175,7 +175,7 @@
         </div>
 
         <div class="section">
-            <h2>5. Event-Driven Flow</h2>
+            <h2>5. <span data-glossary="event-driven">Event-Driven</span> Flow</h2>
             
             <h3>The Flow</h3>
             <div class="code-block"><pre><code>1. Runner receives network message
@@ -196,7 +196,7 @@
                 <li><strong>Other nodes receive</strong> → Create <code>Event::BlockHeaderReceived</code></li>
                 <li><strong>They vote</strong> → Return <code>Action::BroadcastToShard</code> (vote)</li>
                 <li><strong>Votes collected</strong> → <code>Event::QuorumCertificateFormed</code></li>
-                <li><strong>QC processed</strong> → Chain state updated, commit checked</li>
+                <li><strong><span data-glossary="quorum certificate">QC</span> processed</strong> → Chain state updated, commit checked</li>
             </ol>
         </div>
 

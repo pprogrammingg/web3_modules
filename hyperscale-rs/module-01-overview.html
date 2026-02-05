@@ -33,7 +33,7 @@
             <h2>1. What is Blockchain?</h2>
             
             <h3>Core Concept</h3>
-            <p>A <strong>blockchain</strong> is a distributed ledger that maintains a continuously growing list of records (blocks) that are linked and secured using cryptography. Each block contains:</p>
+            <p>A <strong><span data-glossary="blockchain">blockchain</span></strong> is a distributed ledger that maintains a continuously growing list of records (blocks) that are linked and secured using cryptography. Each <span data-glossary="block">block</span> contains:</p>
             <ul>
                 <li><strong>Transactions</strong> - The actual data being recorded</li>
                 <li><strong>Hash</strong> - A cryptographic fingerprint of the block</li>
@@ -47,8 +47,8 @@
             <h3>Why Blockchain Matters</h3>
             <p>Blockchains provide:</p>
             <ul>
-                <li><strong>Decentralization</strong> - No single point of control or failure</li>
-                <li><strong>Immutability</strong> - Once recorded, data is extremely difficult to change</li>
+                <li><strong><span data-glossary="decentralization">Decentralization</span></strong> - No single point of control or failure</li>
+                <li><strong><span data-glossary="immutability">Immutability</span></strong> - Once recorded, data is extremely difficult to change</li>
                 <li><strong>Transparency</strong> - All participants can verify the ledger</li>
                 <li><strong>Trust</strong> - Cryptographic proofs ensure data integrity</li>
             </ul>
@@ -65,7 +65,7 @@
             <h2>2. What is Hyperscale-rs?</h2>
             
             <h3>Definition</h3>
-            <p><strong>Hyperscale-rs</strong> is a Rust implementation of the Hyperscale consensus protocol - a Byzantine Fault Tolerant (BFT) consensus system designed for high-throughput, sharded blockchain networks.</p>
+            <p><strong><span data-glossary="hyperscale-rs">Hyperscale-rs</span></strong> is a Rust implementation of the Hyperscale <span data-glossary="consensus">consensus</span> protocol - a <span data-glossary="bft">Byzantine Fault Tolerant (BFT)</span> consensus system designed for high-throughput, <span data-glossary="sharding">sharded</span> blockchain networks.</p>
 
             <div class="highlight">
                 <strong>Key Point:</strong> Hyperscale-rs is NOT a full blockchain platform. It's a consensus layer - the "engine" that decides which transactions get included and in what order.
@@ -75,10 +75,10 @@
             <ul>
                 <li>✅ A BFT consensus protocol implementation</li>
                 <li>✅ Designed for high throughput and low latency</li>
-                <li>✅ Supports sharding (dividing the network into parallel chains)</li>
-                <li>✅ Handles cross-shard transactions securely</li>
+                <li>✅ Supports <span data-glossary="sharding">sharding</span> (dividing the network into parallel chains)</li>
+                <li>✅ Handles <span data-glossary="cross-shard transaction">cross-shard transactions</span> securely</li>
                 <li>✅ Pure consensus logic (no I/O, no locks, no async in core)</li>
-                <li>✅ Deterministic and testable</li>
+                <li>✅ <span data-glossary="deterministic">Deterministic</span> and testable</li>
             </ul>
 
             <h3>What Hyperscale-rs is NOT:</h3>
@@ -94,9 +94,9 @@
             <p>Hyperscale-rs follows several key design principles:</p>
             <ol>
                 <li><strong>Pure Consensus Layer</strong> - No I/O, no locks, no async in consensus logic</li>
-                <li><strong>State Machine Model</strong> - Everything is a deterministic state machine</li>
-                <li><strong>Event-Driven</strong> - Events flow in, actions flow out</li>
-                <li><strong>Deterministic Testing</strong> - Same code runs in simulation and production</li>
+                <li><strong><span data-glossary="state machine">State Machine</span> Model</strong> - Everything is a deterministic state machine</li>
+                <li><strong><span data-glossary="event-driven">Event-Driven</span></strong> - Events flow in, actions flow out</li>
+                <li><strong><span data-glossary="deterministic">Deterministic</span> Testing</strong> - Same code runs in simulation and production</li>
             </ol>
 
             <div class="warning" style="margin-top: 1.5rem;">

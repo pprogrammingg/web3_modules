@@ -24,7 +24,7 @@
                 <li>Learn about Byzantine Fault Tolerance (BFT)</li>
                 <li>Understand quorum certificates and voting</li>
                 <li>Learn the basics of HotStuff-2 protocol</li>
-                <li>Compare BFT with Proof-of-Stake (PoS)</li>
+                <li>Compare BFT with <span data-glossary="proof of stake">Proof-of-Stake (PoS)</span></li>
             </ul>
         </div>
 
@@ -32,7 +32,7 @@
             <h2>1. The Consensus Problem</h2>
             
             <h3>What is Consensus?</h3>
-            <p>In a distributed system, <strong>consensus</strong> is the process of getting all honest nodes to agree on a single value or sequence of values, even when some nodes may be faulty or malicious.</p>
+            <p>In a distributed system, <strong><span data-glossary="consensus">consensus</span></strong> is the process of getting all honest nodes to agree on a single value or sequence of values, even when some nodes may be faulty or malicious.</p>
 
             <div class="info">
                 <strong>Example:</strong> Imagine 4 generals trying to coordinate an attack. One might be a traitor. How do the honest generals agree on a plan?
@@ -42,11 +42,11 @@
             <ul>
                 <li><strong>Network delays</strong> - Messages arrive at different times</li>
                 <li><strong>Node failures</strong> - Nodes can crash or go offline</li>
-                <li><strong>Byzantine faults</strong> - Nodes can lie, send conflicting messages, or behave arbitrarily</li>
+                <li><strong><span data-glossary="byzantine fault">Byzantine faults</span></strong> - Nodes can lie, send conflicting messages, or behave arbitrarily</li>
                 <li><strong>Network partitions</strong> - Network can split into isolated groups</li>
             </ul>
 
-            <h3>The FLP Impossibility Result</h3>
+            <h3>The <span data-glossary="flp impossibility">FLP Impossibility</span> Result</h3>
             <p>Fischer, Lynch, and Paterson proved that in an asynchronous network, it's <strong>impossible</strong> to guarantee consensus if even one node can fail. This is why blockchain systems make assumptions about network synchrony.</p>
         </div>
 
@@ -61,7 +61,7 @@
             <ul>
                 <li>Up to <strong>f</strong> nodes can be Byzantine (malicious)</li>
                 <li>At least <strong>2f + 1</strong> nodes must be honest</li>
-                <li>This ensures any two quorums (groups of 2f+1) must overlap in at least one honest node</li>
+                <li>This ensures any two <span data-glossary="quorum">quorums</span> (groups of 2f+1) must overlap in at least one honest node</li>
             </ul>
 
             <div class="code-block"><pre><code>Example: n = 4, f = 1
@@ -72,7 +72,7 @@
 
 Any two groups of 3 nodes must share at least 1 honest node.</code></pre></div>
 
-            <h3>BFT vs Crash Fault Tolerance (CFT)</h3>
+            <h3>BFT vs <span data-glossary="crash fault">Crash Fault</span> Tolerance (CFT)</h3>
             <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
                 <tr style="background: var(--bg-secondary);">
                     <th style="padding: 0.5rem; border: 1px solid var(--border-color);">Aspect</th>

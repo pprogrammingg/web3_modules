@@ -199,6 +199,28 @@ h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.2rem; }
 .tooltip-footer { padding: 0.75rem 1rem; border-top: 1px solid var(--border); background: var(--bg2); border-radius: 0 0 6px 6px; }
 .tooltip-link { color: var(--primary); text-decoration: none; font-size: 0.85rem; font-weight: 600; }
 .tooltip-link:hover { text-decoration: underline; }
+.tooltip-def { margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #111; }
+.tooltip-def strong { color: #000; }
+.tooltip-10yo { margin: 0; font-size: 0.85rem; color: #2563eb; }
+.tooltip-10yo em { color: #1e3a8a; font-weight: 700; font-style: normal; }
+.tooltip-expand { display: inline-block; color: var(--primary); font-weight: 600; font-size: 0.9rem; text-decoration: none; padding: 0.35rem 0.75rem; border: 1px solid var(--primary); border-radius: 6px; }
+.tooltip-expand:hover { background: #eff6ff; text-decoration: none; }
+
+/* Glossary full page: by subcategory */
+.glossary-category { margin-bottom: 2.5rem; }
+.glossary-category-title { margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--primary); color: var(--primary); }
+.glossary-entries { display: flex; flex-direction: column; gap: 1.5rem; }
+.glossary-entry { padding: 1.25rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+.glossary-entry.glossary-highlight { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }
+.glossary-term-title { margin: 0 0 0.5rem 0; font-size: 1.2rem; color: var(--primary); }
+.glossary-meta { margin-bottom: 0.75rem; }
+.glossary-tag { display: inline-block; margin-right: 0.5rem; margin-bottom: 0.25rem; padding: 0.2rem 0.5rem; background: #eff6ff; color: var(--primary); border-radius: 4px; font-size: 0.75rem; }
+.glossary-full-def { margin: 0.75rem 0; line-height: 1.5; color: #111; }
+.glossary-full-def .glossary-technical-label { color: #000; font-weight: 700; }
+.glossary-10yo { margin: 0.75rem 0; line-height: 1.5; color: #2563eb; }
+.glossary-10yo .glossary-10yo-label { color: #1e3a8a; font-weight: 700; }
+.glossary-competing { margin: 0.75rem 0; line-height: 1.5; padding: 0.75rem; background: var(--bg2); border-radius: 6px; font-size: 0.95rem; color: #475569; }
+.glossary-competing .glossary-competing-label { color: #334155; font-weight: 700; }
 
 ul, ol { margin: 1rem 0; padding-left: 2rem; }
 li { margin: 0.5rem 0; }
