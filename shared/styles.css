@@ -83,6 +83,35 @@ h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.2rem; }
 .status-in-progress { background: #fef3c7; color: #92400e; }
 .status-completed { background: #d1fae5; color: #065f46; }
 
+/* Resources section: card grid */
+.resources { margin: 2.5rem 0; }
+.resources h2 { margin-bottom: 1.25rem; }
+.resource-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; }
+.resource-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.5rem;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.25s ease;
+    position: relative;
+}
+.resource-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.12);
+    background: #fafbff;
+}
+.resource-card:hover .resource-arrow { transform: translateX(4px); opacity: 1; }
+.resource-icon { font-size: 2rem; margin-bottom: 0.75rem; line-height: 1; }
+.resource-title { margin: 0 0 0.5rem 0; font-size: 1.15rem; color: var(--primary); font-weight: 700; }
+.resource-desc { margin: 0; font-size: 0.9rem; color: var(--text2); line-height: 1.45; }
+.resource-card .resource-desc .glossary-term { color: var(--primary); }
+.resource-arrow { position: absolute; top: 1.5rem; right: 1.5rem; font-size: 1.25rem; color: var(--primary); opacity: 0.7; transition: transform 0.2s ease, opacity 0.2s ease; }
+
 .quiz-container { background: var(--bg); border: 2px solid var(--border); border-radius: 8px; padding: 1.5rem; margin: 1.5rem 0; }
 .question { margin-bottom: 1.5rem; }
 .question-text { font-weight: bold; margin-bottom: 1rem; }
