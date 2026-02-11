@@ -4,8 +4,11 @@
 const AVAILABLE_MODULES = [
     'basic-01', // Blockchain Fundamentals
     'basic-02', // Consensus Algorithms
+    'basic-03', // Distributed Systems
     'basic-04', // State Machines
     'basic-05', // Hyperscale-rs Overview
+    'basic-06', // Exploring the Hyperscale-rs Codebase
+    'basic-07', // Your First Contribution
 ];
 
 function isModuleAvailable(moduleId) {
@@ -204,16 +207,23 @@ function submitQuiz(quizId, questions, userAnswers, passingScore) {
     
     const score = Math.round((correct / total) * 100);
     const passed = score >= passingScore;
-    
-    // Show results
+    const hasExplanations = questions.some(q => q.explanation);
+
     const resultsDiv = document.createElement('div');
     resultsDiv.className = `quiz-results ${passed ? 'passed' : 'failed'}`;
-    resultsDiv.innerHTML = `
+    let resultsHtml = `
         <h3>Quiz Results</h3>
         <p>Score: ${score}% (${correct}/${total} correct)</p>
         <p>${passed ? '✅ You passed! Great job!' : '❌ You need to score at least ' + passingScore + '% to pass. Review the material and try again.'}</p>
     `;
-    
+    if (hasExplanations) {
+        resultsHtml += '<div class="quiz-explanations"><h4>Why these answers?</h4><ul>';
+        questions.forEach((q, i) => {
+            if (q.explanation) resultsHtml += `<li><strong>Q${i + 1}:</strong> ${q.explanation}</li>`;
+        });
+        resultsHtml += '</ul></div>';
+    }
+    resultsDiv.innerHTML = resultsHtml;
     quizContainer.appendChild(resultsDiv);
     
     // Disable further interaction

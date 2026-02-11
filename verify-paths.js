@@ -14,6 +14,7 @@ const SHARED_DIR = path.join(COURSES_DIR, 'shared');
 const MODULES = [
     { file: 'basic/module-01-blockchain-fundamentals.html', id: 'basic-01' },
     { file: 'basic/module-02-consensus-basics.html', id: 'basic-02' },
+    { file: 'basic/module-03-distributed-systems.html', id: 'basic-03' },
     { file: 'basic/module-04-state-machines.html', id: 'basic-04' },
     { file: 'hyperscale-rs/module-01-overview.html', id: 'basic-05' },
 ];

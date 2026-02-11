@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your First Contribution: Documentation & Tests</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Your First Contribution: Documentation & Tests</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 1.5-2 hours</span>
+                <span>📊 Difficulty: Basic</span>
+                <span>🎯 Hyperscale-rs Specific</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Improve documentation (doc comments, README, or guides)</li>
+                <li>Add or improve unit tests</li>
+                <li>Fix a small bug or clarify code</li>
+                <li>Submit a PR and respond to review</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>1. Why Start with Docs and Tests?</h2>
+            <p>Documentation and tests are the safest way to get familiar with the codebase and the project’s workflow:</p>
+            <ul>
+                <li><strong>Low risk</strong> – You don’t change core behavior; you make the code easier to understand and more reliable.</li>
+                <li><strong>High value</strong> – Good docs and tests help everyone, including future you.</li>
+                <li><strong>Reviewable</strong> – Maintainers can review wording and test coverage without deep protocol knowledge.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>2. Finding Good First Issues</h2>
+            <p>Look for:</p>
+            <ul>
+                <li>Issues labeled <code>good first issue</code>, <code>documentation</code>, or <code>testing</code></li>
+                <li>Functions or modules with missing or unclear doc comments (run <code>cargo doc</code> and browse)</li>
+                <li>Code paths with no or few tests (check <code>#[cfg(test)]</code> modules and coverage if available)</li>
+            </ul>
+            <p>Before coding, comment on the issue to say you’re working on it and briefly outline your plan. That avoids duplicate work and aligns with maintainers’ expectations.</p>
+            <div class="info" style="margin-top: 0.75rem;">
+                <strong>🤔 Think about it:</strong> You find an issue labeled "good first issue" but the description is vague. What's one thing you could do before writing code to make sure you're solving the right problem?
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>3. Documentation Guidelines</h2>
+            <ul>
+                <li><strong>Rust doc comments</strong> – Use <code>///</code> on public items. Describe what the type or function is for, any invariants, and panics/errors if relevant.</li>
+                <li><strong>Guides</strong> – The <code>guides/</code> directory is for longer explanations. Follow the existing style and structure.</li>
+                <li><strong>README / CONTRIBUTING</strong> – Small clarifications (e.g. setup steps, prerequisites) are often welcome.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>4. Testing Guidelines</h2>
+            <ul>
+                <li>Use the existing test patterns: unit tests next to the code, integration tests in <code>tests/</code> or under <code>crates/*/tests</code>.</li>
+                <li>State machines are deterministic: same initial state + same sequence of events ⇒ same actions. Use that to write deterministic tests (no flaky timing).</li>
+                <li>If you add a test for a bug fix, make sure the test fails before the fix and passes after.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>5. Submitting Your PR</h2>
+            <ol>
+                <li>Fork the repo (if that’s the project’s workflow) and create a branch, e.g. <code>docs/improve-core-traits</code> or <code>tests/add-event-coverage</code>.</li>
+                <li>Keep the PR small: one logical change (one doc improvement, one test file, or one small bug fix).</li>
+                <li>In the PR description, reference the issue and explain what you did and why.</li>
+                <li>Run <code>cargo test</code> and <code>cargo doc</code> (and any other checks the repo uses) and fix any failures.</li>
+                <li>Respond to review feedback promptly and update the PR accordingly.</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>6. Practical Assignment</h2>
+            <div class="assignment">
+                <h3>Assignment: First Contribution</h3>
+                <ol>
+                    <li>Pick one: (a) add or improve doc comments for one public module or trait, or (b) add at least one new unit test for a function or state transition, or (c) fix a small bug from an open issue (with maintainer approval).</li>
+                    <li>Open a PR. In the description, say what you changed and how you verified it (e.g. “Ran <code>cargo test</code>; new test passes”).</li>
+                    <li>In your learning journal, write a short note: what you learned about the codebase and what you’d do differently next time.</li>
+                </ol>
+                <h4>Success Criteria</h4>
+                <ul>
+                    <li>✅ Your change is merged or accepted in principle with small requested edits</li>
+                    <li>✅ You ran the project’s tests and any doc build before submitting</li>
+                    <li>✅ You can describe how to find an issue, implement a fix, and submit a PR for this project</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>7. Quiz</h2>
+            <div id="quiz-03" class="quiz-container"></div>
+        </div>
+
+        <div class="navigation">
+            <a href="module-02-codebase-exploration.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="../index.html" class="btn btn-primary">Back to Index →</a>
+        </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
+    <script>
+        initializeModulePage('basic-07');
+        const quizQuestions = [
+            {
+                question: "Why are docs and tests great first contributions (even if you're new)?",
+                options: [
+                    "They are the shortest to write",
+                    "They're low risk, high value, and reviewers can focus on clarity and correctness without deep protocol knowledge",
+                    "The project has no other work",
+                    "They don't require reading the code"
+                ],
+                correct: 1,
+                explanation: "Docs and tests improve the project for everyone and don't change core behavior. Maintainers can review them without worrying about subtle consensus bugs, and you learn the codebase by explaining or testing it."
+            },
+            {
+                question: "You're about to fix an issue. What's the main benefit of commenting on the issue first with 'I'll take this' and a one-line plan?",
+                options: [
+                    "It makes the issue close faster",
+                    "It avoids duplicate work and lets maintainers steer you if your approach is off",
+                    "It is required by GitHub",
+                    "It hides your plan from others"
+                ],
+                correct: 1,
+                explanation: "Someone else might be working on the same issue, or maintainers might prefer a different approach. A short comment coordinates effort and sets expectations so your PR has a better chance of a smooth review."
+            },
+            {
+                question: "State machine logic in hyperscale-rs is deterministic. Why does that make tests easier to write?",
+                options: [
+                    "Tests run in parallel only if deterministic",
+                    "Same state + same sequence of events ⇒ same actions every time; no flaky timing or network",
+                    "Determinism is only for documentation",
+                    "It doesn't help tests"
+                ],
+                correct: 1,
+                explanation: "You don't need to mock the network or sleep for timeouts. You build a state machine, feed events in order, and assert on the actions. Repeatable and fast — and if a test fails, it's a real logic bug."
+            },
+            {
+                question: "Your PR is ready. What makes a description like 'Fixes #42. Added unit tests for handle(ProposalTimer) when node is proposer; all tests pass.' useful?",
+                options: [
+                    "It is the minimum length required",
+                    "It links the work to the issue and says what you did and how you verified it",
+                    "It replaces the need for code review",
+                    "It is not useful"
+                ],
+                correct: 1,
+                explanation: "Reviewers see which issue you're addressing, what changed, and that you ran tests. That context makes review faster and shows you're thinking about verification, not just pushing code."
+            }
+        ];
+        initializeQuiz('quiz-03', quizQuestions, 70);
+    </script>
+</body>
+</html>

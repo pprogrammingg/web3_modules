@@ -306,14 +306,25 @@ The "two-chain" name comes from needing 2 consecutive blocks with QCs:
         </div>
 
         <div class="section">
-            <h2>5. BFT vs Proof-of-Stake (PoS)</h2>
+            <h2>5. What PoW and BFT Mean (and How They Relate)</h2>
+            
+            <p><strong>BFT</strong> and <strong><span data-glossary="proof of work">Proof of Work (PoW)</span></strong> answer different questions:</p>
+            <ul>
+                <li><strong>BFT</strong> is a <em>consensus</em> approach: <em>how</em> do nodes agree on the next block? In BFT, a fixed (or known) set of validators vote; once a quorum agrees, the block is committed. So BFT = agreement by voting among identified participants.</li>
+                <li><strong>PoW</strong> is a <em>participation / block-producer selection</em> mechanism: <em>who</em> gets to propose the next block? In PoW, miners compete by solving a puzzle; the winner proposes. The chain then uses the <em>longest-chain rule</em> (Nakamoto consensus), not BFT voting. So PoW = who may extend the chain, plus probabilistic agreement via “longest chain wins.”</li>
+            </ul>
+            <p><strong>How they relate:</strong> BFT and PoW are on different axes. BFT is about the <em>agreement rule</em> (voting, quorums, deterministic finality). PoW (and <span data-glossary="proof of stake">PoS</span>) are about <em>who participates</em> or who gets to propose. Many chains use <strong>BFT for agreement</strong> and <strong>PoS for validator selection</strong> (e.g. Tendermint: BFT consensus + PoS to choose the validator set). PoW chains typically do <em>not</em> use BFT; they use Nakamoto (longest-chain) consensus with probabilistic finality.</p>
+
+            <h3>BFT vs Proof-of-Stake (PoS)</h3>
+            
+            <p>Below compares <strong>classic BFT</strong> (fixed validator set, as in Hyperscale-rs) with <strong>open PoS</strong> (anyone can join by staking). Many chains combine both (e.g. Tendermint: BFT consensus + PoS for validator selection).</p>
             
             <h3>Key Differences</h3>
             <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
                 <tr style="background: var(--bg-secondary);">
                     <th style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">Aspect</th>
-                    <th style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">BFT</th>
-                    <th style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">PoS</th>
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">BFT (classic)</th>
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">PoS (open)</th>
                 </tr>
                 <tr>
                     <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Validator Set</td>
@@ -323,19 +334,21 @@ The "two-chain" name comes from needing 2 consecutive blocks with QCs:
                 <tr>
                     <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Finality</td>
                     <td style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">Immediate, deterministic</td>
-                    <td style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">Probabilistic, requires time</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">Probabilistic or economic; often requires time</td>
                 </tr>
                 <tr>
                     <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Communication</td>
                     <td style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">O(n) per block</td>
-                    <td style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">O(1) per block</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">Often O(n) among validators (when BFT-style)</td>
                 </tr>
                 <tr>
                     <td style="padding: 0.5rem; border: 1px solid var(--border-color);">Fault Tolerance</td>
-                    <td style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">f out of 3f+1</td>
-                    <td style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">Up to 50% stake</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">Up to f of 3f+1 Byzantine (≤1/3)</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">Honest majority of stake (&lt;50% adversarial)</td>
                 </tr>
             </table>
+            
+            <p><strong>Comparison with <span data-glossary="proof of work">Proof of Work (PoW)</span>:</strong> PoW does not use BFT: it uses the longest-chain rule (<span data-glossary="nakamoto consensus">Nakamoto consensus</span>). There is no fixed validator set (any miner can participate), only <em>probabilistic</em> finality (confirmations over time), and security relies on honest majority of hashrate (attack requires &gt;50% hashrate). BFT gives deterministic finality and provable safety with ≤1/3 Byzantine nodes.</p>
 
             <h3>When to Use BFT</h3>
             <ul>
@@ -425,7 +438,7 @@ The "two-chain" name comes from needing 2 consecutive blocks with QCs:
         <div class="navigation">
             <a href="../index.html" class="btn btn-secondary">← Back to Index</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="module-04-state-machines.html" class="btn btn-primary">Next Module →</a>
+            <a href="module-03-distributed-systems.html" class="btn btn-primary">Next Module →</a>
         </div>
     </div>
 

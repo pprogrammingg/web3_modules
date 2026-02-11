@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exploring the Hyperscale-rs Codebase</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Exploring the Hyperscale-rs Codebase</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 1.5-2 hours</span>
+                <span>📊 Difficulty: Basic</span>
+                <span>🎯 Hyperscale-rs Specific</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Navigate the codebase effectively</li>
+                <li>Understand core types and traits</li>
+                <li>Learn how NodeStateMachine works</li>
+                <li>Read and understand Rust code patterns used in the project</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>1. Where to Start</h2>
+            <p>After cloning and building hyperscale-rs, the most useful entry points are:</p>
+            <ul>
+                <li><code>crates/core/src/lib.rs</code> – re-exports core types and traits (<span data-glossary="state machine">StateMachine</span>, <span data-glossary="event-driven">Event</span>, <span data-glossary="event-driven">Action</span>)</li>
+                <li><code>crates/core/src/traits.rs</code> – <span data-glossary="state machine">StateMachine</span> trait definition</li>
+                <li><code>crates/node/src/lib.rs</code> and <code>crates/node/src/state.rs</code> – main <span data-glossary="state machine">NodeStateMachine</span> and how it composes sub–state machines</li>
+                <li><code>crates/types/</code> – shared types (blocks, votes, hashes)</li>
+            </ul>
+            <p>Use <code>cargo doc --open</code> to generate and open API docs for the workspace; search for types and traits by name.</p>
+        </div>
+
+        <div class="section">
+            <h2>2. Core Types and Traits</h2>
+            <h3>StateMachine trait</h3>
+            <p>Everything that participates in consensus implements the <span data-glossary="state machine">StateMachine</span> trait. In <code>crates/core/src/traits.rs</code> you'll see:</p>
+            <div class="code-block"><pre><code class="language-rust">fn handle(&amp;mut self, event: Event) -&gt; Vec&lt;Action&gt;;
+fn set_time(&amp;mut self, now: Duration);
+fn now(&amp;self) -&gt; Duration;</code></pre></div>
+            <p>Events flow in; actions flow out. Time is explicit for <span data-glossary="deterministic">determinism</span>.</p>
+            <div class="info" style="margin-top: 0.75rem;">
+                <strong>🤔 Think about it:</strong> Why pass <code>now</code> in from the outside instead of calling something like <code>SystemTime::now()</code> inside the state machine? What would break in tests or replay if the code read the real clock?
+            </div>
+            <h3>Event and Action enums</h3>
+            <p>In <code>crates/core/src/event.rs</code> and <code>crates/core/src/action.rs</code> you'll see the full set of events (e.g. <code>BlockHeaderReceived</code>, <code>ProposalTimer</code>, <code>QuorumCertificateFormed</code>) and actions (e.g. <code>BroadcastToShard</code>, <code>SetTimer</code>, <code>CommitBlock</code>). Browsing these gives you a map of what the system can react to and what it can do.</p>
+        </div>
+
+        <div class="section">
+            <h2>3. NodeStateMachine and Composition</h2>
+            <p>The <strong>NodeStateMachine</strong> in <code>crates/node/src/state.rs</code> composes several sub–state machines (BFT, execution, mempool, etc.). When an event arrives:</p>
+            <ol>
+                <li>The node routes the event to the appropriate sub–state machine(s)</li>
+                <li>Each returns a list of actions</li>
+                <li>Actions are collected and executed by the runner (simulation or production)</li>
+            </ol>
+            <p>Open <code>crates/node/src/state.rs</code> and find the <code>handle</code> implementation. Trace one event type (e.g. <code>Event::BlockHeaderReceived</code>) to see which sub–machines receive it and what actions they return.</p>
+            <div class="info" style="margin-top: 0.75rem;">
+                <strong>🤔 Check your understanding:</strong> If the node received two events at the same logical time, why would the *order* in which they're processed matter? (Think about proposer logic and votes.)
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>4. Rust Patterns You'll See</h2>
+            <ul>
+                <li><strong>Enums for events/actions</strong> – sum types with payloads; match on them to handle each case</li>
+                <li><strong>No async in core</strong> – consensus logic is synchronous; async lives in runners and I/O</li>
+                <li><strong>Explicit time</strong> – <code>set_time</code> / <code>now</code> so that tests and production use the same deterministic time</li>
+                <li><strong>Pure functions</strong> – <code>handle</code> takes state + event and returns actions; no hidden I/O</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>5. Practical Exploration Tasks</h2>
+            <div class="assignment">
+                <h3>Tasks</h3>
+                <ol>
+                    <li>Run <code>cargo doc --open</code> and open the <code>core</code> and <code>node</code> crates. Find the <code>StateMachine</code> trait and the <code>NodeStateMachine</code> struct.</li>
+                    <li>In <code>crates/node/src/state.rs</code>, find where <code>Event::ProposalTimer</code> or <code>Event::BlockHeaderReceived</code> is handled. Note which sub–state machine(s) receive it.</li>
+                    <li>In <code>crates/core/src/event.rs</code>, list three event variants and one field or associated type for each. Do the same for three action variants in <code>action.rs</code>.</li>
+                    <li>In your learning journal, write one paragraph: “How does the NodeStateMachine decide where to send an event?” (Use the code to support your answer.)</li>
+                </ol>
+                <h4>Success Criteria</h4>
+                <ul>
+                    <li>✅ You can open the docs and find core types</li>
+                    <li>✅ You can trace one event through the node’s <code>handle</code> path</li>
+                    <li>✅ You can name several Event and Action variants and their role</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>6. Quiz</h2>
+            <div id="quiz-02" class="quiz-container"></div>
+        </div>
+
+        <div class="navigation">
+            <a href="module-01-overview.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="module-03-first-contribution.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
+    <script>
+        initializeModulePage('basic-06');
+        const quizQuestions = [
+            {
+                question: "Why does the StateMachine trait take time via set_time/now instead of reading the system clock?",
+                options: [
+                    "To make the code run faster",
+                    "So tests and replays can control time — same (state, event, time) always gives the same actions",
+                    "Rust doesn't support system clocks",
+                    "Only the production runner needs real time"
+                ],
+                correct: 1,
+                explanation: "Determinism requires that the same inputs always produce the same outputs. If the state machine read the clock internally, tests would be flaky and you couldn't replay a trace. Injecting time keeps the logic pure."
+            },
+            {
+                question: "When NodeStateMachine receives an event, it routes to sub–state machines and collects actions. What's a key benefit of this design?",
+                options: [
+                    "Fewer lines of code",
+                    "Each sub–machine (BFT, mempool, etc.) has one job; the node composes them and stays testable",
+                    "It avoids using Rust enums",
+                    "Actions are never executed"
+                ],
+                correct: 1,
+                explanation: "Composition keeps concerns separate: BFT handles consensus, mempool handles transaction pool, etc. Each can be tested in isolation; the node just routes and aggregates. That makes reasoning and contributions easier."
+            },
+            {
+                question: "Why is there 'no async in core' consensus code?",
+                options: [
+                    "Async Rust is not allowed in the repo",
+                    "Consensus is synchronous: in → out. Async (I/O, timers) lives in runners that feed events and run actions",
+                    "To make compilation faster",
+                    "There is async in core"
+                ],
+                correct: 1,
+                explanation: "The core state machine is a pure function: state + event ⇒ actions. No awaits, no network calls. Runners do the async work and turn real-world events into Event and Action into real-world effects. That keeps consensus simple and deterministic."
+            },
+            {
+                question: "You're adding a new kind of event. Where should you look first to understand how existing events are handled?",
+                options: [
+                    "Only the README",
+                    "The Event enum (what exists), then the node's handle (routing), then the sub–machine that handles that event",
+                    "Only the BFT crate",
+                    "The CI config"
+                ],
+                correct: 1,
+                explanation: "Event defines the vocabulary; the node's handle shows which sub–machine gets which event; that sub–machine's handle shows the logic. Following that path is how you add or change behavior without rote memorization."
+            }
+        ];
+        initializeQuiz('quiz-02', quizQuestions, 70);
+    </script>
+</body>
+</html>

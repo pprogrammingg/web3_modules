@@ -34,7 +34,7 @@ fi
 # Test 3: Module structure
 echo ""
 echo "3. Testing module structure..."
-for module in "basic/module-01-blockchain-fundamentals.html" "basic/module-02-consensus-basics.html" "basic/module-04-state-machines.html" "hyperscale-rs/module-01-overview.html"; do
+for module in "basic/module-01-blockchain-fundamentals.html" "basic/module-02-consensus-basics.html" "basic/module-03-distributed-systems.html" "basic/module-04-state-machines.html" "hyperscale-rs/module-01-overview.html"; do
     if [ -f "$module" ]; then
         if grep -q "styles.css" "$module" && grep -q "course-data.js" "$module" && grep -q "navigation.js" "$module"; then
             echo "   ✅ $module structure valid"

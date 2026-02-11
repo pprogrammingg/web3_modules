@@ -94,6 +94,10 @@ h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.2rem; }
 .quiz-results { margin-top: 1.5rem; padding: 1rem; border-radius: 6px; font-weight: bold; }
 .quiz-results.passed { background: #d1fae5; color: #065f46; }
 .quiz-results.failed { background: #fee2e2; color: #991b1b; }
+.quiz-explanations { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.1); font-weight: normal; font-size: 0.95rem; }
+.quiz-explanations h4 { margin-bottom: 0.5rem; font-size: 1rem; }
+.quiz-explanations ul { margin: 0; padding-left: 1.25rem; }
+.quiz-explanations li { margin-bottom: 0.5rem; }
 
 .assignment { background: #fef3c7; border-left: 4px solid var(--warning); padding: 1.5rem; margin: 1.5rem 0; border-radius: 6px; }
 .assignment h3 { color: #92400e; margin-top: 0; }

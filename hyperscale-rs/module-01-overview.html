@@ -24,8 +24,8 @@
             <h2>Learning Objectives</h2>
             <p>By the end of this module, you will:</p>
             <ul>
-                <li>Understand what blockchain is and why it matters</li>
                 <li>Know what hyperscale-rs is and what it's not</li>
+                <li>Understand the Hyperscale protocol and where to find it</li>
                 <li>Understand the project's goals and design philosophy</li>
                 <li>Have your development environment set up</li>
                 <li>Know where to find key information in the codebase</li>
@@ -33,45 +33,21 @@
         </div>
 
         <div class="section">
-            <h2>1. What is Blockchain?</h2>
+            <h2>1. What is Hyperscale-rs?</h2>
             
-            <h3>Core Concept</h3>
-            <p>A <strong><span data-glossary="blockchain">blockchain</span></strong> is a distributed ledger that maintains a continuously growing list of records (blocks) that are linked and secured using cryptography. Each <span data-glossary="block">block</span> contains:</p>
-            <ul>
-                <li><strong>Transactions</strong> - The actual data being recorded</li>
-                <li><strong>Hash</strong> - A cryptographic fingerprint of the block</li>
-                <li><strong>Previous block hash</strong> - Links to the previous block, forming a chain</li>
-            </ul>
-
-            <div class="info">
-                <strong>Key Insight:</strong> The "chain" in blockchain comes from each block referencing the previous block's hash. If someone tries to modify an old block, all subsequent blocks become invalid, making tampering extremely difficult.
-            </div>
-
-            <h3>Why Blockchain Matters</h3>
-            <p>Blockchains provide:</p>
-            <ul>
-                <li><strong><span data-glossary="decentralization">Decentralization</span></strong> - No single point of control or failure</li>
-                <li><strong><span data-glossary="immutability">Immutability</span></strong> - Once recorded, data is extremely difficult to change</li>
-                <li><strong>Transparency</strong> - All participants can verify the ledger</li>
-                <li><strong>Trust</strong> - Cryptographic proofs ensure data integrity</li>
-            </ul>
-
-            <h3>Types of Blockchains</h3>
-            <ul>
-                <li><strong>Public</strong> - Anyone can join and participate (Bitcoin, Ethereum)</li>
-                <li><strong>Permissioned</strong> - Only approved participants can join</li>
-                <li><strong>Consortium</strong> - Controlled by a group of organizations</li>
-            </ul>
-        </div>
-
-        <div class="section">
-            <h2>2. What is Hyperscale-rs?</h2>
+            <h3>Hyperscale (the protocol)</h3>
+            <p><strong>Hyperscale</strong> is the BFT <span data-glossary="consensus">consensus</span> protocol designed for high-throughput, <span data-glossary="sharding">sharded</span> blockchain networks. It defines how validators agree on blocks, handle <span data-glossary="cross-shard transaction">cross-shard</span> coordination, and achieve <span data-glossary="finality">finality</span>. The protocol design and specification are documented in the same repository as the Rust implementation.</p>
+            <p><strong>Repository and docs:</strong> <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">github.com/flightofthefox/hyperscale-rs</a> — code, guides (in <code>guides/</code>), and protocol context live here.</p>
             
-            <h3>Definition</h3>
-            <p><strong><span data-glossary="hyperscale-rs">Hyperscale-rs</span></strong> is a Rust implementation of the Hyperscale <span data-glossary="consensus">consensus</span> protocol - a <span data-glossary="bft">Byzantine Fault Tolerant (BFT)</span> consensus system designed for high-throughput, <span data-glossary="sharding">sharded</span> blockchain networks.</p>
+            <h3>Hyperscale-rs (the implementation)</h3>
+            <p><strong><span data-glossary="hyperscale-rs">Hyperscale-rs</span></strong> is the Rust implementation of the Hyperscale protocol: a <span data-glossary="bft">Byzantine Fault Tolerant (BFT)</span> consensus system for high-throughput, sharded blockchain networks.</p>
 
             <div class="highlight">
-                <strong>Key Point:</strong> Hyperscale-rs is NOT a full blockchain platform. It's a consensus layer - the "engine" that decides which transactions get included and in what order.
+                <strong>Key Point:</strong> Hyperscale-rs is NOT a full blockchain platform. It's a consensus layer — the "engine" that decides which transactions get included and in what order.
+            </div>
+
+            <div class="info" style="margin-top: 1rem;">
+                <strong>🤔 Think about it:</strong> If you were building a full wallet app, would the consensus layer (hyperscale-rs) be the only piece you need? What else would you need (e.g. execution, storage, networking to users)?
             </div>
 
             <h3>What Hyperscale-rs IS:</h3>
@@ -96,11 +72,15 @@
             <h3>Design Philosophy</h3>
             <p>Hyperscale-rs follows several key design principles:</p>
             <ol>
-                <li><strong>Pure Consensus Layer</strong> - No I/O, no locks, no async in consensus logic</li>
-                <li><strong><span data-glossary="state machine">State Machine</span> Model</strong> - Everything is a deterministic state machine</li>
-                <li><strong><span data-glossary="event-driven">Event-Driven</span></strong> - Events flow in, actions flow out</li>
-                <li><strong><span data-glossary="deterministic">Deterministic</span> Testing</strong> - Same code runs in simulation and production</li>
+                <li><strong>Pure Consensus Layer</strong> — No I/O, no locks, no async in consensus logic</li>
+                <li><strong><span data-glossary="state machine">State Machine</span> Model</strong> — Everything is a deterministic state machine</li>
+                <li><strong><span data-glossary="event-driven">Event-Driven</span></strong> — Events flow in, actions flow out</li>
+                <li><strong><span data-glossary="deterministic">Deterministic</span> Testing</strong> — Same code runs in simulation and production</li>
             </ol>
+
+            <div class="info" style="margin-top: 1rem;">
+                <strong>🤔 Check your understanding:</strong> Why do you think "no I/O in consensus logic" makes the code easier to test and reason about? (Hint: what would be hard if the consensus code could read the network or the clock whenever it wanted?)
+            </div>
 
             <div class="warning" style="margin-top: 1.5rem;">
                 <strong>Important Context:</strong> Hyperscale-rs is not a toy repo. It touches distributed systems, async Rust at scale, networking/performance, and architectural correctness. Contributions require different levels of expertise.
@@ -108,7 +88,7 @@
         </div>
 
         <div class="section">
-            <h2>3. Contribution Roadmap & Realistic Expectations</h2>
+            <h2>2. Contribution Roadmap & Realistic Expectations</h2>
             
             <p>Understanding what contribution levels actually mean helps set realistic expectations. Here's a breakdown of what each level entails:</p>
 
@@ -156,7 +136,7 @@
             </ul>
 
             <div class="success">
-                <strong>Why this is fast for you:</strong> You already know Rust. AI tools accelerate repo comprehension massively. You're not learning programming from scratch. <strong>This is very achievable and realistic.</strong>
+                <strong>This stage is faster for someone with Rust knowledge to complete:</strong>
             </div>
 
             <h3>2️⃣ Intermediate Contributions to Hyperscale-rs</h3>
@@ -226,12 +206,12 @@
             </ul>
 
             <div class="info">
-                <strong>Note:</strong> Age is not a disadvantage here — judgment matters more than speed.
+                <strong>Judgment matters more than speed.</strong>
             </div>
         </div>
 
         <div class="section">
-            <h2>4. Project Structure</h2>
+            <h2>3. Project Structure</h2>
             
             <p>Hyperscale-rs is organized as a Cargo workspace with multiple crates:</p>
 
@@ -260,7 +240,7 @@
         </div>
 
         <div class="section">
-            <h2>5. Setting Up Your Environment</h2>
+            <h2>4. Setting Up Your Environment</h2>
             
             <h3>Prerequisites</h3>
             <ol>
@@ -291,7 +271,7 @@ cd hyperscale-rs</code></pre></div>
         </div>
 
         <div class="section">
-            <h2>6. Exploring the Codebase</h2>
+            <h2>5. Exploring the Codebase</h2>
             
             <h3>Practical Exercise</h3>
             <p>Let's do a hands-on exploration:</p>
@@ -312,12 +292,12 @@ cd hyperscale-rs</code></pre></div>
         </div>
 
         <div class="section">
-            <h2>7. Knowledge Check Quiz</h2>
+            <h2>6. Knowledge Check Quiz</h2>
             <div id="quiz-01" class="quiz-container"></div>
         </div>
 
         <div class="section">
-            <h2>8. Practical Assignment</h2>
+            <h2>7. Practical Assignment</h2>
             <div class="assignment">
                 <h3>Assignment: Environment Setup & First Exploration</h3>
                 <p><strong>Goal:</strong> Set up your development environment and create a summary document.</p>
@@ -343,8 +323,7 @@ cd hyperscale-rs</code></pre></div>
                     <li><strong>Create Summary Document</strong>:
                         <ul>
                             <li>Create a file: <code>MY_LEARNING_JOURNEY.md</code> in the root</li>
-                            <li>Document what you learned about blockchain</li>
-                            <li>Document what hyperscale-rs is and isn't</li>
+                            <li>Document what hyperscale-rs is and isn't (and how it relates to the Hyperscale protocol)</li>
                             <li>List 3 things you found interesting in the codebase</li>
                             <li>List 3 questions you have</li>
                         </ul>
@@ -365,9 +344,9 @@ cd hyperscale-rs</code></pre></div>
         </div>
 
         <div class="navigation">
-            <a href="../index.html" class="btn btn-secondary">← Back to Course Index</a>
+            <a href="../index.html" class="btn btn-secondary">← Back to Index</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="../basic/module-02-consensus-basics.html" class="btn btn-primary">Next Module →</a>
+            <a href="module-02-codebase-exploration.html" class="btn btn-primary">Next Module →</a>
         </div>
     </div>
 
@@ -378,57 +357,62 @@ cd hyperscale-rs</code></pre></div>
         // Initialize module
         initializeModulePage('basic-05');
 
-        // Initialize quiz
+        // Conceptual quiz: tests understanding, not rote memorization
         const quizQuestions = [
             {
-                question: "What is the primary purpose of hyperscale-rs?",
+                question: "Why would a project keep consensus logic separate from I/O (network, disk, timers)?",
                 options: [
-                    "A full blockchain platform like Ethereum",
-                    "A BFT consensus protocol implementation",
-                    "A cryptocurrency wallet",
-                    "A smart contract development tool"
+                    "So that the same consensus code can be tested in simulation and run in production with the same behavior",
+                    "To make the code run faster",
+                    "To avoid using Rust",
+                    "So that no one can run it on a real network"
                 ],
-                correct: 1
+                correct: 0,
+                explanation: "If consensus could touch the network or clock directly, tests would depend on real time and real sockets — flaky and hard to reproduce. By feeding in Events and executing Actions via a \"runner,\" the same state machine gets deterministic tests and real deployment."
             },
             {
-                question: "What does 'pure consensus layer' mean in hyperscale-rs?",
+                question: "Events flow *into* the state machine; Actions flow *out*. What problem does this separation solve?",
                 options: [
-                    "No I/O, no locks, no async in consensus logic",
-                    "Only consensus code, no execution",
-                    "Pure Rust code with no dependencies",
-                    "Consensus without any state management"
+                    "It makes the code shorter",
+                    "The core logic only has to say \"what to do\" (actions); something else does the I/O and turns results into new events",
+                    "It removes the need for any tests",
+                    "It allows multiple programming languages"
                 ],
-                correct: 0
+                correct: 1,
+                explanation: "The state machine stays pure: same state + same event ⇒ same actions. Runners (simulation or production) execute actions and inject new events. That way consensus is testable without mocking the whole world."
             },
             {
-                question: "Which of the following is NOT a design principle of hyperscale-rs?",
+                question: "Someone says: \"Hyperscale-rs is like a mini Ethereum.\" What's the best response?",
                 options: [
-                    "State Machine Model",
-                    "Event-Driven Architecture",
-                    "Deterministic Testing",
-                    "Async-first design"
+                    "Yes, it has smart contracts and a token",
+                    "Not really — it's just the consensus engine (agreement on blocks); execution and full chain behavior live elsewhere",
+                    "It is exactly Ethereum but in Rust",
+                    "It replaces Ethereum"
                 ],
-                correct: 3
+                correct: 1,
+                explanation: "Hyperscale-rs implements agreement on a sequence of blocks (BFT, sharding). It doesn't implement execution, tokens, or smart contracts by itself; those are in other layers (e.g. Radix Engine) that build on top."
             },
             {
-                question: "What is the relationship between Events and Actions?",
+                question: "Why might \"deterministic\" matter for a consensus protocol?",
                 options: [
-                    "Events are actions that happened",
-                    "Events flow into state machines, Actions flow out",
-                    "Actions create events",
-                    "They are the same thing"
+                    "It makes the protocol faster than others",
+                    "So that every honest node, given the same inputs and events, produces the same decisions and avoids forks from inconsistent behavior",
+                    "Only for unit tests",
+                    "It doesn't matter"
                 ],
-                correct: 1
+                correct: 1,
+                explanation: "Consensus means everyone agrees. If the logic were non-deterministic (e.g. depended on random or wall clock), different nodes could reach different conclusions and the chain could fork. Determinism keeps everyone in sync."
             },
             {
-                question: "Why is deterministic testing important?",
+                question: "What's one benefit of the Hyperscale protocol being designed for sharding from the start?",
                 options: [
-                    "It makes tests run faster",
-                    "Same code runs in simulation and production, bugs are consistent",
-                    "It reduces test complexity",
-                    "It's not important"
+                    "Sharding is optional and rarely used",
+                    "Throughput can scale with more shards; cross-shard coordination is part of the design",
+                    "It uses less disk space",
+                    "It avoids BFT entirely"
                 ],
-                correct: 1
+                correct: 1,
+                explanation: "Sharding lets different groups of validators process different shards in parallel. Hyperscale is designed so that cross-shard transactions and coordination are first-class, instead of bolted on later."
             }
         ];
 
