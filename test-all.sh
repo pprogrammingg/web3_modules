@@ -63,6 +63,17 @@ else
     echo "   ⚠️  JavaScript might have issues"
 fi
 
+# Test 5b: Quiz result highlighting (wrong vs correct)
+echo ""
+echo "5b. Testing quiz highlight (wrong answers highlighted)..."
+node test-quiz.js
+if [ $? -eq 0 ]; then
+    echo "   ✅ Quiz highlight tests passed"
+else
+    echo "   ❌ Quiz highlight tests failed"
+    exit 1
+fi
+
 echo ""
 echo "6. Testing mobile test page..."
 if [ -f "mobile-test.html" ]; then
@@ -85,4 +96,5 @@ echo "  - Files: ✅"
 echo "  - Modules: ✅"
 echo "  - CSS: ✅"
 echo "  - JS: ✅"
+echo "  - Quiz highlight: ✅"
 echo "  - Mobile test page: ✅"

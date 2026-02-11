@@ -183,20 +183,27 @@ function submitQuiz(quizId, questions, userAnswers, passingScore) {
     let correct = 0;
     const total = questions.length;
     
-    // Check answers
+    // Check answers and highlight correct/incorrect options and wrong-answered questions
     questions.forEach((question, index) => {
         const userAnswer = userAnswers[index];
         const correctAnswer = question.correct;
+        const isWrong = userAnswer !== correctAnswer;
         const optionDivs = quizContainer.querySelectorAll(`[data-question="${index}"]`);
-        
+        const questionDiv = quizContainer.querySelectorAll('.question')[index];
+
         optionDivs.forEach((div, optIndex) => {
             div.classList.remove('selected', 'correct', 'incorrect');
             if (optIndex === correctAnswer) {
                 div.classList.add('correct');
-            } else if (optIndex === userAnswer && userAnswer !== correctAnswer) {
+            } else if (optIndex === userAnswer && isWrong) {
                 div.classList.add('incorrect');
             }
         });
+
+        if (questionDiv) {
+            questionDiv.classList.remove('question-wrong');
+            if (isWrong) questionDiv.classList.add('question-wrong');
+        }
     });
     
     // Calculate score

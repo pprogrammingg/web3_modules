@@ -38,15 +38,17 @@ const COURSE_DATA = {
                 {
                     id: 'basic-03',
                     title: 'Distributed Systems Fundamentals',
-                    duration: '1.5-2 hours',
+                    duration: '2-2.5 hours',
                     difficulty: 'Basic',
                     path: 'basic/module-03-distributed-systems.html',
-                    description: 'Learn distributed systems concepts essential for blockchain',
+                    description: 'CAP, partial synchrony, safety vs liveness, quorum intersection—concepts essential for BFT and Hyperscale-rs',
                     objectives: [
-                        'Understand CAP theorem',
-                        'Learn about network partitions',
-                        'Understand eventual consistency',
-                        'Learn about fault tolerance'
+                        'Understand CAP theorem and partitions (CP vs AP)',
+                        'Understand partial synchrony and GST (why BFT works despite FLP)',
+                        'Distinguish safety vs liveness and how they trade off',
+                        'Understand quorum intersection (why 3f+1 and 2f+1)',
+                        'Learn leader-based consensus, view/round, and timeouts',
+                        'Relate fault tolerance to protocol design'
                     ],
                     hyperscaleSpecific: false
                 },

@@ -56,6 +56,16 @@ const GLOSSARY_ENTRIES = [
     subCategory: ['Distributed Systems Fundamentals', 'Networking & Propagation'],
     competingConcepts: 'Partial synchrony vs full synchrony (clocks and delays known) vs asynchrony (no timing guarantees). Most BFT blockchains assume partial synchrony; Nakamoto consensus avoids timing assumptions but gives probabilistic finality and uses energy (PoW).',
   },
+  {
+    key: 'gst',
+    keys: ['gst', 'global stabilization time'],
+    term: 'GST (Global Stabilization Time)',
+    def: 'The unknown time after which the network obeys bounded message delays in the partial synchrony model.',
+    technicalDef: 'In partial synchrony, GST is the time instant after which all message delays are bounded by a known Δ. The protocol does not know when GST occurs—only that it eventually does. This assumption allows BFT protocols to guarantee liveness (progress) after GST while preserving safety (no conflicting commits) at all times.',
+    explain10yo: 'The moment when the mail finally starts arriving on time. We don\'t know which day that is, but we know it will happen, and after that we can finish the game.',
+    subCategory: ['Distributed Systems Fundamentals', 'Networking & Propagation'],
+    competingConcepts: 'GST is part of the partial synchrony model; without it (full asynchrony), FLP says consensus cannot guarantee termination. With GST, protocols can use timeouts for view changes and progress.',
+  },
 
   // ---- Consensus & Agreement ----
   {
@@ -117,6 +127,16 @@ const GLOSSARY_ENTRIES = [
     explain10yo: 'Same goal as the strict rulebook but fewer steps: two OKs in a row are enough, and if the leader is slow, the next leader just takes over without a big vote.',
     subCategory: ['Consensus & Agreement'],
     competingConcepts: 'HotStuff vs PBFT: lower latency (2 blocks vs 3), O(n) vs O(n²), simpler view change. HotStuff vs Tendermint: similar round structure; HotStuff pipelines blocks for better throughput.',
+  },
+  {
+    key: 'view',
+    keys: ['view', 'view number', 'round'],
+    term: 'View / Round (BFT)',
+    def: 'In leader-based BFT, a view (or round) is a period in which one leader is designated to propose a block.',
+    technicalDef: 'The view number (or round number) is a monotonically increasing identifier. Each view has exactly one proposer/leader, chosen deterministically from the validator set (e.g. view mod n). All nodes in the shard agree on the view number and thus on who the current proposer is. On timeout or failure to get a QC, the protocol advances to the next view (view change).',
+    explain10yo: 'Like a turn number in a game: "This is turn 5, so it\'s Alice\'s turn to propose." Everyone agrees on the number, so everyone agrees whose turn it is.',
+    subCategory: ['Consensus & Agreement'],
+    competingConcepts: 'View (BFT) vs block height: height is the block index in the chain; view can advance without producing a block (e.g. on timeout).',
   },
   {
     key: 'view change',
@@ -450,6 +470,16 @@ const GLOSSARY_ENTRIES = [
     subCategory: ['State & Execution', 'Architecture'],
     competingConcepts: 'Event-driven vs request-response: event-driven is asynchronous and scalable; request-response is simpler for direct calls. Event-driven fits distributed systems and consensus layers where ordering is agreed separately.',
   },
+  {
+    key: 'mempool',
+    keys: ['mempool', 'memory pool'],
+    term: 'Mempool',
+    def: 'A pool of pending (not-yet-included) transactions kept by a node; the proposer picks from it to build the next block.',
+    technicalDef: 'Short for "memory pool": the set of valid, not-yet-confirmed transactions that a node holds in memory. Transactions enter the mempool when received or validated; the consensus leader (proposer) selects from the mempool to form the next block. Why "mempool" and not just "memory"? The name emphasizes both that it is a pool (a collection of pending txs) and that it lives in memory (volatile, not yet on-chain). Plain "memory" would be too generic (RAM, storage, etc.); "mempool" is the standard blockchain term for this structure (from Bitcoin).',
+    explain10yo: 'A waiting room for transactions. They sit there until the person building the next block picks them. It\'s called a "memory pool" because they\'re stored in the node\'s memory, and it\'s a pool of many transactions.',
+    subCategory: ['State & Execution', 'Blockchain & Ledgers'],
+    competingConcepts: 'Mempool vs persistent storage: mempool is typically in-memory and can be evicted (e.g. by fee or expiry); committed state is on-chain. Different chains use different mempool policies (size, replacement, privacy).',
+  },
 
   // ---- Scalability & Sharding ----
   {
@@ -461,6 +491,16 @@ const GLOSSARY_ENTRIES = [
     explain10yo: 'Instead of one line for everyone, we open several checkout lines. Each line handles different people; we need rules for when one purchase involves two lines (cross-shard).',
     subCategory: ['Scalability & Sharding'],
     competingConcepts: 'Sharding vs single chain: sharding increases throughput but adds cross-shard complexity and potential security dilution (smaller committee per shard). Alternative: rollups (execute off main chain, post data or proofs to main chain) for scalability without full sharding.',
+  },
+  {
+    key: 'prepare phase',
+    keys: ['prepare phase', 'prepare (2pc)', 'lock', 'reserve'],
+    term: 'Prepare phase (2PC)',
+    def: 'In 2PC, the phase where each participant locks or reserves resources and votes yes/no; no visible state change until commit.',
+    technicalDef: 'The coordinator sends prepare to all participants. Each participant runs its part of the transaction (e.g. reserves or locks the affected state), does not make the update visible to others yet, and replies yes or no. If any votes no, the coordinator sends abort and everyone releases locks. Only if all vote yes does the coordinator send commit, and then participants apply the state change. Lock/reserve ensures resources are held until the decision.',
+    explain10yo: 'Everyone puts their hand on their part of the deal and says "I can do it" or "I can\'t." Nobody actually does it until the teacher says "everyone go."',
+    subCategory: ['Distributed Systems Fundamentals', 'Scalability & Sharding'],
+    competingConcepts: 'Prepare (lock/reserve) vs commit (apply): prepare is reversible; commit is the point of no return. In cross-shard 2PC, prepare runs per shard before the global commit/abort.',
   },
   {
     key: 'two-phase commit',
@@ -548,6 +588,16 @@ const GLOSSARY_ENTRIES = [
   },
 
   // ---- Project / Architecture (keep existing) ----
+  {
+    key: 'nodeid',
+    keys: ['nodeid', 'node id', 'radix node id', 'NodeID'],
+    term: 'NodeID (Radix)',
+    def: 'In Radix, the address of an on-chain entity: a component, resource, package, or account.',
+    technicalDef: 'NodeID in Radix refers to addresses of on-chain entities—components, resources, packages, accounts—i.e. nodes in the ledger state graph. Used to determine which shard owns the entity (for cross-shard tx classification). Do not confuse with validator identity (which machine runs consensus).',
+    explain10yo: 'Like the address of a box in the warehouse: each component or resource has its own address so we know where it lives and which "line" (shard) handles it.',
+    subCategory: ['State & Execution', 'Scalability & Sharding'],
+    competingConcepts: 'NodeID (on-chain entity address) vs validator identity (consensus node). In Radix docs, NodeID usually means the former.',
+  },
   {
     key: 'hyperscale-rs',
     keys: ['hyperscale-rs'],

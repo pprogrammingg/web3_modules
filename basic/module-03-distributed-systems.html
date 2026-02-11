@@ -14,7 +14,7 @@
         <div class="course-header">
             <h1>Module 1.2b: Distributed Systems Fundamentals</h1>
             <div class="course-meta">
-                <span>⏱️ Duration: 1.5-2 hours</span>
+                <span>⏱️ Duration: 2-2.5 hours</span>
                 <span>📊 Difficulty: Basic</span>
                 <span>📅 Month 1, Week 2–3</span>
             </div>
@@ -23,10 +23,14 @@
         <div class="section">
             <h2>Learning Objectives</h2>
             <ul>
-                <li>Understand the <span data-glossary="cap theorem">CAP theorem</span> and its implications</li>
-                <li>Learn about network partitions and how systems respond</li>
-                <li>Understand eventual consistency vs strong consistency</li>
-                <li>Learn about fault tolerance and failure modes</li>
+                <li>Understand the <span data-glossary="cap theorem">CAP theorem</span> and its implications for blockchain</li>
+                <li>Learn about network partitions and how systems respond (CP vs AP)</li>
+                <li>Understand eventual vs strong consistency and why blockchains need strong consistency</li>
+                <li>Understand <span data-glossary="partial synchrony">partial synchrony</span> and <span data-glossary="gst">GST (Global Stabilization Time)</span>—why BFT works despite <span data-glossary="flp impossibility">FLP (Fischer–Lynch–Paterson impossibility)</span></li>
+                <li>Distinguish <strong>safety</strong> vs <strong>liveness</strong> and how they trade off during partitions</li>
+                <li>Understand <span data-glossary="quorum">quorum</span> intersection: why 3f+1 and 2f+1 guarantee agreement</li>
+                <li>Learn leader-based consensus, <span data-glossary="view">view/round</span>, and why timeouts are needed for <span data-glossary="view change">view change</span></li>
+                <li>Relate fault tolerance (crash vs Byzantine) to protocol design</li>
             </ul>
         </div>
 
@@ -61,7 +65,7 @@
                 <li><strong>CP systems</strong> may stop accepting writes (or block progress) in one or both sides until the partition heals, to avoid inconsistent state.</li>
                 <li><strong>AP systems</strong> allow both sides to keep accepting operations; when the partition heals, they must merge or resolve conflicts (eventual consistency).</li>
             </ul>
-            <p>BFT consensus assumes that eventually the network is synchronous enough (e.g. after GST) so that a quorum can communicate. Until then, progress might stall (liveness), but safety (no two quorums commit different values) is preserved.</p>
+            <p>BFT consensus assumes that eventually the network is synchronous enough (e.g. after <span data-glossary="gst">GST (Global Stabilization Time)</span>) so that a quorum can communicate. Until then, progress might stall (liveness), but safety (no two quorums commit different values) is preserved.</p>
         </div>
 
         <div class="section">
@@ -89,34 +93,105 @@
         </div>
 
         <div class="section">
-            <h2>5. Key Takeaways</h2>
+            <h2>5. Partial Synchrony and <span data-glossary="gst">GST (Global Stabilization Time)</span></h2>
+            <p>The <span data-glossary="flp impossibility">FLP (Fischer–Lynch–Paterson) impossibility</span> result says: in a fully <strong>asynchronous</strong> network, deterministic consensus cannot guarantee <strong>termination</strong> if even one node can fail. What does that mean in plain terms?</p>
             <ul>
-                <li>CAP: under partitions, you trade off consistency (CP) vs availability (AP).</li>
-                <li>Partitions mean groups of nodes cannot communicate; systems must choose how to behave.</li>
-                <li>Strong consistency = everyone agrees on the same data; eventual consistency = everyone agrees eventually if writes stop.</li>
-                <li>Fault tolerance (crash vs Byzantine) determines protocol design (e.g. 2f+1 vs 3f+1 nodes).</li>
+                <li><strong>Fully asynchronous:</strong> There is no bound on how long messages take to arrive. You can never tell whether a node is slow, the network is delayed, or a message was lost. So you can't safely assume "after 5 seconds, if I got no reply, the node is dead."</li>
+                <li><strong>Cannot guarantee termination:</strong> The protocol might never "decide"—i.e. never output a final agreed value. The nodes might keep exchanging messages forever without reaching consensus. FLP proves that this is unavoidable in the asynchronous model if one node can crash.</li>
+                <li><strong>If even one node can fail:</strong> The result holds with just one crash fault (a node that stops responding). It doesn't require Byzantine (malicious) behavior.</li>
+            </ul>
+            <p>So how do BFT blockchains work? They <em>relax the model</em>: they assume the network is not fully asynchronous forever. That's where <strong>partial synchrony</strong> comes in.</p>
+            <h3><span data-glossary="partial synchrony">Partial synchrony</span></h3>
+            <p>BFT protocols assume <strong>partial synchrony</strong>: the network is asynchronous until some unknown point, called <strong><span data-glossary="gst">GST (Global Stabilization Time)</span></strong>. After <span data-glossary="gst">GST</span>, message delays are bounded by a known Δ. We don't know when <span data-glossary="gst">GST</span> is—only that it eventually happens.</p>
+            <ul>
+                <li><strong>Before <span data-glossary="gst">GST</span>:</strong> The protocol may not make progress (liveness at risk), but it must not commit conflicting values (safety preserved).</li>
+                <li><strong>After <span data-glossary="gst">GST</span>:</strong> Timeouts and retries eventually allow a quorum to communicate, so the protocol can make progress.</li>
+            </ul>
+            <div class="info">
+                <strong>Why this matters for Hyperscale:</strong> The BFT crate assumes eventual synchrony. During a partition or bad network, you may see no new blocks (liveness); once the network recovers (<span data-glossary="gst">GST (Global Stabilization Time)</span> has passed), the protocol resumes. This is the standard assumption for HotStuff-style consensus.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>6. Safety vs Liveness</h2>
+            <p>Consensus protocols aim for two guarantees:</p>
+            <ul>
+                <li><strong>Safety:</strong> No two honest nodes ever commit different values (e.g. different blocks at the same height). Once committed, it's final.</li>
+                <li><strong>Liveness:</strong> The system eventually makes progress—new blocks keep being committed (assuming at most f faults and, for most BFT, partial synchrony).</li>
+            </ul>
+            <p>Under a partition, you typically <strong>preserve safety</strong> (no conflicting commits) but may <strong>lose liveness</strong> (no progress until the partition heals). BFT designs prioritize safety: they would rather stall than allow two quorums to commit different blocks.</p>
+            <div class="info">
+                <strong>In Hyperscale:</strong> Steps 7–11 in the transaction flow (proposer → vote → QC → commit) can stall during a partition; when the network recovers, the same protocol continues and no honest node has committed a conflicting block.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>7. Quorum Intersection: Why 3f+1 and 2f+1</h2>
+            <p>In BFT with <strong>n = 3f + 1</strong> nodes, a <span data-glossary="quorum">quorum</span> is any set of <strong>2f + 1</strong> nodes. The crucial property:</p>
+            <p><strong>Any two quorums intersect in at least one honest node.</strong></p>
+            <ul>
+                <li>There are at most f Byzantine nodes. So there are at least 2f+1 honest nodes.</li>
+                <li>Any set of 2f+1 nodes (a quorum) must contain at least (2f+1) − f = f+1 honest nodes.</li>
+                <li>Two different quorums (each of size 2f+1) have at most 2f nodes total outside their intersection. So they share at least (2f+1) + (2f+1) − (3f+1) = 2f+1 − f = f+1 nodes. At least one of those must be honest (since at most f are Byzantine). So <em>any two quorums share at least one honest node</em>.</li>
+            </ul>
+            <p>Consequence: if one quorum commits block A and another commits block B (A ≠ B), they would need to share an honest node that voted for both—but an honest node votes only for one value. So <strong>two different blocks cannot both get a quorum</strong>. That's the core of BFT safety.</p>
+        </div>
+
+        <div class="section">
+            <h2>8. Leader-Based Consensus: View, Round, and Timeouts</h2>
+            <p>BFT protocols like HotStuff are <strong>leader-based</strong>: in each <span data-glossary="view">view</span> (or round), one node—the <strong>proposer/leader</strong>—is designated to propose a block. Validators then vote; when 2f+1 vote, a QC is formed.</p>
+            <h3>What if the leader is faulty or partitioned?</h3>
+            <p>If the leader doesn't send a block, or validators don't receive it, the round would never finish. So protocols use <strong>timeouts</strong>: if no QC is formed within some time bound (after <span data-glossary="gst">GST (Global Stabilization Time)</span>), nodes assume the leader is faulty and move to the <strong>next view</strong>, where a new leader (chosen deterministically, e.g. round-robin) proposes. This is a <span data-glossary="view change">view change</span>.</p>
+            <ul>
+                <li><strong>Why time?</strong> Liveness requires progress; without a timeout, a faulty leader could stall the system forever. Partial synchrony (bounded delay after <span data-glossary="gst">GST (Global Stabilization Time)</span>) makes timeouts meaningful.</li>
+                <li><strong>Implicit vs coordinated:</strong> In HotStuff-2, view change is <span data-glossary="implicit view change">implicit</span>—on timeout, the next leader simply proposes; no separate view-change vote. <span data-glossary="pbft">PBFT</span> uses an explicit coordinated view-change phase.</li>
             </ul>
         </div>
 
         <div class="section">
-            <h2>6. Quiz</h2>
+            <h2>9. Why This Matters for Hyperscale-rs</h2>
+            <p>When you read the Hyperscale-rs codebase or the <strong>Transaction Flow</strong> module:</p>
+            <ul>
+                <li><strong>CAP &amp; partitions:</strong> The system is CP-oriented; during a partition it may not produce new blocks (no availability), but it won't commit conflicting blocks (consistency).</li>
+                <li><strong>Partial synchrony:</strong> The BFT crate assumes the network eventually obeys bounds; timeouts and round advancement depend on that.</li>
+                <li><strong>Safety vs liveness:</strong> The commit rule (e.g. two-chain) and quorum intersection ensure safety; view changes and timeouts aim for liveness.</li>
+                <li><strong>Quorum size 2f+1:</strong> Votes and QCs use this threshold so that any two quorums overlap in an honest node—this is why the protocol is safe.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>10. Key Takeaways</h2>
+            <ul>
+                <li>CAP: under partitions, you trade off consistency (CP) vs availability (AP); blockchains typically choose CP.</li>
+                <li><span data-glossary="partial synchrony">Partial synchrony</span> (<span data-glossary="gst">GST (Global Stabilization Time)</span>) is the assumption that lets BFT bypass <span data-glossary="flp impossibility">FLP (Fischer–Lynch–Paterson impossibility)</span>: after some unknown time, the network is "good enough" for progress.</li>
+                <li>Safety = no conflicting commits; liveness = eventual progress. During partitions, safety is preserved, liveness may be lost.</li>
+                <li>Quorum intersection (3f+1, 2f+1): any two quorums share an honest node, so they cannot commit different values.</li>
+                <li>Leader-based BFT uses views/rounds and timeouts for view change when the leader is faulty or partitioned.</li>
+                <li>Fault tolerance (crash vs Byzantine) determines protocol design (2f+1 vs 3f+1, and whether we need quorum intersection).</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>11. Quiz</h2>
             <div id="quiz-03" class="quiz-container"></div>
         </div>
 
         <div class="section">
-            <h2>7. Practical Assignment</h2>
+            <h2>12. Practical Assignment</h2>
             <div class="assignment">
-                <h3>Assignment: CAP and Partitions</h3>
+                <h3>Assignment: Distributed Systems and BFT</h3>
                 <ol>
-                    <li>In one paragraph, explain in your own words why a distributed system cannot guarantee consistency, availability, and partition tolerance at the same time.</li>
-                    <li>Give one example of a system or product that favors CP, and one that favors AP. Briefly say why.</li>
-                    <li>In your learning journal, note how BFT consensus (e.g. in hyperscale-rs) fits into the CAP picture (what is sacrificed during a partition?).</li>
+                    <li>In one paragraph, explain why a distributed system cannot guarantee consistency, availability, and partition tolerance at the same time. Give one CP and one AP example.</li>
+                    <li>Explain in your own words: what is partial synchrony (<span data-glossary="gst">GST (Global Stabilization Time)</span>), and why does it allow BFT to guarantee both safety and liveness despite the <span data-glossary="flp impossibility">FLP (Fischer–Lynch–Paterson) impossibility</span> result?</li>
+                    <li>State the quorum intersection property (why any two quorums of 2f+1 in a 3f+1 system share an honest node). In one sentence, why does this guarantee that two different blocks cannot both be committed?</li>
+                    <li>During a network partition, does a BFT system typically preserve safety, liveness, or both? Briefly explain.</li>
+                    <li>In your learning journal, note how Hyperscale-rs (or the transaction flow) reflects: CAP choice, partial synchrony, safety vs liveness, and quorum size.</li>
                 </ol>
                 <h4>Success Criteria:</h4>
                 <ul>
-                    <li>✅ You can explain CAP to someone else</li>
-                    <li>✅ You understand the difference between strong and eventual consistency</li>
-                    <li>✅ You can relate fault tolerance (crash vs Byzantine) to protocol choice</li>
+                    <li>✅ You can explain CAP, partial synchrony, and safety vs liveness</li>
+                    <li>✅ You understand quorum intersection and why 3f+1 / 2f+1</li>
+                    <li>✅ You can relate these concepts to BFT and Hyperscale-rs</li>
                 </ul>
             </div>
         </div>
@@ -172,6 +247,46 @@
                     "Because networks can and do partition in practice",
                     "Because consistency is unimportant",
                     "Because availability is unimportant"
+                ],
+                correct: 1
+            },
+            {
+                question: "What does partial synchrony (GST = Global Stabilization Time) assume?",
+                options: [
+                    "The network is always synchronous",
+                    "After some unknown time (GST), message delays are bounded",
+                    "Messages are never lost",
+                    "There are no Byzantine nodes"
+                ],
+                correct: 1
+            },
+            {
+                question: "During a network partition, what does BFT typically preserve?",
+                options: [
+                    "Liveness only",
+                    "Safety only",
+                    "Both safety and liveness",
+                    "Neither"
+                ],
+                correct: 1
+            },
+            {
+                question: "Why can two different blocks not both get a quorum in BFT (n = 3f+1, quorum 2f+1)?",
+                options: [
+                    "Because only one block is proposed per round",
+                    "Any two quorums share at least one honest node, who would not vote for both",
+                    "Because the network is synchronous",
+                    "Because validators are paid to agree"
+                ],
+                correct: 1
+            },
+            {
+                question: "Why do BFT protocols use timeouts for view/round advancement?",
+                options: [
+                    "To reduce message size",
+                    "To ensure liveness: a faulty or partitioned leader cannot stall progress forever",
+                    "To improve signature aggregation",
+                    "To guarantee safety"
                 ],
                 correct: 1
             }

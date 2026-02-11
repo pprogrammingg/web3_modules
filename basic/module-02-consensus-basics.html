@@ -224,8 +224,8 @@ Time T6: Block 11 (with QC for Block 10) is broadcast
             <h3>What is HotStuff-2?</h3>
             <p><strong>HotStuff-2</strong> is a <span data-glossary="bft">BFT</span> consensus protocol that uses a <span data-glossary="two-chain commit">two-chain commit</span> rule. It's an improvement over traditional BFT protocols like <span data-glossary="pbft">PBFT</span>.</p>
 
-            <h3>What is PBFT?</h3>
-            <p><strong>PBFT (Practical Byzantine Fault Tolerance)</strong> is a classic BFT consensus protocol introduced by Castro and Liskov in 1999. It was one of the first practical BFT protocols that could handle Byzantine faults in asynchronous networks.</p>
+            <h3>What is <span data-glossary="pbft">PBFT</span>?</h3>
+            <p><strong><span data-glossary="pbft">PBFT (Practical Byzantine Fault Tolerance)</span></strong> is a classic BFT consensus protocol introduced by Castro and Liskov in 1999. It was one of the first practical BFT protocols that could handle Byzantine faults in asynchronous networks.</p>
             
             <h4>PBFT Characteristics:</h4>
             <ul>
@@ -237,7 +237,7 @@ Time T6: Block 11 (with QC for Block 10) is broadcast
             </ul>
 
             <div class="info">
-                <strong>Why PBFT matters:</strong> PBFT established the foundation for BFT consensus. Many modern protocols (including HotStuff-2) are improvements on PBFT's core ideas, addressing its limitations around communication complexity and view changes.
+                <strong>Why <span data-glossary="pbft">PBFT</span> matters:</strong> <span data-glossary="pbft">PBFT</span> established the foundation for BFT consensus. Many modern protocols (including HotStuff-2) are improvements on PBFT's core ideas, addressing its limitations around communication complexity and view changes.
             </div>
 
             <h3>Key Features of HotStuff-2</h3>
@@ -262,7 +262,7 @@ Time T6: Block 11 (with QC for Block 10) is broadcast
                 <li><strong>Optimistic pipelining</strong> - Multiple blocks can be in-flight</li>
                 <li><strong>Linear communication</strong> - O(n) messages per block (vs O(n²) in <span data-glossary="pbft">PBFT</span>)
                     <div class="highlight" style="margin-top: 0.5rem; margin-left: 1rem;">
-                        <strong>Communication complexity:</strong> In PBFT, each node sends messages to all other nodes, resulting in n × n = n² messages. HotStuff-2 uses a leader-based approach where nodes only send messages to the leader, resulting in n messages per block.
+                        <strong>Communication complexity:</strong> In <span data-glossary="pbft">PBFT</span>, each node sends messages to all other nodes, resulting in n × n = n² messages. HotStuff-2 uses a leader-based approach where nodes only send messages to the leader, resulting in n messages per block.
                     </div>
                 </li>
             </ul>
