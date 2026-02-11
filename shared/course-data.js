@@ -81,6 +81,21 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    id: 'basic-05b',
+                    title: 'Transaction Flow: User to Finality',
+                    duration: '~30 min',
+                    difficulty: 'Basic',
+                    path: 'hyperscale-rs/module-01b-tx-flow.html',
+                    description: 'End-to-end diagram: where a tx goes from user to finality, and which crates Hyperscale touches',
+                    objectives: [
+                        'See the full path of a transaction',
+                        'Distinguish Hyperscale vs outside (wallet, engine, network)',
+                        'Map flow steps to crates (hover popups)',
+                        'Understand shards, proposer, and finality in the flow'
+                    ],
+                    hyperscaleSpecific: true
+                },
+                {
                     id: 'basic-06',
                     title: 'Exploring the Hyperscale-rs Codebase',
                     duration: '1.5-2 hours',

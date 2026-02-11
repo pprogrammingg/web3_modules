@@ -18,7 +18,7 @@ fi
 echo ""
 echo "2. Testing file existence..."
 MISSING=0
-for file in "shared/styles.css" "shared/course-data.js" "shared/navigation.js" "index.html" "README.md" "TESTING.md"; do
+for file in "shared/styles.css" "shared/course-data.js" "shared/navigation.js" "shared/glossary.js" "index.html" "README.md" "TESTING.md" "mobile-test.html"; do
     if [ -f "$file" ]; then
         echo "   ✅ $file exists"
     else
@@ -64,6 +64,19 @@ else
 fi
 
 echo ""
+echo "6. Testing mobile test page..."
+if [ -f "mobile-test.html" ]; then
+    if grep -q "shared/styles.css" mobile-test.html && grep -q "navigation" mobile-test.html && grep -q "module-grid\|module-card" mobile-test.html; then
+        echo "   ✅ mobile-test.html exists and has required structure (styles, nav, module cards)"
+    else
+        echo "   ⚠️  mobile-test.html missing expected content (styles link, nav, or module grid)"
+    fi
+else
+    echo "   ❌ mobile-test.html missing"
+    exit 1
+fi
+
+echo ""
 echo "✅ All tests completed!"
 echo ""
 echo "Summary:"
@@ -72,3 +85,4 @@ echo "  - Files: ✅"
 echo "  - Modules: ✅"
 echo "  - CSS: ✅"
 echo "  - JS: ✅"
+echo "  - Mobile test page: ✅"

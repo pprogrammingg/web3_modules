@@ -7,6 +7,7 @@ const AVAILABLE_MODULES = [
     'basic-03', // Distributed Systems
     'basic-04', // State Machines
     'basic-05', // Hyperscale-rs Overview
+    'basic-05b', // Transaction Flow: User to Finality
     'basic-06', // Exploring the Hyperscale-rs Codebase
     'basic-07', // Your First Contribution
 ];

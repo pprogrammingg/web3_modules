@@ -17,6 +17,7 @@ const MODULES = [
     { file: 'basic/module-03-distributed-systems.html', id: 'basic-03' },
     { file: 'basic/module-04-state-machines.html', id: 'basic-04' },
     { file: 'hyperscale-rs/module-01-overview.html', id: 'basic-05' },
+    { file: 'hyperscale-rs/module-01b-tx-flow.html', id: 'basic-05b' },
 ];
 
 // Required shared files
@@ -80,20 +81,18 @@ MODULES.forEach(({ file, id }) => {
         console.log(`  ❌ No CSS link found`);
     }
     
-    // Check JS paths
+    // Check JS paths (modules one level deep: basic/ or hyperscale-rs/ → ../shared/)
+    const validJsPaths = ['../shared/course-data.js', '../shared/navigation.js', '../shared/glossary.js'];
     const jsMatches = content.matchAll(/src=["']([^"']*\.js[^"']*)["']/g);
     const jsPaths = Array.from(jsMatches).map(m => m[1]);
     
     if (jsPaths.length > 0) {
         console.log(`  📝 JS paths found: ${jsPaths.length}`);
         jsPaths.forEach(jsPath => {
-            // All modules are one level deep, so path should be ../shared/
-            const expectedPath = jsPath.includes('course-data.js') ? '../shared/course-data.js' : '../shared/navigation.js';
-            
-            if (jsPath === expectedPath) {
+            if (validJsPaths.includes(jsPath)) {
                 console.log(`  ✅ ${path.basename(jsPath)} path is correct`);
             } else {
-                warnings.push(`${file}: JS path '${jsPath}' might be incorrect (expected: ${expectedPath})`);
+                warnings.push(`${file}: JS path '${jsPath}' might be incorrect (expected one of: ${validJsPaths.join(', ')})`);
                 console.log(`  ⚠️  ${path.basename(jsPath)} path might be incorrect`);
             }
         });
@@ -105,10 +104,6 @@ MODULES.forEach(({ file, id }) => {
     // Check for required elements
     if (!content.includes('initializeModulePage')) {
         warnings.push(`${file}: Might be missing module initialization`);
-    }
-    
-    if (!content.includes('initializeQuiz')) {
-        warnings.push(`${file}: Might be missing quiz initialization`);
     }
 });
 

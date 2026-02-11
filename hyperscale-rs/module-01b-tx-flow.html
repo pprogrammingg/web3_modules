@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Flow: User to Finality</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+    <style>
+        /* Transaction flow diagram: simple, robust HTML+CSS */
+        .tx-flow {
+            --repo: 'https://github.com/flightofthefox/hyperscale-rs';
+            --hyperscale-bg: #eff6ff;
+            --hyperscale-border: #2563eb;
+            --outside-bg: #f8fafc;
+            --outside-border: #94a3b8;
+        }
+        .tx-flow-legend {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .tx-flow-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text2, #6b7280);
+        }
+        .tx-flow-legend .dot-hyperscale { width: 14px; height: 14px; border-radius: 4px; background: var(--hyperscale-bg); border: 2px solid var(--hyperscale-border); }
+        .tx-flow-legend .dot-outside { width: 14px; height: 14px; border-radius: 4px; background: var(--outside-bg); border: 2px solid var(--outside-border); }
+        .tx-flow-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            position: relative;
+        }
+        .flow-step {
+            position: relative;
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            min-height: 52px;
+        }
+        .flow-step-lane {
+            width: 4px;
+            flex-shrink: 0;
+            border-radius: 2px;
+        }
+        .flow-step-lane.hyperscale { background: var(--hyperscale-border); }
+        .flow-step-lane.outside { background: var(--outside-border); }
+        .flow-step-body {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            margin-left: 8px;
+            background: var(--bg);
+            cursor: default;
+        }
+        .flow-step.hyperscale .flow-step-body { border-color: var(--hyperscale-border); background: var(--hyperscale-bg); }
+        .flow-step.outside .flow-step-body { border-color: var(--outside-border); background: var(--outside-bg); }
+        .flow-step-arrow {
+            text-align: center;
+            padding: 2px 0;
+            color: var(--text2);
+            font-size: 1.2rem;
+        }
+        .flow-step-title { font-weight: 700; font-size: 1rem; margin-bottom: 0.25rem; }
+        .flow-step-desc { font-size: 0.875rem; color: var(--text2); }
+        .flow-step-body a.crate-link {
+            font-size: 0.8rem;
+            color: var(--primary);
+        }
+        /* Popup: show on hover, hide on mouse leave (no JS needed for close-on-unhover) */
+        .flow-step-popup {
+            display: none;
+            position: absolute;
+            left: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            margin-left: 10px;
+            min-width: 180px;
+            padding: 0.75rem 1rem;
+            background: var(--bg);
+            border: 2px solid var(--hyperscale-border);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10;
+            font-size: 0.875rem;
+            pointer-events: none;
+        }
+        .flow-step:hover .flow-step-popup { display: block; }
+        .flow-step-popup h4 { margin: 0 0 0.5rem; font-size: 0.8rem; text-transform: uppercase; color: var(--text2); }
+        .flow-step-popup ul { margin: 0; padding-left: 1.1rem; }
+        .flow-step-popup li { margin-bottom: 0.35rem; }
+        .flow-step-popup a { color: var(--primary); text-decoration: none; }
+        .flow-step-popup a:hover { text-decoration: underline; }
+        .flow-step-popup .outside-note { font-style: italic; color: var(--text2); margin-top: 0.5rem; }
+        @media (max-width: 640px) {
+            .flow-step-popup { left: 0; right: 0; margin-left: 0; margin-right: 0; top: 100%; transform: none; margin-top: 6px; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Transaction Flow: User to Finality</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: ~30 min</span>
+                <span>📊 Difficulty: Basic</span>
+                <span>🎯 Hyperscale-rs Specific</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Why This Diagram?</h2>
+            <p>Hyperscale-rs is a <strong>consensus layer</strong>, not a full blockchain stack. This diagram shows the end-to-end path of a transaction from the user to finality, and which parts Hyperscale touches versus which are outside (e.g. wallet, Radix Engine semantics, network client). Hover over each step to see which crates implement it.</p>
+            <p><strong>Where BFT comes in:</strong> Steps 1–6 get the tx into the system (user, network, node, cross-shard determination, mempool, and for cross-shard txs, travel to involved shards). <strong>BFT consensus runs from step 7</strong> (proposer selection) through step 11 (block committed) <em>per shard</em>. Steps 12–14 are execution, then (for cross-shard) coordination &amp; composition, then finality.</p>
+        </div>
+
+        <div class="section">
+            <h2>End-to-End Transaction Flow</h2>
+            <div class="tx-flow">
+                <div class="tx-flow-legend">
+                    <span><span class="dot-hyperscale"></span> Hyperscale-rs (consensus layer)</span>
+                    <span><span class="dot-outside"></span> Outside Hyperscale (wallet, engine, network)</span>
+                </div>
+                <div class="tx-flow-diagram">
+                    <!-- 1. User -->
+                    <div class="flow-step outside">
+                        <div class="flow-step-lane outside"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">1. User signs transaction</div>
+                            <div class="flow-step-desc">Wallet creates and signs a transaction (e.g. transfer, smart contract call).</div>
+                            <div class="flow-step-popup">
+                                <h4>Crates</h4>
+                                <p class="outside-note">Not in Hyperscale — wallet / client application.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <!-- 2. Submit to network -->
+                    <div class="flow-step outside">
+                        <div class="flow-step-lane outside"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">2. Transaction submitted to network</div>
+                            <div class="flow-step-desc">RPC or gateway sends the signed tx to a node (or broadcast).</div>
+                            <div class="flow-step-popup">
+                                <h4>Crates</h4>
+                                <p class="outside-note">Network client / RPC — outside. <code>production</code> receives on the node side.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <!-- 3. Node receives -->
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">3. Node receives transaction</div>
+                            <div class="flow-step-desc">Runner turns incoming bytes into <code>Event</code>s and feeds the node.</div>
+                            <div class="flow-step-popup">
+                                <h4>Crates</h4>
+                                <ul>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/production" target="_blank" rel="noopener">production</a> — I/O, turns network into events</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — NodeStateMachine receives events</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <!-- 4. Cross-shard determination -->
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">4. Cross-shard determination</div>
+                            <div class="flow-step-desc">The tx is analyzed for which <strong>NodeIDs</strong> (components, resources, packages, accounts) it reads or writes. If those NodeIDs belong to <strong>more than one shard</strong>, the tx is classified as a <strong>cross-shard transaction</strong>.</div>
+                            <div class="flow-step-popup">
+                                <h4>Crates</h4>
+                                <ul>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — routing, shard mapping</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">core</a> — Event/Action types</li>
+                                </ul>
+                                <p class="outside-note">Shard assignment of NodeIDs is defined by the protocol / Radix Engine; consensus uses it to decide single- vs cross-shard.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <!-- 5. Mempool -->
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">5. Mempool (per shard)</div>
+                            <div class="flow-step-desc"><strong>Single-shard:</strong> tx goes into that shard’s mempool. <strong>Cross-shard:</strong> the tx (or sub-transactions) are enqueued in the mempools of <strong>every involved shard</strong> so each shard can order and process its part.</div>
+                            <div class="flow-step-popup">
+                                <h4>Crates</h4>
+                                <ul>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/mempool" target="_blank" rel="noopener">mempool</a> — transaction pool</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — composes mempool</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">core</a> — Event/Action types</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <!-- 6. (Cross-shard) Tx travels to involved shards -->
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">6. (Cross-shard) Tx travels to each involved shard</div>
+                            <div class="flow-step-desc">For cross-shard txs, the tx or its <strong>sub-transactions</strong> are sent to the nodes of every shard that owns a touched NodeID. A <strong>coordinator</strong> (one of these shards or a designated role) is chosen so that later (step 13) it can drive prepare/commit/abort in a fixed order. Each shard then runs steps 7–12 for its part.</div>
+                            <div class="flow-step-popup">
+                                <h4>Crates</h4>
+                                <ul>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/production" target="_blank" rel="noopener">production</a> — cross-shard messaging</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — coordination state</li>
+                                </ul>
+                                <p class="outside-note">Hyperscale uses a coordinator (e.g. provision coordinator) to drive cross-shard flow; details in cross-shard module.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <!-- 7. Proposer selection -->
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">7. Proposer selection (per shard, per round)</div>
+                            <div class="flow-step-desc">BFT starts here. Each shard runs its own BFT instance with its own view/round. The proposer (block leader) is chosen deterministically from the shard’s validator set (e.g. round-robin by <strong>validator identity</strong> or view number modulo validator count).</div>
+                            <div class="flow-step-popup">
+                                <h4>Crates</h4>
+                                <ul>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">bft</a> — view, leader election</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">core</a> — traits, time</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" target="_blank" rel="noopener">types</a> — block, validator set</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <!-- 8. Block proposal -->
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">8. Block proposal</div>
+                            <div class="flow-step-desc">Proposer builds block (header + txs from mempool), broadcasts header; validators receive it.</div>
+                            <div class="flow-step-popup">
+                                <h4>Crates</h4>
+                                <ul>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">bft</a> — proposal logic</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" target="_blank" rel="noopener">types</a> — Block, BlockHeader</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — routes ProposalTimer, etc.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <!-- 9. Validators vote -->
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">9. Validators vote</div>
+                            <div class="flow-step-desc">Validators in this shard’s BFT instance validate the block and sign a vote. 2f+1 votes are required for a quorum (BFT fault model: n = 3f+1 nodes per shard).</div>
+                            <div class="flow-step-popup">
+                                <h4>Crates</h4>
+                                <ul>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">bft</a> — voting, QC collection</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" target="_blank" rel="noopener">types</a> — Vote, signatures</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <!-- 10. QC formed -->
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">10. Quorum certificate (QC) formed</div>
+                            <div class="flow-step-desc">When 2f+1 votes are in, QC is produced. Next block includes this QC in its header.</div>
+                            <div class="flow-step-popup">
+                                <h4>Crates</h4>
+                                <ul>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">bft</a> — QC formation</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" target="_blank" rel="noopener">types</a> — QuorumCertificate</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <!-- 11. Block committed -->
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">11. Block committed</div>
+                            <div class="flow-step-desc">Node commits the block (consensus decided order); triggers execution and persistence.</div>
+                            <div class="flow-step-popup">
+                                <h4>Crates</h4>
+                                <ul>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — CommitBlock action, composition</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">bft</a> — commit rule</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">core</a> — Action::CommitBlock</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <!-- 12. Execution -->
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">12. Execution</div>
+                            <div class="flow-step-desc">Transactions in the block are executed (per shard). Hyperscale runs the execution state machine; semantics (e.g. Radix Engine) may be external.</div>
+                            <div class="flow-step-popup">
+                                <h4>Crates</h4>
+                                <ul>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" target="_blank" rel="noopener">execution</a> — execution state machine</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — composes execution</li>
+                                </ul>
+                                <p class="outside-note">Execution semantics (e.g. Radix Engine) are outside this repo.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <!-- 13. (Cross-shard) Coordination & composition -->
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">13. (Cross-shard) Coordination &amp; composition</div>
+                            <div class="flow-step-desc">For <strong>cross-shard</strong> txs, <strong>atomic composability</strong> works like this. <strong>Communication &amp; order:</strong> Shards talk in a fixed protocol order (e.g. one <strong>coordinator shard</strong> drives 2PC). It sends <strong>prepare</strong> to each involved shard; each shard runs its part (lock/reserve, no visible state change yet) and replies yes/no. If <strong>all</strong> vote yes, coordinator sends <strong>commit</strong>; otherwise <strong>abort</strong>. <strong>State updates:</strong> Only after the decision, each shard applies updates in an <strong>agreed order</strong> (e.g. by shard ID or coordinator order) — commit = apply state; abort = release locks. That way every node sees the same composed outcome and no shard commits while another aborts. Single-shard txs skip this.</div>
+                            <div class="flow-step-popup">
+                                <h4>Crates</h4>
+                                <ul>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — provision coordinator, cross-shard state</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">core</a> — Event/Action for coordination</li>
+                                </ul>
+                                <p class="outside-note">See module “Cross-Shard Transactions” for 2PC and provision coordination details.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <!-- 14. Finality -->
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">14. Finality &amp; persistence</div>
+                            <div class="flow-step-desc">BFT gives one-round finality (no reorg after QC). State/storage may be in-node or external.</div>
+                            <div class="flow-step-popup">
+                                <h4>Crates</h4>
+                                <ul>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">bft</a> — finality rule</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — state, persistence</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--text2);"><strong>Tip:</strong> Hover over a step to see which crates implement it. Popup closes when you move the cursor away.</p>
+
+            <div class="info" style="margin-top: 1.5rem;">
+                <h3 style="margin-top: 0; font-size: 1.1rem;">How atomic composability works (cross-shard)</h3>
+                <p>The diagram emphasizes that cross-shard atomicity depends on <strong>correct order</strong> of communication and <strong>when</strong> state updates are applied:</p>
+                <ol style="margin: 0.75rem 0 0 1.25rem; padding-left: 0.5rem;">
+                    <li><strong>Coordinator</strong> (one shard or a designated role) sends <strong>prepare</strong> to every involved shard in a defined order.</li>
+                    <li>Each shard <strong>prepares</strong>: runs its part of the tx (e.g. reserve/lock), but does <em>not</em> make the state update visible yet. It replies yes or no.</li>
+                    <li>When <strong>all</strong> have voted yes, coordinator sends <strong>commit</strong>; otherwise it sends <strong>abort</strong> to all.</li>
+                    <li><strong>State updates</strong>: Each shard then applies updates in an <strong>agreed order</strong> (e.g. by shard ID, or the order the coordinator specifies). On commit, each applies its state change; on abort, each releases locks. No shard commits while another aborts — the protocol order ensures a single composed outcome.</li>
+                </ol>
+                <p style="margin-bottom: 0;">So shards communicate in this <strong>fixed protocol order</strong> (prepare phase → decision → apply phase), and state updates happen only after the decision, in the same order everywhere. That is what makes the cross-shard tx <strong>atomic</strong> and <strong>composable</strong>.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Concepts in the Flow</h2>
+            <ul>
+                <li><strong>Shards</strong> — The network is split into shards; each shard has its own validators and ordering. Your tx is assigned to a shard (e.g. by account or payload). <strong>Each shard has its own BFT consensus state</strong>: its own view number, its own block chain, and its own proposer per round. So shard A and shard B run independent BFT instances; they don’t share a single global “view.”</li>
+                <li><strong>Proposer (block leader)</strong> — For each round (view), one validator in that shard is the proposer. It builds the block and broadcasts it; the other validators in the shard vote. <strong>Proposer selection</strong> is deterministic: typically a function of the current view number and the shard’s validator set, e.g. <code>proposer = validators[view % validators.len()]</code> (round-robin by index) or by validator identity. That way everyone agrees on who the leader is without extra messages.</li>
+                <li><strong>Validator identity (consensus)</strong> — In the consensus layer, “which validator” is identified by a validator ID (from the node’s public key or protocol assignment). That identity is used for the validator set, proposer selection (e.g. round-robin), and routing. In Hyperscale-rs, types that refer to “which node” in the sense of “which validator” use this.</li>
+                <li><strong>NodeID in Radix (on-chain)</strong> — In Radix, <strong>NodeID</strong> often means something different: it refers to <strong>addresses of on-chain entities</strong> — components, resources, packages, accounts. Those are “nodes” in the ledger’s state graph (e.g. a component instance, a resource type). So: validator identity = which machine runs consensus; NodeID/address in Radix = which component, resource, or package you’re talking about on the ledger. Don’t confuse the two when reading Radix docs.</li>
+                <li><strong>Cross-shard transactions &amp; atomic composability</strong> — If a tx reads or writes NodeIDs on <strong>different shards</strong>, it is cross-shard. It is sent to each involved shard (step 6); each shard runs BFT and execution for its part (steps 7–12). <strong>How shards communicate:</strong> In a defined <strong>order</strong> — typically a <strong>coordinator shard</strong> (or role) sends <strong>prepare</strong> to all; each shard prepares (lock/reserve, no visible state yet) and replies yes/no. If all vote yes, coordinator sends <strong>commit</strong>; else <strong>abort</strong>. <strong>State updates:</strong> Each shard applies updates only <em>after</em> the decision, in an <strong>agreed order</strong> (e.g. by shard ID or coordinator order) — commit = apply state, abort = release. That way every node sees the same composed outcome; no shard commits while another aborts. Atomic composability = one logical result across shards.</li>
+                <li><strong>Finality</strong> — Once a block has a quorum certificate (2f+1 votes from that shard’s validators), it is final. No reorg under normal BFT assumptions.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Quiz: Transaction Flow</h2>
+            <p>Answer based on the diagram and concepts above. Pass threshold: 70%.</p>
+            <div id="quiz-tx-flow" class="quiz-container"></div>
+        </div>
+
+        <div class="navigation">
+            <a href="module-01-overview.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="module-02-codebase-exploration.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
+    <script>
+        initializeModulePage('basic-05b');
+        const quizQuestions = [
+            {
+                question: "At which step does BFT consensus first participate in the transaction flow?",
+                options: [
+                    "Step 7 (Proposer selection)",
+                    "Step 4 (Cross-shard determination)",
+                    "Step 5 (Mempool)",
+                    "Step 3 (Node receives)"
+                ],
+                correct: 0,
+                explanation: "BFT runs from step 7 (proposer selection) through step 11 (block committed) per shard. Steps 1–6 are about getting the tx into the system (user, network, node, cross-shard determination, mempool, travel to shards)."
+            },
+            {
+                question: "How is a transaction classified as cross-shard?",
+                options: [
+                    "If it is submitted from a wallet that has accounts on multiple shards",
+                    "If the NodeIDs (components, resources, packages, accounts) it reads or writes belong to more than one shard",
+                    "If it is larger than a size threshold defined by the coordinator",
+                    "If it is the first transaction in a new block"
+                ],
+                correct: 1,
+                explanation: "Cross-shard determination (step 4) analyzes which NodeIDs the tx reads or writes. If those NodeIDs belong to more than one shard, the tx is cross-shard."
+            },
+            {
+                question: "Who defines which shard a NodeID (e.g. a component address) belongs to?",
+                options: [
+                    "Each validator decides locally to balance load",
+                    "The protocol / Radix Engine; consensus uses that mapping to decide single- vs cross-shard",
+                    "The proposer of the current block",
+                    "The mempool crate in Hyperscale-rs"
+                ],
+                correct: 1,
+                explanation: "Shard assignment of NodeIDs is defined by the protocol or Radix Engine; the consensus layer uses it to decide single- vs cross-shard, but does not define the mapping itself."
+            },
+            {
+                question: "For a cross-shard transaction, where does the tx (or sub-transactions) go after cross-shard determination?",
+                options: [
+                    "Only to the shard that owns the first NodeID in the tx",
+                    "To the mempools of every shard that owns a touched NodeID",
+                    "To a single global mempool that then forwards to shards at commit time",
+                    "Only to the coordinator shard until step 13"
+                ],
+                correct: 1,
+                explanation: "Single-shard: one mempool. Cross-shard: the tx or sub-transactions are enqueued in the mempools of every involved shard (step 5), and in step 6 they travel to each involved shard so each can order and process its part."
+            },
+            {
+                question: "How is the proposer (block leader) chosen for a given round in a shard?",
+                options: [
+                    "Validators vote in a separate election phase before each block",
+                    "Deterministically from the current view number and the shard's validator set (e.g. round-robin by index or validator identity)",
+                    "The validator that received the most transactions in the previous round",
+                    "Random selection weighted by stake"
+                ],
+                correct: 1,
+                explanation: "Proposer selection is deterministic: e.g. proposer = validators[view % validators.len()] or by validator identity. Everyone agrees on the leader without extra messages."
+            },
+            {
+                question: "In the BFT fault model used per shard, how many nodes are required for a quorum and what is the total node count?",
+                options: [
+                    "Quorum = f+1, total n = 2f+1 (CFT style)",
+                    "Quorum = 2f+1, total n = 3f+1 (BFT: up to f Byzantine)",
+                    "Quorum = 3f+1, total n = 4f+1",
+                    "Quorum = majority, total n = any"
+                ],
+                correct: 1,
+                explanation: "BFT uses n = 3f+1 nodes per shard; up to f can be Byzantine. A quorum is 2f+1 votes; any two quorums overlap in at least one honest node."
+            },
+            {
+                question: "When does a block become final in this flow?",
+                options: [
+                    "After it is proposed (step 8)",
+                    "After 2f+1 validators have voted and a QC is formed (step 10); BFT gives one-round finality, no reorg after QC",
+                    "Only after step 13 (coordination) for cross-shard txs",
+                    "After execution (step 12) when state is persisted"
+                ],
+                correct: 1,
+                explanation: "Once a block has a quorum certificate (2f+1 votes from that shard's validators), it is final. BFT gives one-round finality; no reorg under normal BFT assumptions. Execution and persistence follow."
+            },
+            {
+                question: "In step 13 (cross-shard coordination), when do shards make their state updates visible?",
+                options: [
+                    "During the prepare phase (lock/reserve and apply in the same round)",
+                    "Only after the coordinator's decision (commit or abort), in an agreed order; prepare phase does not make state visible",
+                    "Each shard applies as soon as it has voted yes, before the coordinator decides",
+                    "Only the coordinator shard applies; others send results to it"
+                ],
+                correct: 1,
+                explanation: "Prepare = lock/reserve, no visible state change yet. State updates happen only after the decision (commit or abort), in an agreed order (e.g. by shard ID or coordinator order), so every node sees the same composed outcome."
+            },
+            {
+                question: "What happens in the prepare phase of cross-shard 2PC?",
+                options: [
+                    "Each shard commits its state change and then notifies the coordinator",
+                    "Each shard runs its part (e.g. reserve/lock), does not make the state update visible yet, and replies yes or no to the coordinator",
+                    "The coordinator locks all shards' state and then executes the tx itself",
+                    "Validators on each shard vote on the block again"
+                ],
+                correct: 1,
+                explanation: "Coordinator sends prepare to each involved shard. Each shard prepares (reserve/lock), does not make state visible, and replies yes or no. Only after all vote yes does the coordinator send commit; otherwise abort."
+            },
+            {
+                question: "Why must state updates (commit or release) be applied in an 'agreed order' across shards in step 13?",
+                options: [
+                    "To minimize network messages",
+                    "So every node sees the same composed outcome and no shard commits while another aborts; the protocol order ensures a single logical result",
+                    "Because the coordinator can only send one message at a time",
+                    "To allow rollback if a validator crashes"
+                ],
+                correct: 1,
+                explanation: "Applying in an agreed order (e.g. by shard ID or coordinator order) ensures a single composed outcome everywhere and prevents one shard committing while another aborts — that is what makes the cross-shard tx atomic and composable."
+            },
+            {
+                question: "Which of these is Hyperscale-rs responsible for, and which is outside?",
+                options: [
+                    "Hyperscale: consensus (order, BFT, cross-shard coordination). Outside: wallet, RPC client, Radix Engine execution semantics",
+                    "Hyperscale: wallet and signing. Outside: consensus and execution",
+                    "Hyperscale: Radix Engine semantics. Outside: BFT and mempool",
+                    "Hyperscale: all steps 1–14. Outside: nothing"
+                ],
+                correct: 0,
+                explanation: "Hyperscale-rs is a consensus layer: it handles ordering, BFT per shard, mempool, execution state machine wiring, and cross-shard coordination. Wallet, RPC/gateway, and execution semantics (e.g. Radix Engine) are outside."
+            },
+            {
+                question: "In Radix terminology, what does 'NodeID' usually refer to in documentation?",
+                options: [
+                    "The validator node's identity used for proposer selection and routing in consensus",
+                    "Addresses of on-chain entities (components, resources, packages, accounts) — nodes in the ledger state graph",
+                    "The hash of the current block",
+                    "The shard identifier"
+                ],
+                correct: 1,
+                explanation: "In Radix, NodeID often means on-chain entity addresses (components, resources, packages, accounts). Validator identity (which machine runs consensus) is a different concept — don't confuse the two."
+            },
+            {
+                question: "Do shard A and shard B share a single BFT view number and block chain?",
+                options: [
+                    "Yes; there is one global view and one chain across all shards",
+                    "No; each shard has its own BFT consensus state (own view number, own block chain, own proposer per round); they run independent BFT instances",
+                    "Only the coordinator shard has a view; others follow it",
+                    "They share a view but have separate chains"
+                ],
+                correct: 1,
+                explanation: "Each shard has its own BFT consensus state: its own view number, its own block chain, and its own proposer per round. Shard A and shard B run independent BFT instances; they don't share a single global view."
+            },
+            {
+                question: "Which crate is primarily responsible for turning incoming network bytes into Events and feeding the node?",
+                options: [
+                    "bft",
+                    "execution",
+                    "production (I/O, turns network into events); node (NodeStateMachine) receives them",
+                    "mempool"
+                ],
+                correct: 2,
+                explanation: "Step 3: the runner (production) turns incoming bytes into Events and feeds the node; the NodeStateMachine in the node crate receives events."
+            },
+            {
+                question: "For a single-shard transaction, which step is skipped that cross-shard transactions use?",
+                options: [
+                    "Step 4 (Cross-shard determination)",
+                    "Steps 6 (Tx travels to involved shards) and 13 (Coordination & composition)",
+                    "Step 7 (Proposer selection)",
+                    "Step 10 (QC formed)"
+                ],
+                correct: 1,
+                explanation: "Single-shard txs skip step 6 (tx travels to each involved shard) and step 13 (coordination & composition). Step 4 still runs (to determine it is single-shard); BFT steps 7–11 run once on that shard."
+            },
+            {
+                question: "Where does execution semantics (e.g. what a Radix Engine instruction does) live relative to Hyperscale-rs?",
+                options: [
+                    "In the execution crate; Hyperscale-rs defines all semantics",
+                    "In the bft crate as part of block validation",
+                    "Hyperscale runs the execution state machine (execution crate), but semantics (e.g. Radix Engine) are outside this repo",
+                    "In the mempool crate"
+                ],
+                correct: 2,
+                explanation: "Hyperscale runs the execution state machine (execution crate); execution semantics — what instructions and components do — are defined outside (e.g. Radix Engine)."
+            },
+            {
+                question: "What is the role of the coordinator in cross-shard 2PC?",
+                options: [
+                    "It executes the entire transaction and broadcasts the result to other shards",
+                    "It sends prepare to each involved shard, collects yes/no votes, then sends commit if all yes or abort otherwise; it drives the fixed protocol order",
+                    "It aggregates QCs from each shard into one global QC",
+                    "It is the proposer for every involved shard"
+                ],
+                correct: 1,
+                explanation: "The coordinator (one shard or role) sends prepare to all, collects yes/no, then sends commit or abort. It drives the fixed protocol order so state updates happen only after the decision in an agreed order."
+            },
+            {
+                question: "After the coordinator sends 'abort', what do involved shards do?",
+                options: [
+                    "Apply their state changes anyway to maintain availability",
+                    "Release locks / reserve; no state change is applied; the cross-shard tx has no visible effect",
+                    "Vote again in a new round",
+                    "Send their prepared state to the coordinator for rollback"
+                ],
+                correct: 1,
+                explanation: "On abort, each shard releases locks; no state update is applied. The cross-shard tx has no visible effect — atomic all-or-nothing."
+            },
+            {
+                question: "Which step ensures that a cross-shard transaction is atomic (all shards commit or all abort)?",
+                options: [
+                    "Step 5 (Mempool) by ordering the tx the same way on every shard",
+                    "Step 10 (QC formed) because the QC binds all shards",
+                    "Step 13 (Coordination & composition): 2PC prepare → commit or abort → state updates in agreed order",
+                    "Step 14 (Finality) when state is persisted"
+                ],
+                correct: 2,
+                explanation: "Step 13 (coordination & composition) ensures atomicity: prepare on all, then commit (all apply) or abort (all release); state updates in agreed order so no shard commits while another aborts."
+            },
+            {
+                question: "Why is the QC for a block included in the *next* block's header rather than broadcast separately?",
+                options: [
+                    "To reduce message size",
+                    "The next block's proposer includes the previous block's QC in its header; the QC proves that block was agreed by 2f+1 validators, and all can verify it when they receive the next block",
+                    "Because the BFT crate does not support separate QC messages",
+                    "To allow the proposer to change the QC before inclusion"
+                ],
+                correct: 1,
+                explanation: "The QC for block H is included in the header of block H+1 when the next proposer creates it. That QC proves block H was agreed by 2f+1 validators; everyone verifies it when they receive block H+1. This is standard in HotStuff-style BFT."
+            },
+            {
+                question: "Validator identity (consensus layer) is used for which of the following?",
+                options: [
+                    "Identifying on-chain components and resources in the ledger state",
+                    "Validator set membership, proposer selection (e.g. round-robin), and routing messages to the right validator node",
+                    "Signing transactions on behalf of users",
+                    "Deriving the shard ID for a given NodeID"
+                ],
+                correct: 1,
+                explanation: "Validator identity identifies 'which validator' in the consensus layer: validator set, proposer selection (e.g. round-robin), and routing. It is not NodeID (on-chain addresses) or user signing."
+            }
+        ];
+        initializeQuiz('quiz-tx-flow', quizQuestions, 70);
+    </script>
+</body>
+</html>

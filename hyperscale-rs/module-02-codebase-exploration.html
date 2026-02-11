@@ -106,7 +106,7 @@ fn now(&amp;self) -&gt; Duration;</code></pre></div>
         </div>
 
         <div class="navigation">
-            <a href="module-01-overview.html" class="btn btn-secondary">← Previous Module</a>
+            <a href="module-01b-tx-flow.html" class="btn btn-secondary">← Previous Module</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
             <a href="module-03-first-contribution.html" class="btn btn-primary">Next Module →</a>
         </div>
@@ -121,46 +121,57 @@ fn now(&amp;self) -&gt; Duration;</code></pre></div>
             {
                 question: "Why does the StateMachine trait take time via set_time/now instead of reading the system clock?",
                 options: [
-                    "To make the code run faster",
                     "So tests and replays can control time — same (state, event, time) always gives the same actions",
-                    "Rust doesn't support system clocks",
-                    "Only the production runner needs real time"
+                    "To reduce dependencies and keep the core crate lightweight",
+                    "Rust's std::time is not available in no_std environments used by consensus",
+                    "So that different sub–state machines can use different clocks"
                 ],
-                correct: 1,
+                correct: 0,
                 explanation: "Determinism requires that the same inputs always produce the same outputs. If the state machine read the clock internally, tests would be flaky and you couldn't replay a trace. Injecting time keeps the logic pure."
             },
             {
-                question: "When NodeStateMachine receives an event, it routes to sub–state machines and collects actions. What's a key benefit of this design?",
+                question: "When NodeStateMachine receives an event, it routes to sub–state machines and collects actions. What is a key downside if the node did not compose sub–machines and instead handled everything in one big handle()?",
                 options: [
-                    "Fewer lines of code",
-                    "Each sub–machine (BFT, mempool, etc.) has one job; the node composes them and stays testable",
-                    "It avoids using Rust enums",
-                    "Actions are never executed"
+                    "Rust would not compile code with a single large match",
+                    "BFT, mempool, and execution would be tangled; testing and reasoning about each part in isolation would be much harder",
+                    "The binary would be larger",
+                    "Only one event type could be supported"
                 ],
                 correct: 1,
-                explanation: "Composition keeps concerns separate: BFT handles consensus, mempool handles transaction pool, etc. Each can be tested in isolation; the node just routes and aggregates. That makes reasoning and contributions easier."
+                explanation: "Composition keeps concerns separate: BFT handles consensus, mempool handles transaction pool, etc. Each can be tested in isolation; the node just routes and aggregates. A single monolithic handle would mix all of that and make contributions and debugging harder."
             },
             {
-                question: "Why is there 'no async in core' consensus code?",
+                question: "Where does async I/O (network, timers) live relative to the consensus state machine in hyperscale-rs?",
                 options: [
-                    "Async Rust is not allowed in the repo",
-                    "Consensus is synchronous: in → out. Async (I/O, timers) lives in runners that feed events and run actions",
-                    "To make compilation faster",
-                    "There is async in core"
+                    "Inside the core and bft crates, which use tokio",
+                    "In the runners (e.g. production, simulation): they do async I/O and translate to/from Event and Action; consensus remains synchronous",
+                    "Only in the simulation crate, not in production",
+                    "In the types crate, which defines async message types"
                 ],
                 correct: 1,
                 explanation: "The core state machine is a pure function: state + event ⇒ actions. No awaits, no network calls. Runners do the async work and turn real-world events into Event and Action into real-world effects. That keeps consensus simple and deterministic."
             },
             {
-                question: "You're adding a new kind of event. Where should you look first to understand how existing events are handled?",
+                question: "You need to add a new Event variant that should trigger both BFT and mempool logic. Which set of changes is most accurate?",
                 options: [
-                    "Only the README",
-                    "The Event enum (what exists), then the node's handle (routing), then the sub–machine that handles that event",
-                    "Only the BFT crate",
-                    "The CI config"
+                    "Add the variant to Event in core; add a branch in the node's handle that sends it to both bft and mempool; implement handling in each of those crates",
+                    "Add the variant only in the BFT crate, since BFT is the main component",
+                    "Add it in event.rs and in CI so tests run twice",
+                    "Add the variant in types/ and leave handle() unchanged so it is ignored"
+                ],
+                correct: 0,
+                explanation: "Event defines the vocabulary in core; the node's handle shows which sub–machine(s) get which event; each sub–machine's handle implements the logic. To trigger both BFT and mempool you extend Event, route from the node to both, and implement in each crate."
+            },
+            {
+                question: "In crates/node/src/state.rs, when the node receives Event::BlockHeaderReceived, what typically happens next (conceptually)?",
+                options: [
+                    "The node immediately writes the block to disk, then returns no actions",
+                    "The event is routed to the relevant sub–state machine(s); they return actions (e.g. vote, set timer); the runner will execute those actions",
+                    "The node sends the block to the execution crate only",
+                    "The event is converted to an Action and sent back to the network"
                 ],
                 correct: 1,
-                explanation: "Event defines the vocabulary; the node's handle shows which sub–machine gets which event; that sub–machine's handle shows the logic. Following that path is how you add or change behavior without rote memorization."
+                explanation: "The node's handle() matches on event type, forwards to sub–machines (e.g. BFT for block headers), collects their actions, and returns. The runner (simulation or production) is responsible for executing those actions (e.g. broadcasting, setting timers)."
             }
         ];
         initializeQuiz('quiz-02', quizQuestions, 70);

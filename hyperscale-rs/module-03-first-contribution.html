@@ -36,7 +36,7 @@
             <ul>
                 <li><strong>Low risk</strong> – You don’t change core behavior; you make the code easier to understand and more reliable.</li>
                 <li><strong>High value</strong> – Good docs and tests help everyone, including future you.</li>
-                <li><strong>Reviewable</strong> – Maintainers can review wording and test coverage without deep protocol knowledge.</li>
+                <li><strong>Reviewable</strong> – Maintainers can focus on clarity and correctness without needing deep protocol knowledge; that makes review smoother and helps you learn the codebase by explaining or testing it.</li>
             </ul>
         </div>
 
@@ -48,7 +48,7 @@
                 <li>Functions or modules with missing or unclear doc comments (run <code>cargo doc</code> and browse)</li>
                 <li>Code paths with no or few tests (check <code>#[cfg(test)]</code> modules and coverage if available)</li>
             </ul>
-            <p>Before coding, comment on the issue to say you’re working on it and briefly outline your plan. That avoids duplicate work and aligns with maintainers’ expectations.</p>
+            <p><strong>Guideline: claim the issue first.</strong> Before coding, comment on the issue to say you're working on it (e.g. "I'll take this") and give a one-line plan. That avoids duplicate work, lets maintainers steer you if your approach is off, and sets expectations so your PR has a better chance of a smooth review.</p>
             <div class="info" style="margin-top: 0.75rem;">
                 <strong>🤔 Think about it:</strong> You find an issue labeled "good first issue" but the description is vague. What's one thing you could do before writing code to make sure you're solving the right problem?
             </div>
@@ -67,7 +67,7 @@
             <h2>4. Testing Guidelines</h2>
             <ul>
                 <li>Use the existing test patterns: unit tests next to the code, integration tests in <code>tests/</code> or under <code>crates/*/tests</code>.</li>
-                <li>State machines are deterministic: same initial state + same sequence of events ⇒ same actions. Use that to write deterministic tests (no flaky timing).</li>
+                <li><strong>Determinism makes tests easier:</strong> State machines in hyperscale-rs are deterministic — same initial state + same sequence of events ⇒ same actions every time. Use that to write deterministic tests: no flaky timing, no need to mock the network or sleep for timeouts. Build the state machine, feed events in order, assert on actions; tests are repeatable and fast, and a failure points to a real logic bug.</li>
                 <li>If you add a test for a bug fix, make sure the test fails before the fix and passes after.</li>
             </ul>
         </div>
@@ -77,7 +77,8 @@
             <ol>
                 <li>Fork the repo (if that’s the project’s workflow) and create a branch, e.g. <code>docs/improve-core-traits</code> or <code>tests/add-event-coverage</code>.</li>
                 <li>Keep the PR small: one logical change (one doc improvement, one test file, or one small bug fix).</li>
-                <li>In the PR description, reference the issue and explain what you did and why.</li>
+                <li><strong>PR description format:</strong> Reference the issue (e.g. <code>Fixes #42</code> or <code>Closes #42</code>) so reviewers see what you're addressing. Explain what you did and why, and how you verified it (e.g. "Added unit tests for <code>handle(ProposalTimer)</code> when node is proposer; ran <code>cargo test</code>, all tests pass"). That context makes review faster and shows you're thinking about verification, not just pushing code.</li>
+                <li><strong>Commit message format:</strong> Follow the project's convention if documented (e.g. in <code>CONTRIBUTING.md</code>). A common pattern is a short subject line (imperative, &lt;72 chars) and optional body: e.g. <code>docs(core): clarify StateMachine trait contract</code> or <code>test(bft): add ProposalTimer proposer path</code>. If the project uses conventional commits or "type(scope): message", match that style.</li>
                 <li>Run <code>cargo test</code> and <code>cargo doc</code> (and any other checks the repo uses) and fix any failures.</li>
                 <li>Respond to review feedback promptly and update the PR accordingly.</li>
             </ol>
@@ -101,11 +102,6 @@
             </div>
         </div>
 
-        <div class="section">
-            <h2>7. Quiz</h2>
-            <div id="quiz-03" class="quiz-container"></div>
-        </div>
-
         <div class="navigation">
             <a href="module-02-codebase-exploration.html" class="btn btn-secondary">← Previous Module</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
@@ -118,53 +114,6 @@
     <script src="../shared/glossary.js"></script>
     <script>
         initializeModulePage('basic-07');
-        const quizQuestions = [
-            {
-                question: "Why are docs and tests great first contributions (even if you're new)?",
-                options: [
-                    "They are the shortest to write",
-                    "They're low risk, high value, and reviewers can focus on clarity and correctness without deep protocol knowledge",
-                    "The project has no other work",
-                    "They don't require reading the code"
-                ],
-                correct: 1,
-                explanation: "Docs and tests improve the project for everyone and don't change core behavior. Maintainers can review them without worrying about subtle consensus bugs, and you learn the codebase by explaining or testing it."
-            },
-            {
-                question: "You're about to fix an issue. What's the main benefit of commenting on the issue first with 'I'll take this' and a one-line plan?",
-                options: [
-                    "It makes the issue close faster",
-                    "It avoids duplicate work and lets maintainers steer you if your approach is off",
-                    "It is required by GitHub",
-                    "It hides your plan from others"
-                ],
-                correct: 1,
-                explanation: "Someone else might be working on the same issue, or maintainers might prefer a different approach. A short comment coordinates effort and sets expectations so your PR has a better chance of a smooth review."
-            },
-            {
-                question: "State machine logic in hyperscale-rs is deterministic. Why does that make tests easier to write?",
-                options: [
-                    "Tests run in parallel only if deterministic",
-                    "Same state + same sequence of events ⇒ same actions every time; no flaky timing or network",
-                    "Determinism is only for documentation",
-                    "It doesn't help tests"
-                ],
-                correct: 1,
-                explanation: "You don't need to mock the network or sleep for timeouts. You build a state machine, feed events in order, and assert on the actions. Repeatable and fast — and if a test fails, it's a real logic bug."
-            },
-            {
-                question: "Your PR is ready. What makes a description like 'Fixes #42. Added unit tests for handle(ProposalTimer) when node is proposer; all tests pass.' useful?",
-                options: [
-                    "It is the minimum length required",
-                    "It links the work to the issue and says what you did and how you verified it",
-                    "It replaces the need for code review",
-                    "It is not useful"
-                ],
-                correct: 1,
-                explanation: "Reviewers see which issue you're addressing, what changed, and that you ran tests. That context makes review faster and shows you're thinking about verification, not just pushing code."
-            }
-        ];
-        initializeQuiz('quiz-03', quizQuestions, 70);
     </script>
 </body>
 </html>
