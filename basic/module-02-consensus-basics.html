@@ -363,15 +363,16 @@ The "two-chain" name comes from needing 2 consecutive blocks with QCs:
             <h2>6. Exploring BFT in Hyperscale-rs</h2>
             
             <h3>Key Files to Explore</h3>
+            <p>View these in the repo (links open the file on GitHub):</p>
             <ol>
-                <li><code>crates/bft/src/lib.rs</code> - Read the module documentation</li>
-                <li><code>crates/bft/src/state.rs</code> - BFT state machine implementation</li>
-                <li><code>crates/bft/src/vote_set.rs</code> - Vote collection and QC formation</li>
-                <li><code>guides/04-consensus-protocol.md</code> - Detailed protocol documentation</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/bft/src/lib.rs" target="_blank" rel="noopener">crates/bft/src/lib.rs</a> — module documentation</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/bft/src/state.rs" target="_blank" rel="noopener">crates/bft/src/state.rs</a> — BFT state machine implementation</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/bft/src/vote_set.rs" target="_blank" rel="noopener">crates/bft/src/vote_set.rs</a> — vote collection and QC formation</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/04-consensus-protocol.md" target="_blank" rel="noopener">guides/04-consensus-protocol.md</a> — detailed protocol documentation</li>
             </ol>
 
             <h3>Practical Exercise</h3>
-            <p>Open <code>crates/bft/src/lib.rs</code> and find:</p>
+            <p>Open <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/bft/src/lib.rs" target="_blank" rel="noopener">crates/bft/src/lib.rs</a> in the repo and find:</p>
             <ul>
                 <li>The definition of a quorum (how many votes needed?)</li>
                 <li>The commit rule (when does a block commit?)</li>
@@ -391,16 +392,15 @@ The "two-chain" name comes from needing 2 consecutive blocks with QCs:
                 
                 <h4>Tasks:</h4>
                 <ol>
-                    <li><strong>Read Protocol Documentation</strong>:
+                    <li><strong>Read protocol docs and code in the repo</strong>:
                         <ul>
-                            <li>Read <code>guides/04-consensus-protocol.md</code> completely</li>
-                            <li>Read <code>crates/bft/src/lib.rs</code> documentation</li>
+                            <li>View <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/04-consensus-protocol.md" target="_blank" rel="noopener">guides/04-consensus-protocol.md</a> and <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/bft/src/lib.rs" target="_blank" rel="noopener">crates/bft/src/lib.rs</a> (module docs at top)</li>
                             <li>Take notes on key concepts</li>
                         </ul>
                     </li>
-                    <li><strong>Trace a Block Through Consensus</strong>:
+                    <li><strong>Trace a block through consensus</strong>:
                         <ul>
-                            <li>Open <code>crates/bft/src/state.rs</code></li>
+                            <li>Open <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/bft/src/state.rs" target="_blank" rel="noopener">crates/bft/src/state.rs</a> in the repo</li>
                             <li>Find the block proposal function</li>
                             <li>Find the vote handling function</li>
                             <li>Find the QC formation logic</li>

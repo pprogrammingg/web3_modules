@@ -37,7 +37,7 @@
             
             <h3>Hyperscale (the protocol)</h3>
             <p><strong>Hyperscale</strong> is the BFT <span data-glossary="consensus">consensus</span> protocol designed for high-throughput, <span data-glossary="sharding">sharded</span> blockchain networks. It defines how validators agree on blocks, handle <span data-glossary="cross-shard transaction">cross-shard</span> coordination, and achieve <span data-glossary="finality">finality</span>. The protocol design and specification are documented in the same repository as the Rust implementation.</p>
-            <p><strong>Repository and docs:</strong> <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">github.com/flightofthefox/hyperscale-rs</a> — code, guides (in <code>guides/</code>), and protocol context live here.</p>
+            <p><strong>Repository and docs:</strong> <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">github.com/flightofthefox/hyperscale-rs</a> — code and protocol docs live here. The <strong>guides</strong> are markdown files in the repo’s <a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/guides" target="_blank" rel="noopener"><code>guides/</code></a> directory (overview, architecture, codebase structure, consensus protocol).</p>
             
             <h3>Hyperscale-rs (the implementation)</h3>
             <p><strong><span data-glossary="hyperscale-rs">Hyperscale-rs</span></strong> is the Rust implementation of the Hyperscale protocol: a <span data-glossary="bft">Byzantine Fault Tolerant (BFT)</span> consensus system for high-throughput, sharded blockchain networks.</p>
@@ -229,13 +229,14 @@
 └── scripts/          # Helper scripts</code></pre></div>
 
             <h3>Key Files to Know</h3>
+            <p>View these in the repo (links go to the file on GitHub):</p>
             <ul>
-                <li><code>README.md</code> - Project overview and setup</li>
-                <li><code>guides/01-overview.md</code> - Detailed project overview</li>
-                <li><code>guides/02-architecture.md</code> - Architecture deep dive</li>
-                <li><code>guides/03-codebase-structure.md</code> - Codebase organization</li>
-                <li><code>crates/core/src/traits.rs</code> - StateMachine trait</li>
-                <li><code>crates/node/src/state.rs</code> - Main node implementation</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/README.md" target="_blank" rel="noopener">README.md</a> — project overview and setup</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/01-overview.md" target="_blank" rel="noopener">guides/01-overview.md</a> — detailed project overview</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/02-architecture.md" target="_blank" rel="noopener">guides/02-architecture.md</a> — architecture deep dive</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/03-codebase-structure.md" target="_blank" rel="noopener">guides/03-codebase-structure.md</a> — codebase organization</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/core/src/traits.rs" target="_blank" rel="noopener">crates/core/src/traits.rs</a> — <code>StateMachine</code> trait</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/node/src/state.rs" target="_blank" rel="noopener">crates/node/src/state.rs</a> — main node implementation</li>
             </ul>
         </div>
 
@@ -274,13 +275,13 @@ cd hyperscale-rs</code></pre></div>
             <h2>5. Exploring the Codebase</h2>
             
             <h3>Practical Exercise</h3>
-            <p>Let's do a hands-on exploration:</p>
+            <p>In the repo, do the following (each link opens the file on GitHub):</p>
             <ol>
-                <li>Open <code>README.md</code> and read the "What's different" section</li>
-                <li>Read <code>guides/01-overview.md</code> - focus on "What is Hyperscale?" and "Design Philosophy"</li>
-                <li>Look at <code>crates/core/src/traits.rs</code> - find the <code>StateMachine</code> trait</li>
-                <li>Browse <code>crates/bft/src/lib.rs</code> - read the module documentation</li>
-                <li>Check <code>Cargo.toml</code> - see all the workspace members</li>
+                <li>Open the <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/README.md" target="_blank" rel="noopener">README</a> and read the "What's different" section</li>
+                <li>Read <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/01-overview.md" target="_blank" rel="noopener">guides/01-overview.md</a> — focus on "What is Hyperscale?" and "Design Philosophy"</li>
+                <li>Open <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/core/src/traits.rs" target="_blank" rel="noopener">crates/core/src/traits.rs</a> and find the <code>StateMachine</code> trait</li>
+                <li>Browse <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/bft/src/lib.rs" target="_blank" rel="noopener">crates/bft/src/lib.rs</a> — read the module documentation at the top</li>
+                <li>Check <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/Cargo.toml" target="_blank" rel="noopener">Cargo.toml</a> — see all workspace members</li>
             </ol>
 
             <h3>Questions to Answer</h3>
@@ -314,10 +315,10 @@ cd hyperscale-rs</code></pre></div>
                     </li>
                     <li><strong>Codebase Exploration</strong>:
                         <ul>
-                            <li>Read the README and overview guide</li>
-                            <li>Explore at least 3 different crates</li>
-                            <li>Find and read the StateMachine trait definition</li>
-                            <li>Identify one TODO or FIXME comment in the codebase</li>
+                            <li>View the <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/README.md" target="_blank" rel="noopener">README</a> and <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/01-overview.md" target="_blank" rel="noopener">guides/01-overview.md</a> in the repo</li>
+                            <li>Explore at least 3 different crates (e.g. <a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">core</a>, <a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">bft</a>, <a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a>)</li>
+                            <li>Find and read the <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/core/src/traits.rs" target="_blank" rel="noopener">StateMachine trait</a> definition</li>
+                            <li>Identify one TODO or FIXME comment in the codebase (search in repo)</li>
                         </ul>
                     </li>
                     <li><strong>Create Summary Document</strong>:
