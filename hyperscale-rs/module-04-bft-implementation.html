@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BFT Consensus Implementation Deep Dive</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>BFT Consensus Implementation Deep Dive</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 1.5–2 hours</span>
+                <span>📊 Difficulty: Intermediate</span>
+                <span>🎯 Hyperscale-rs Specific</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand block proposal flow in hyperscale-rs</li>
+                <li>Learn vote collection and QC formation</li>
+                <li>Understand commit rules</li>
+                <li>Trace through actual code in the BFT crate</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Where BFT Lives in the Flow</h2>
+            <p>In the <a href="module-01b-tx-flow.html" target="_blank" rel="noopener noreferrer">Transaction Flow</a>, BFT consensus corresponds to the steps where the node proposes blocks, collects votes, and forms quorum certificates (QCs). The main implementation is in the <strong>BFT</strong> crate and related types in <code>crates/types</code>.</p>
+        </div>
+
+        <div class="section">
+            <h2>Block Proposal Flow</h2>
+            <p>The proposer (leader for the current round) builds a block containing transactions from the mempool, then broadcasts it. In hyperscale-rs:</p>
+            <ul>
+                <li><strong>Proposal event</strong> – The BFT state machine receives a proposal (from self or network). It validates the block (structure, parent, round) and, if valid, emits actions to broadcast the block and start vote collection.</li>
+                <li><strong>Round and view</strong> – Proposals are tied to a round; the protocol advances rounds on timeouts or when a QC is formed. See <code>crates/bft</code> (or the consensus crate name in the repo) for the proposal handler.</li>
+            </ul>
+            <p>Key files to open: look for <code>Proposal</code>, <code>Propose</code>, or similar event types and their handlers in the BFT/consensus crate.</p>
+        </div>
+
+        <div class="section">
+            <h2>Vote Collection and QC Formation</h2>
+            <p>Validators send votes on the proposed block. When a node has collected a <strong>quorum</strong> of votes (e.g. 2f+1 of 3f+1), it can form a <strong>Quorum Certificate (QC)</strong> and use it to justify a commit or to advance the round.</p>
+            <ul>
+                <li><strong>Vote message</strong> – Typically includes block hash (or block id), round, and signature. Votes are aggregated or collected in a structure that allows quorum check.</li>
+                <li><strong>QC</strong> – A QC is a certificate that “enough” validators voted for this block; it is stored with the block and used as the parent QC for the next proposal. Formation logic lives in the BFT crate (e.g. when vote count reaches threshold).</li>
+            </ul>
+            <p>Cryptography: votes are usually signed (e.g. BLS); the crate may use an aggregation step to produce a single QC signature. See <code>crates/types</code> for <code>Vote</code>, <code>QuorumCertificate</code>, and the crypto crate for aggregation.</p>
+        </div>
+
+        <div class="section">
+            <h2>Commit Rules</h2>
+            <p>Commit rules define when a block is considered committed (safe to execute and to build on). In HotStuff-style protocols:</p>
+            <ul>
+                <li>A block is committed when it has a QC, and often when there is a “linked” QC for a child block (two direct QCs in a row), or according to the specific rule in the codebase.</li>
+                <li>Once committed, the block is applied to the execution state and the chain is extended. The BFT state machine emits actions that trigger execution or persistence.</li>
+            </ul>
+            <p>Trace the code path from “QC formed” to “block committed” and “execution triggered” to see how hyperscale-rs ties consensus to execution.</p>
+        </div>
+
+        <div class="section">
+            <h2>Practical Trace</h2>
+            <p>To trace through the code:</p>
+            <ol>
+                <li>Start from <code>crates/node</code> or the top-level state machine that composes BFT.</li>
+                <li>Find where BFT <span data-glossary="event-driven">Event</span>s are fed (e.g. <code>Proposal</code>, <code>Vote</code>, <code>ProposalTimer</code>).</li>
+                <li>Follow the handler for one round: proposal → votes → QC → commit (or timeout → next round).</li>
+                <li>Check <code>crates/types</code> for block, vote, and QC types so you can read the structures used in the flow.</li>
+            </ol>
+        </div>
+
+        <div class="navigation">
+            <a href="module-03-first-contribution.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="../intermediate/module-01-sharding.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
+    <script>
+        initializeModulePage('intermediate-01');
+    </script>
+</body>
+</html>

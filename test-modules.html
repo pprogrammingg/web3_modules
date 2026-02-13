@@ -2,29 +2,35 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Course Tests</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 2rem; background: #f5f5f5; }
-        .test { background: white; padding: 1.5rem; margin: 1rem 0; border-radius: 8px; }
-        .pass { background: #d1fae5; padding: 0.75rem; margin: 0.5rem 0; border-radius: 4px; border-left: 4px solid #10b981; }
-        .fail { background: #fee2e2; padding: 0.75rem; margin: 0.5rem 0; border-radius: 4px; border-left: 4px solid #ef4444; }
-        button { background: #2563eb; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; margin: 0.5rem 0.5rem 0.5rem 0; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Module Tests</title>
+    <link rel="stylesheet" href="shared/styles.css">
 </head>
 <body>
-    <h1>🧪 Course Module Tests</h1>
-    <button onclick="runTests()">Run All Tests</button>
-    <div id="results"></div>
+    <nav class="site-home-bar">
+        <a href="index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <h1>🧪 Course Module Tests</h1>
+        <p>Checks that each module loads and includes shared CSS and JS.</p>
+        <button class="btn btn-primary" onclick="runTests()">Run All Tests</button>
+        <div id="results"></div>
+    </div>
+    <script src="shared/course-data.js"></script>
+    <script src="shared/navigation.js"></script>
     <script>
-        const MODULES = [
-            { id: 'basic-01', path: 'basic/module-01-blockchain-fundamentals.html' },
-            { id: 'basic-02', path: 'basic/module-02-consensus-basics.html' },
-            { id: 'basic-04', path: 'basic/module-04-state-machines.html' },
-            { id: 'basic-05', path: 'hyperscale-rs/module-01-overview.html' },
-        ];
+        function getAvailableModules() {
+            const list = [];
+            for (const level of ['basic', 'intermediate', 'advanced']) {
+                const mods = COURSE_DATA.levels[level]?.modules ?? [];
+                mods.forEach(m => { if (isModuleAvailable(m.id)) list.push({ id: m.id, path: m.path }); });
+            }
+            return list;
+        }
         async function runTests() {
+            const MODULES = getAvailableModules();
             const results = document.getElementById('results');
-            results.innerHTML = '<div class="test"><h2>Running tests...</h2></div>';
+            results.innerHTML = '<div class="test-wrap"><h2>Running tests...</h2></div>';
             let passed = 0, total = 0;
             for (const module of MODULES) {
                 total++;
@@ -35,16 +41,17 @@
                     const hasJS = html.includes('course-data.js') && html.includes('navigation.js');
                     if (res.ok && hasCSS && hasJS) {
                         passed++;
-                        results.innerHTML += `<div class="test"><div class="pass">✅ ${module.id}: All checks passed</div></div>`;
+                        results.innerHTML += `<div class="test-wrap"><div class="test-pass">✅ ${module.id}: All checks passed</div></div>`;
                     } else {
-                        results.innerHTML += `<div class="test"><div class="fail">❌ ${module.id}: Missing ${!hasCSS ? 'CSS ' : ''}${!hasJS ? 'JS' : ''}</div></div>`;
+                        results.innerHTML += `<div class="test-wrap"><div class="test-fail">❌ ${module.id}: ${!res.ok ? 'Fetch failed' : ''} ${!hasCSS ? 'Missing CSS ' : ''}${!hasJS ? 'Missing JS' : ''}</div></div>`;
                     }
                 } catch (e) {
-                    results.innerHTML += `<div class="test"><div class="fail">❌ ${module.id}: ${e.message}</div></div>`;
+                    results.innerHTML += `<div class="test-wrap"><div class="test-fail">❌ ${module.id}: ${e.message}</div></div>`;
                 }
             }
-            results.innerHTML += `<div class="test"><h3>Summary: ${passed}/${total} passed</h3></div>`;
+            results.innerHTML += `<div class="test-wrap test-summary">Summary: ${passed}/${total} passed</div>`;
         }
+        document.querySelector('.btn-primary').addEventListener('click', runTests);
         window.addEventListener('load', () => setTimeout(runTests, 500));
     </script>
 </body>

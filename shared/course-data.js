@@ -1,4 +1,5 @@
-// Course data structure - organized by difficulty level
+// Course data structure - organized by difficulty level.
+// Single source of truth for module ids and paths; verify-paths.js derives its list from this file.
 const COURSE_DATA = {
     levels: {
         basic: {

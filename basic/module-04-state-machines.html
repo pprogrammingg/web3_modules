@@ -135,7 +135,7 @@
             </ol>
 
             <div class="success">
-                <strong>Why Priority?</strong> Preserves causality - internal events (like <span data-glossary="quorum certificate">QC</span> formation) must be processed before new external inputs arrive.
+                <strong>Why Priority?</strong> Preserves causality — internal events (like <span data-glossary="quorum certificate">QC</span> formation; see Module 1.2 for steps (i)–(v) and hyperscale-rs crate/line refs) must be processed before new external inputs arrive.
             </div>
         </div>
 
@@ -199,7 +199,7 @@
                 <li><strong>Other nodes receive</strong> → Create <code>Event::BlockHeaderReceived</code></li>
                 <li><strong>They vote</strong> → Return <code>Action::BroadcastToShard</code> (vote)</li>
                 <li><strong>Votes collected</strong> → <code>Event::QuorumCertificateFormed</code></li>
-                <li><strong><span data-glossary="quorum certificate">QC</span> processed</strong> → Chain state updated, commit checked</li>
+                <li><strong><span data-glossary="quorum certificate">QC</span> processed</strong> → Chain state updated (<code>latest_qc</code>), commit rule checked (Module 1.2; <code>bft</code> crate)</li>
             </ol>
         </div>
 

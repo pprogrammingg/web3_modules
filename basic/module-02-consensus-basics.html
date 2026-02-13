@@ -114,108 +114,59 @@ Any two groups of 3 nodes must share at least 1 honest node.</code></pre></div>
                 <li><strong>Binding</strong> - Proves agreement on a specific block</li>
             </ul>
 
-            <h3>How QCs Work - Detailed Mechanics</h3>
-            
-            <h4>Step-by-Step Process:</h4>
-            <ol>
-                <li><strong>Proposer broadcasts block header</strong>
-                    <ul style="margin-top: 0.5rem;">
-                        <li>The leader/proposer creates a new block at height H</li>
-                        <li>This block includes the QC from the previous block (height H-1) in its header</li>
-                        <li>The proposer broadcasts this block header to all validators</li>
-                    </ul>
-                </li>
-                <li><strong>Validators validate and vote</strong>
-                    <ul style="margin-top: 0.5rem;">
-                        <li>Each validator receives the block header</li>
-                        <li>Validators validate the block (check transactions, verify QC from previous block, etc.)</li>
-                        <li>If valid, each validator creates a <strong>vote</strong> by cryptographically signing the block hash</li>
-                        <li>Validators send their votes back to the proposer (or to a vote aggregator)</li>
-                    </ul>
-                </li>
-                <li><strong>QC Generation - When and How</strong>
-                    <div class="info" style="margin-top: 0.5rem; margin-left: 1rem;">
-                        <strong>When QC gets generated:</strong> As soon as the proposer (or vote collector) receives 2f+1 valid votes for the block, a QC is immediately formed.
-                    </div>
-                    <ul style="margin-top: 0.5rem;">
-                        <li>The proposer collects votes from validators</li>
-                        <li>When 2f+1 votes are received, the proposer aggregates them into a single QC</li>
-                        <li><strong>QC aggregation:</strong> Individual validator signatures are combined using signature aggregation (typically BLS signatures) into one compact aggregated signature</li>
-                        <li>The QC contains: the block hash, the aggregated signature, and metadata (height, view number, etc.)</li>
-                    </ul>
-                </li>
-                <li><strong>QC Inclusion in Next Block</strong>
-                    <div class="highlight" style="margin-top: 0.5rem; margin-left: 1rem;">
-                        <strong>How QC is included:</strong> The QC for block H is NOT broadcast separately. Instead, it's included directly in the header of block H+1 when the next proposer creates it.
-                    </div>
-                    <ul style="margin-top: 0.5rem;">
-                        <li>The proposer who formed the QC includes it in their next block proposal (block H+1)</li>
-                        <li>When the next leader proposes block H+1, they include the QC for block H in the block header</li>
-                        <li>This QC serves as proof that block H was agreed upon by 2f+1 validators</li>
-                        <li>All validators can verify the QC when they receive block H+1</li>
-                    </ul>
-                </li>
+            <h3>How a QC is Formed – Steps</h3>
+            <p>In HotStuff-style BFT, a quorum certificate is produced and then carried in the next block’s header. Conceptually:</p>
+            <ol style="list-style-type: none; padding-left: 0;">
+                <li><strong>(i)</strong> The proposer for block H builds the block (including <code>parent_qc</code> = QC for H−1 in the header) and broadcasts the block header to the shard.</li>
+                <li><strong>(ii)</strong> Validators receive the header, validate it, and each signs a vote (block hash + metadata). Votes are broadcast to the shard (so every validator, including the next proposer, receives them).</li>
+                <li><strong>(iii)</strong> When any validator has 2f+1 valid votes for block H, it requests aggregation into a single QC (verify signatures and build aggregated signature). That node’s state stores the new QC as its <code>latest_qc</code>.</li>
+                <li><strong>(iv)</strong> The QC is not sent as a separate network message. The next proposer (for H+1) either formed QC(H) locally from the broadcast votes, or later sees QC(H) when it receives a block whose header contains it.</li>
+                <li><strong>(v)</strong> When the next proposer builds block H+1, it sets the new header’s <code>parent_qc</code> = QC(H) (from its <code>latest_qc</code>) and broadcasts block H+1. All validators then see QC(H) inside the header of H+1.</li>
             </ol>
+            <p>So: votes are broadcast → (any) validator with 2f+1 votes forms the QC locally → QC is carried in the next block’s header.</p>
 
-            <h4>Communication Flow:</h4>
+            <h4>Communication flow (matches (i)–(v) above)</h4>
             <div class="block-diagram">
                 <div class="diagram-block">
                     <div class="block-header">
-                        <div class="block-title">Block H Proposal</div>
-                        <div class="block-field">- Proposer broadcasts block H</div>
-                        <div class="block-field">- Includes QC for block H-1</div>
+                        <div class="block-title">(i) Block H proposal</div>
+                        <div class="block-field">- Proposer builds block H (header has parent_qc = QC(H−1)), broadcasts header</div>
                     </div>
                 </div>
                 <div class="diagram-arrow">↓</div>
-                <div class="diagram-label">Validators receive & validate</div>
+                <div class="diagram-label">(ii) Validators receive &amp; validate; votes broadcast to shard</div>
+                <div class="diagram-arrow">↓</div>
+                <div class="diagram-label">(iii) When 2f+1 votes: request QC build → latest_qc updated</div>
                 <div class="diagram-arrow">↓</div>
                 <div class="diagram-block">
                     <div class="block-header">
-                        <div class="block-title">Voting Phase</div>
-                        <div class="block-field">- Validators send votes to proposer</div>
-                        <div class="block-field">- Each vote = signed block hash</div>
-                    </div>
-                </div>
-                <div class="diagram-arrow">↓</div>
-                <div class="diagram-label">When 2f+1 votes received</div>
-                <div class="diagram-arrow">↓</div>
-                <div class="diagram-block">
-                    <div class="block-header">
-                        <div class="block-title">QC Formation</div>
-                        <div class="block-field">- Proposer aggregates votes</div>
-                        <div class="block-field">- Creates QC (aggregated signature)</div>
-                    </div>
-                </div>
-                <div class="diagram-arrow">↓</div>
-                <div class="diagram-label">QC stored locally by proposer</div>
-                <div class="diagram-arrow">↓</div>
-                <div class="diagram-block">
-                    <div class="block-header">
-                        <div class="block-title">Block H+1 Proposal</div>
-                        <div class="block-field">- Next proposer includes QC for H</div>
-                        <div class="block-field">- QC broadcast as part of block H+1</div>
+                        <div class="block-title">(iv)–(v) Block H+1</div>
+                        <div class="block-field">- Next proposer sets parent_qc = QC(H), broadcasts H+1</div>
+                        <div class="block-field">- All validators see QC(H) in H+1’s header</div>
                     </div>
                 </div>
             </div>
 
             <div class="info" style="margin-top: 1.5rem;">
-                <strong>Key Point:</strong> The QC is not broadcast immediately when formed. It's included in the next block's header, which is then broadcast. This means:
-                <ul style="margin-top: 0.5rem;">
-                    <li>Validators learn about the QC when they receive the next block</li>
-                    <li>The QC proves the previous block was agreed upon</li>
-                    <li>This creates a chain of QCs linking blocks together</li>
-                </ul>
+                <strong>Key point:</strong> The QC is not broadcast as a separate message. Votes are broadcast; validators with 2f+1 votes form the QC locally; the next block’s header carries that QC as <code>parent_qc</code>, so everyone sees it when they receive the next block.
             </div>
 
-            <h4>Example Timeline:</h4>
-            <div class="code-block"><pre><code>Time T1: Proposer creates Block 10, includes QC for Block 9
-Time T2: Proposer broadcasts Block 10 to all validators
-Time T3: Validators validate Block 10 and send votes back
-Time T4: Proposer receives 2f+1 votes → QC for Block 10 is formed
-         (QC stored locally, NOT broadcast yet)
-Time T5: Next proposer creates Block 11, includes QC for Block 10
-Time T6: Block 11 (with QC for Block 10) is broadcast
-         → All nodes now see that Block 10 has a QC</code></pre></div>
+            <h4>Example timeline</h4>
+            <div class="code-block"><pre><code>T1: Proposer builds Block 10 (header includes QC for Block 9), broadcasts header
+T2: Validators validate, sign votes, broadcast votes to shard
+T3: When 2f+1 votes received → any such validator requests QC build → QC(10) formed, stored as latest_qc
+T4: Next proposer builds Block 11 with parent_qc = QC(10), broadcasts Block 11
+T5: All nodes receive Block 11 → see QC(10) in header</code></pre></div>
+
+            <h4>In hyperscale-rs (crate and line references)</h4>
+            <ul>
+                <li><strong>(i)</strong> Block header carries <code>parent_qc</code>: <code>crates/types/src/block.rs</code> (struct <code>BlockHeader</code>, field <code>parent_qc</code> at line 75).</li>
+                <li><strong>(ii)</strong> Votes are broadcast to the shard: <code>Action::PersistAndBroadcastVote</code> in <code>crates/core/src/action.rs</code> (lines 444–449). BFT state emits it when a validator votes: <code>crates/bft/src/state.rs</code> (around line 2575).</li>
+                <li><strong>(iii)</strong> When 2f+1 votes are collected, state requests <code>Action::VerifyAndBuildQuorumCertificate</code>: <code>crates/core/src/action.rs</code> (lines 113–132), emitted from <code>crates/bft/src/state.rs</code> (around line 2765). Runner performs verification/aggregation; BFT’s <code>vote_set</code> builds the QC: <code>crates/bft/src/vote_set.rs</code> (<code>build_qc</code> at line 307). When the QC is ready, <code>on_qc_formed</code> in <code>crates/bft/src/state.rs</code> sets <code>self.latest_qc = Some(qc)</code> (line 3583).</li>
+                <li><strong>(iv)</strong> No separate QC message: validators (including the next proposer) either form the QC from broadcast votes or later set <code>latest_qc</code> from a received block header: <code>crates/bft/src/state.rs</code> (e.g. <code>self.latest_qc = Some(header.parent_qc.clone())</code> at line 1597).</li>
+                <li><strong>(v)</strong> Building the next block uses <code>self.latest_qc</code> as <code>parent_qc</code>: <code>crates/bft/src/state.rs</code> (e.g. lines 1013–1017, 1147, 1182–1208, 1296–1323).</li>
+            </ul>
+            <p>References are to the <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> repo (paths and line numbers may shift slightly with upstream).</p>
         </div>
 
         <div class="section">
@@ -486,6 +437,16 @@ The "two-chain" name comes from needing 2 consecutive blocks with QCs:
                     "Cryptographic proof that 2f+1 validators voted",
                     "A block that contains transactions",
                     "A network message"
+                ],
+                correct: 1
+            },
+            {
+                question: "How does the H+1 proposer get the QC for block H to include in block H+1?",
+                options: [
+                    "The QC is broadcast to all validators when formed",
+                    "Votes are broadcast to the shard; the next proposer forms the QC from votes (or gets it from a received block header) and includes it in block H+1",
+                    "Validators vote again to send the QC to the next proposer",
+                    "The QC is read from the blockchain"
                 ],
                 correct: 1
             },

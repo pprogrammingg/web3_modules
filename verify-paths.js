@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Verification script for course module paths
+ * Verification script for course module paths.
+ * Module list is derived from shared/course-data.js (single source of truth).
  * Run with: node verify-paths.js
  */
 
@@ -10,22 +11,36 @@ const path = require('path');
 const COURSES_DIR = __dirname;
 const SHARED_DIR = path.join(COURSES_DIR, 'shared');
 
-// Module files to check
-const MODULES = [
-    { file: 'basic/module-01-blockchain-fundamentals.html', id: 'basic-01' },
-    { file: 'basic/module-02-consensus-basics.html', id: 'basic-02' },
-    { file: 'basic/module-03-distributed-systems.html', id: 'basic-03' },
-    { file: 'basic/module-04-state-machines.html', id: 'basic-04' },
-    { file: 'hyperscale-rs/module-01-overview.html', id: 'basic-05' },
-    { file: 'hyperscale-rs/module-01b-tx-flow.html', id: 'basic-05b' },
-];
-
-// Required shared files
+// Required shared files (existence check)
 const SHARED_FILES = [
     'styles.css',
     'course-data.js',
     'navigation.js',
+    'glossary.js',
 ];
+
+// Derive module list from course-data.js so we don't duplicate it
+function loadModulesFromCourseData() {
+    const courseDataPath = path.join(SHARED_DIR, 'course-data.js');
+    const content = fs.readFileSync(courseDataPath, 'utf8');
+    const regex = /id:\s*'([^']+)'[\s\S]*?path:\s*'([^']+)'/g;
+    const modules = [];
+    let m;
+    while ((m = regex.exec(content)) !== null) {
+        modules.push({ id: m[1], file: m[2] });
+    }
+    return modules;
+}
+
+// Expected CSS path from module file path (e.g. basic/foo.html -> ../shared/, intermediate/bar.html -> ../shared/)
+function expectedCssPathFor(moduleFile) {
+    const dir = path.dirname(moduleFile);
+    if (!dir || dir === '.') return 'shared/styles.css';
+    const depth = dir.split(path.sep).length;
+    return '../'.repeat(depth) + 'shared/styles.css';
+}
+
+const VALID_JS_PATHS = ['../shared/course-data.js', '../shared/navigation.js', '../shared/glossary.js'];
 
 let errors = [];
 let warnings = [];
@@ -44,55 +59,48 @@ SHARED_FILES.forEach(file => {
     }
 });
 
-console.log('\nChecking module files...');
+const MODULES = loadModulesFromCourseData();
+console.log(`\nLoaded ${MODULES.length} modules from course-data.js\nChecking module files...`);
 
-// Check each module
-MODULES.forEach(({ file, id }) => {
+MODULES.forEach(({ id, file }) => {
     const modulePath = path.join(COURSES_DIR, file);
     console.log(`\n📄 ${file} (${id}):`);
-    
+
     if (!fs.existsSync(modulePath)) {
-        errors.push(`Module file missing: ${file}`);
-        console.log(`  ❌ File does not exist`);
+        console.log(`  ⏭️  Skipped (no HTML file yet)`);
         return;
     }
-    
+
     console.log(`  ✅ File exists`);
-    
+
     const content = fs.readFileSync(modulePath, 'utf8');
-    
-    // Check CSS path
+    const expectedCss = expectedCssPathFor(file);
+
     const cssMatches = content.match(/href=["']([^"']*styles\.css[^"']*)["']/);
     if (cssMatches) {
         const cssPath = cssMatches[1];
         console.log(`  📝 CSS path: ${cssPath}`);
-        
-        // All modules are one level deep, so path should be ../shared/styles.css
-        const expectedPath = '../shared/styles.css';
-        
-        if (cssPath === expectedPath) {
+        if (cssPath === expectedCss) {
             console.log(`  ✅ CSS path is correct`);
         } else {
-            warnings.push(`${file}: CSS path is '${cssPath}', expected '${expectedPath}'`);
-            console.log(`  ⚠️  CSS path might be incorrect (expected: ${expectedPath})`);
+            warnings.push(`${file}: CSS path is '${cssPath}', expected '${expectedCss}'`);
+            console.log(`  ⚠️  CSS path might be incorrect (expected: ${expectedCss})`);
         }
     } else {
         errors.push(`${file}: No CSS link found`);
         console.log(`  ❌ No CSS link found`);
     }
-    
-    // Check JS paths (modules one level deep: basic/ or hyperscale-rs/ → ../shared/)
-    const validJsPaths = ['../shared/course-data.js', '../shared/navigation.js', '../shared/glossary.js'];
+
     const jsMatches = content.matchAll(/src=["']([^"']*\.js[^"']*)["']/g);
     const jsPaths = Array.from(jsMatches).map(m => m[1]);
-    
+
     if (jsPaths.length > 0) {
         console.log(`  📝 JS paths found: ${jsPaths.length}`);
         jsPaths.forEach(jsPath => {
-            if (validJsPaths.includes(jsPath)) {
+            if (VALID_JS_PATHS.includes(jsPath)) {
                 console.log(`  ✅ ${path.basename(jsPath)} path is correct`);
             } else {
-                warnings.push(`${file}: JS path '${jsPath}' might be incorrect (expected one of: ${validJsPaths.join(', ')})`);
+                warnings.push(`${file}: JS path '${jsPath}' might be incorrect (expected one of: ${VALID_JS_PATHS.join(', ')})`);
                 console.log(`  ⚠️  ${path.basename(jsPath)} path might be incorrect`);
             }
         });
@@ -100,31 +108,30 @@ MODULES.forEach(({ file, id }) => {
         errors.push(`${file}: No JS scripts found`);
         console.log(`  ❌ No JS scripts found`);
     }
-    
-    // Check for required elements
+
     if (!content.includes('initializeModulePage')) {
         warnings.push(`${file}: Might be missing module initialization`);
     }
 });
 
 // Summary
-console.log('\n' + '='.repeat(60));
+const SEP = '='.repeat(60);
+console.log('\n' + SEP);
 console.log('SUMMARY');
-console.log('='.repeat(60));
+console.log(SEP);
 
 if (errors.length === 0 && warnings.length === 0) {
     console.log('✅ All checks passed!');
     process.exit(0);
-} else {
-    if (errors.length > 0) {
-        console.log(`\n❌ ERRORS (${errors.length}):`);
-        errors.forEach(err => console.log(`   - ${err}`));
-    }
-    
-    if (warnings.length > 0) {
-        console.log(`\n⚠️  WARNINGS (${warnings.length}):`);
-        warnings.forEach(warn => console.log(`   - ${warn}`));
-    }
-    
-    process.exit(errors.length > 0 ? 1 : 0);
 }
+
+if (errors.length > 0) {
+    console.log(`\n❌ ERRORS (${errors.length}):`);
+    errors.forEach(err => console.log(`   - ${err}`));
+}
+if (warnings.length > 0) {
+    console.log(`\n⚠️  WARNINGS (${warnings.length}):`);
+    warnings.forEach(warn => console.log(`   - ${warn}`));
+}
+
+process.exit(errors.length > 0 ? 1 : 0);

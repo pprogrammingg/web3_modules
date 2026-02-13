@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Execution & Radix Engine</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Transaction Execution & Radix Engine</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 1.5–2 hours</span>
+                <span>📊 Difficulty: Intermediate</span>
+                <span>🎯 Hyperscale-rs Specific</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand the transaction lifecycle in hyperscale-rs</li>
+                <li>Learn how the Radix Engine fits in (relative to hyperscale-rs)</li>
+                <li>Understand state management and validation</li>
+                <li>See where execution sits in the <a href="module-01b-tx-flow.html" target="_blank" rel="noopener noreferrer">Transaction Flow</a></li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Where Execution Fits</h2>
+            <p>In the <a href="module-01b-tx-flow.html" target="_blank" rel="noopener noreferrer">Transaction Flow</a>, execution happens <em>after</em> a block is committed by BFT. The node has an ordered sequence of transactions (in committed blocks); the execution layer applies each transaction to the current state and produces state updates. For cross-shard transactions, execution is coordinated with the provisions and 2PC steps (see <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>).</p>
+        </div>
+
+        <div class="section">
+            <h2>Hyperscale-rs vs Radix Engine (relative roles)</h2>
+            <p><strong>Hyperscale-rs</strong> is the consensus and coordination layer: it orders transactions (via BFT), handles cross-shard 2PC and provisions, and drives when execution runs. It does <em>not</em> interpret the content of Radix manifests or execute Radix Engine instructions itself.</p>
+            <p><strong>Radix Engine</strong> (external to this repo) is the execution engine: it takes a transaction (e.g. a Radix manifest), interprets instructions (CallMethod, TakeFromWorktop, etc.), and applies state changes to a Radix-style world state (components, resources, vaults). Hyperscale-rs typically receives a transaction that has already been built for the engine (e.g. a <strong>UserTransaction</strong> or similar); it may <strong>analyze</strong> it (e.g. extract <code>declared_reads</code> / <code>declared_writes</code> for shard routing) and then order and coordinate it; the actual execution of the manifest is done by the engine, often in a separate process or library that hyperscale-rs calls.</p>
+            <p><strong>Paths:</strong> From the course repo, hyperscale-rs content lives under <code>hyperscale-rs/</code>; Radix Engine is a separate project (e.g. <code>radix-engine</code> or the Radix node). So when we say “execution” in hyperscale-rs we mean: (1) the <code>execution</code> crate that manages lifecycle, 2PC, and calling out to the engine, and (2) the engine (external) that does the actual state transitions.</p>
+        </div>
+
+        <div class="section">
+            <h2>Transaction Lifecycle in the execution Crate</h2>
+            <p>In <code>crates/execution</code> you’ll find logic for:</p>
+            <ul>
+                <li><strong>Receiving committed blocks</strong> – Events or actions from BFT indicate a block is committed; execution takes the transactions in that block and runs them (or hands them to the engine).</li>
+                <li><strong>Single-shard execution</strong> – For transactions that touch only one shard, execution is straightforward: apply in order, update state.</li>
+                <li><strong>Cross-shard execution</strong> – Start cross-shard flow (e.g. <code>start_cross_shard_execution</code>), wait for provisions from other shards, participate in 2PC (prepare → commit/abort), then apply state updates in agreed order. Refs: <code>crates/execution/src/state.rs</code>, provisions crate.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>State Management</h2>
+            <p>State is usually held in a structure that the engine understands (e.g. a JMT or key-value store). Hyperscale-rs may maintain a <strong>view</strong> of state (e.g. for validation or for building blocks), while the canonical execution and state update are done by the engine. Snapshots and persistence are often in a separate storage layer (see the Storage module later).</p>
+        </div>
+
+        <div class="section">
+            <h2>Validation</h2>
+            <p>Before a transaction is proposed or executed, it is validated: structure, signatures, and (depending on design) static analysis (e.g. shard membership from <code>declared_reads</code> / <code>declared_writes</code>). Validation may happen at the mempool, at proposal time, and again at execution time to ensure the committed block is applied correctly.</p>
+        </div>
+
+        <div class="navigation">
+            <a href="module-05-cross-shard.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="../index.html" class="btn btn-primary">Back to Index</a>
+        </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
+    <script>
+        initializeModulePage('intermediate-04');
+    </script>
+</body>
+</html>

@@ -10,6 +10,10 @@ const AVAILABLE_MODULES = [
     'basic-05b', // Transaction Flow: User to Finality
     'basic-06', // Exploring the Hyperscale-rs Codebase
     'basic-07', // Your First Contribution
+    'intermediate-01', // BFT Consensus Implementation Deep Dive
+    'intermediate-02', // Sharding & Cross-Shard Transactions (general)
+    'intermediate-03', // Cross-Shard Transactions in Hyperscale-rs
+    'intermediate-04', // Transaction Execution & Radix Engine
 ];
 
 function isModuleAvailable(moduleId) {
@@ -69,7 +73,7 @@ function renderHyperscaleModules() {
     
     ['basic', 'intermediate', 'advanced'].forEach(level => {
         if (byLevel[level].length > 0) {
-            html += `<h3 style="margin-top: 2rem; color: var(--primary-color);">${level.charAt(0).toUpperCase() + level.slice(1)} Level</h3>`;
+            html += `<h3 class="level-heading">${level.charAt(0).toUpperCase() + level.slice(1)} Level</h3>`;
             byLevel[level].forEach(module => {
                 const status = getModuleStatus(module.id);
                 html += renderModuleCard(module, status);
@@ -80,15 +84,17 @@ function renderHyperscaleModules() {
     container.innerHTML = html;
 }
 
+const STATUS_CONFIG = {
+    completed: { class: 'completed', text: 'Completed', badge: 'status-completed' },
+    'in-progress': { class: 'in-progress', text: 'In Progress', badge: 'status-in-progress' },
+    pending: { class: '', text: 'Not Started', badge: 'status-pending' }
+};
+
 function renderModuleCard(module, status) {
     const isAvailable = isModuleAvailable(module.id);
-    const statusClass = status === 'completed' ? 'completed' : 
-                        status === 'in-progress' ? 'in-progress' : '';
-    const statusText = status === 'completed' ? 'Completed' : 
-                      status === 'in-progress' ? 'In Progress' : 'Not Started';
-    const statusClassBadge = status === 'completed' ? 'status-completed' : 
-                            status === 'in-progress' ? 'status-in-progress' : 'status-pending';
-    
+    const statusKey = status in STATUS_CONFIG ? status : 'pending';
+    const { class: statusClass, text: statusText, badge: statusClassBadge } = STATUS_CONFIG[statusKey];
+
     const badge = module.hyperscaleSpecific ? '<span class="badge-hyperscale">Hyperscale-rs</span>' : '';
     const availableBadge = isAvailable ? '<span class="badge-available">✓ Available</span>' : '<span class="badge-coming">Coming Soon</span>';
     const cardClass = isAvailable ? `module-card available ${statusClass}` : `module-card unavailable ${statusClass}`;
@@ -151,7 +157,6 @@ function initializeQuiz(quizId, questions, passingScore = 70) {
     const submitBtn = document.createElement('button');
     submitBtn.className = 'btn btn-primary';
     submitBtn.textContent = 'Submit Quiz';
-    submitBtn.style.marginTop = '1rem';
     submitBtn.onclick = () => submitQuiz(quizId, questions, userAnswers, passingScore);
     quizContainer.appendChild(submitBtn);
     

@@ -4,11 +4,14 @@ All notable changes to the web3_modules course are listed here by date.
 
 ---
 
-## Since Feb 05, 2026
+## Since Feb 4, 2026
 
-- **New module: Transaction Flow: User to Finality** — End-to-end diagram (user → finality), Hyperscale vs outside, BFT/shards/proposer/NodeID/cross-shard/2PC; hover popups for crates; 21-question quiz.
-- **Module improvements:** Exploring the Codebase — harder quiz (5 questions, plausible distractors). First Contribution — quiz removed; PR/commit message format and other concepts moved into guidelines.
-- **Mobile:** Nav buttons stack on small screens, full-width with gap; labels centered (e.g. “Next Module →”). Added **mobile-test.html** for layout checks.
+- **Refactors** — **verify-paths.js**: Module list is now derived from <code>course-data.js</code> (single source of truth); expected CSS path is computed from each module’s directory depth; <code>glossary.js</code> added to shared-files check. **navigation.js**: Status labels and classes for module cards moved into a <code>STATUS_CONFIG</code> map. **test-modules.html**: Uses <code>COURSE_DATA</code> and <code>isModuleAvailable()</code> instead of a hardcoded module list; loads <code>navigation.js</code>. **course-data.js**: Comment added that it is the source of truth for module ids/paths.
+- **Intermediate modules (next set) released** — Three new intermediate modules are available: **BFT Consensus Implementation Deep Dive** (<code>hyperscale-rs/module-04-bft-implementation.html</code>), **Sharding & Cross-Shard Transactions** (<code>intermediate/module-01-sharding.html</code>, general), **Transaction Execution & Radix Engine** (<code>hyperscale-rs/module-06-execution.html</code>). Relative paths: hyperscale-rs modules use <code>../shared/</code> and same-dir links for other hyperscale-rs modules; intermediate modules use <code>../shared/</code> and <code>../hyperscale-rs/</code> for Hyperscale-specific links. Navigation chained: First Contribution → BFT → Sharding (general) → Cross-Shard (Hyperscale) → Execution. <code>AVAILABLE_MODULES</code> and <code>verify-paths.js</code> updated.
+- **Transaction Flow** — New module: path from user transaction submit to finality (wallet → network → node → mempool → BFT → commit → execution → cross-shard). Diagram with crate hover popups and quiz. Quiz results highlight wrong vs correct answers.
+- **Quizzes** — Wrong-answered questions and wrong-chosen options highlighted after submit. Added test-quiz.js; Codebase Exploration quiz hardened; First Contribution quiz removed in favor of guidelines.
+- **Content & glossary** — Distributed Systems expanded (partial synchrony/GST, safety vs liveness, quorum intersection, leader/view/timeouts). FLP, GST, PBFT linked and expanded. Guides = repo `guides/`; module references to guides and key files now link to GitHub.
+- **UI** — Resources on index: card-style layout, clearer hierarchy. In-module links to repo files and guides made explicit. Mobile layout fixes and a dedicated mobile test page.
 
 ---
 

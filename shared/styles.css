@@ -1,5 +1,7 @@
 :root {
     --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --primary-color: #2563eb; /* alias for compatibility */
     --secondary: #10b981;
     --danger: #ef4444;
     --warning: #f59e0b;
@@ -58,6 +60,7 @@ h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.2rem; }
 .section h2 { margin-top: 0; }
 
 .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+.level-heading { margin-top: 2rem; color: var(--primary); }
 .module-card { background: var(--bg2); border: 2px solid var(--border); border-radius: 8px; padding: 1.5rem; transition: all 0.3s; cursor: pointer; text-decoration: none; color: inherit; display: block; }
 .module-card.available { background: var(--bg); border: 2px solid var(--primary); box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1); }
 .module-card.available:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); background: #eff6ff; }
@@ -113,6 +116,7 @@ h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.2rem; }
 .resource-arrow { position: absolute; top: 1.5rem; right: 1.5rem; font-size: 1.25rem; color: var(--primary); opacity: 0.7; transition: transform 0.2s ease, opacity 0.2s ease; }
 
 .quiz-container { background: var(--bg); border: 2px solid var(--border); border-radius: 8px; padding: 1.5rem; margin: 1.5rem 0; }
+.quiz-container .btn { margin-top: 1rem; }
 .question { margin-bottom: 1.5rem; }
 .question-text { font-weight: bold; margin-bottom: 1rem; }
 .option { margin: 0.75rem 0; padding: 0.75rem; background: var(--bg2); border: 2px solid var(--border); border-radius: 6px; cursor: pointer; transition: all 0.2s; }
@@ -135,6 +139,15 @@ h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.2rem; }
 .code-block { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace; font-size: 0.9rem; margin: 1rem 0; }
 .code-block pre { margin: 0; white-space: pre; }
 .code-block code { display: block; font-family: inherit; font-size: inherit; color: inherit; }
+/* Light code block (e.g. manifest snippets) */
+.code-block-light { background: #f1f5f9; color: var(--text); padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.9rem; margin: 0.75rem 0; }
+.code-block-light code { font-family: ui-monospace, monospace; }
+/* Section with less top margin */
+.section-tight { margin-top: 1.5rem; }
+/* Nested list in info/section */
+.list-nested { margin: 0.75rem 0 0 1.25rem; padding-left: 0.5rem; }
+.info h3 { margin-top: 0; font-size: 1.1rem; }
+.info p:last-child { margin-bottom: 0; }
 
 .navigation { display: flex; justify-content: space-between; margin-top: 2rem; padding-top: 2rem; border-top: 2px solid var(--border); gap: 0.75rem; flex-wrap: wrap; }
 .navigation .btn { text-align: center; white-space: nowrap; }
@@ -288,3 +301,39 @@ p { margin: 1rem 0; }
 table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
 th, td { padding: 0.5rem; border: 1px solid var(--border); }
 th { background: var(--bg2); }
+
+/* Transaction flow diagram (shared across modules) */
+.tx-flow { --hyperscale-bg: #eff6ff; --hyperscale-border: var(--primary); --outside-bg: #f8fafc; --outside-border: #94a3b8; }
+.tx-flow-legend { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.tx-flow-legend span { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--text2); }
+.tx-flow-legend .dot-hyperscale { width: 14px; height: 14px; border-radius: 4px; background: var(--hyperscale-bg); border: 2px solid var(--hyperscale-border); }
+.tx-flow-legend .dot-outside { width: 14px; height: 14px; border-radius: 4px; background: var(--outside-bg); border: 2px solid var(--outside-border); }
+.tx-flow-diagram { display: flex; flex-direction: column; gap: 0; position: relative; }
+.flow-step { position: relative; display: flex; align-items: stretch; gap: 0; min-height: 52px; }
+.flow-step-lane { width: 4px; flex-shrink: 0; border-radius: 2px; }
+.flow-step-lane.hyperscale { background: var(--hyperscale-border); }
+.flow-step-lane.outside { background: var(--outside-border); }
+.flow-step-body { flex: 1; padding: 0.75rem 1rem; border: 2px solid var(--border); border-radius: 6px; margin-left: 8px; background: var(--bg); cursor: default; }
+.flow-step.hyperscale .flow-step-body { border-color: var(--hyperscale-border); background: var(--hyperscale-bg); }
+.flow-step.outside .flow-step-body { border-color: var(--outside-border); background: var(--outside-bg); }
+.flow-step-arrow { text-align: center; padding: 2px 0; color: var(--text2); font-size: 1.2rem; }
+.flow-step-title { font-weight: 700; font-size: 1rem; margin-bottom: 0.25rem; }
+.flow-step-desc { font-size: 0.875rem; color: var(--text2); }
+.flow-step-body a.crate-link { font-size: 0.8rem; color: var(--primary); }
+.flow-step-popup { display: none; position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 10px; min-width: 180px; padding: 0.75rem 1rem; background: var(--bg); border: 2px solid var(--hyperscale-border); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10; font-size: 0.875rem; pointer-events: none; }
+.flow-step:hover .flow-step-popup { display: block; }
+.flow-step-popup h4 { margin: 0 0 0.5rem; font-size: 0.8rem; text-transform: uppercase; color: var(--text2); }
+.flow-step-popup ul { margin: 0; padding-left: 1.1rem; }
+.flow-step-popup li { margin-bottom: 0.35rem; }
+.flow-step-popup a { color: var(--primary); text-decoration: none; }
+.flow-step-popup a:hover { text-decoration: underline; }
+.flow-step-popup .outside-note { font-style: italic; color: var(--text2); margin-top: 0.5rem; }
+@media (max-width: 640px) {
+    .flow-step-popup { left: 0; right: 0; margin-left: 0; margin-right: 0; top: 100%; transform: none; margin-top: 6px; }
+}
+
+/* Test runner page (test-modules.html) */
+.test-wrap { background: var(--bg); padding: 1.5rem; margin: 1rem 0; border-radius: 8px; }
+.test-pass { background: #d1fae5; padding: 0.75rem; margin: 0.5rem 0; border-radius: 4px; border-left: 4px solid var(--secondary); }
+.test-fail { background: #fee2e2; padding: 0.75rem; margin: 0.5rem 0; border-radius: 4px; border-left: 4px solid var(--danger); }
+.test-summary { margin-top: 1rem; font-weight: bold; }

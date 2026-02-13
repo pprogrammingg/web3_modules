@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Shard Transactions in Hyperscale-rs</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Cross-Shard Transactions in Hyperscale-rs</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 1.5–2 hours</span>
+                <span>📊 Difficulty: Intermediate</span>
+                <span>🎯 Hyperscale-rs Specific</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand 2PC and provision coordination in hyperscale-rs</li>
+                <li>Map a complex Radix manifest to shards, provisioning, and coordination</li>
+                <li>See how protocol order (ShardGroupId) differs from manifest instruction order</li>
+                <li>Understand livelock prevention in cross-shard flow</li>
+                <li>Trace cross-shard flow in the codebase (types, topology, execution, provisions)</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Two coordinators: 2PC and ProvisionCoordinator</h2>
+            <p>Cross-shard flow uses two different “coordinator” ideas:</p>
+            <ul>
+                <li><strong>2PC coordinator (<a href="module-01b-tx-flow.html#step-13" target="_blank" rel="noopener noreferrer">step 13 in the tx flow</a>).</strong> One of the involved shards (or a designated role). Validators in that shard send <strong>prepare</strong> to each involved shard (in a fixed order), collect yes/no, then send <strong>commit</strong> (if all yes) or <strong>abort</strong>. So it’s the shard that “asks whether everyone is ready” and then decides go or cancel. (<code>execution</code> crate.)</li>
+                <li><strong>ProvisionCoordinator (provisions crate).</strong> A sub-state machine on <em>every</em> node. It tracks <strong>provisions</strong>: after a shard commits its part, it sends a signed proof (StateProvision) to the other shards. ProvisionCoordinator keeps a checklist: “For this tx, do we have quorum of provisions from shard 1? From shard 2? …” When it has enough from every required shard, it emits <strong>ProvisioningComplete</strong> so execution can proceed. So it’s the “checklist” for “did we get enough proofs from the prerequisite shards?” — not the prepare yes/no (that’s 2PC).</li>
+            </ul>
+            <p>See the <a href="module-01b-tx-flow.html" target="_blank" rel="noopener noreferrer">Transaction Flow</a> diagram (opens in new tab) for the full step-by-step from user to finality.</p>
+            <p><strong>How is the order fixed?</strong> The protocol uses a <strong>deterministic rule</strong> (e.g. by shard ID). <strong>consensus_shards</strong> and <strong>all_shards_for_transaction</strong> are built with <strong>BTreeSet&lt;ShardGroupId&gt;</strong>, so the order is <strong>numeric ShardGroupId</strong>. The 2PC coordinator does not choose the order; it <strong>drives</strong> the protocol in that pre-agreed order. Refs: <code>crates/types/src/topology.rs</code>.</p>
+        </div>
+
+        <div class="section">
+            <h2>Example: complex Radix manifest and Hyperscale provisioning</h2>
+            <p>Consider a composite transaction that splits funds from a user account into staking and liquidity:</p>
+            <pre class="code-block-light"><code># Simplified Radix-style manifest (conceptual)
+1. CallMethod(Account_A, "withdraw", XRD, amount)     # → NodeID_Account_A, vault
+2. TakeFromWorktop(XRD, amount)
+3. SplitBucket(amount1, amount2)                        # worktop
+4. CallMethod(StakingVault, "stake", bucket1)          # → NodeID_Staking_VAULT
+5. CallMethod(LiquidityPool, "contribute", bucket2)    # → NodeID_LP_COMPONENT
+6. CallMethod(Account_A, "deposit", staking_IOU)        # → NodeID_Account_A
+7. CallMethod(Account_A, "deposit", lp_IOU)             # → NodeID_Account_A</code></pre>
+            <p><strong>Radix Engine:</strong> Runs these instructions <strong>in order</strong>. Data flow is implicit (e.g. step 4 uses the bucket from step 3; step 6–7 deposit what step 4–5 returned).</p>
+            <p><strong>Instruction analysis (Hyperscale):</strong> The manifest is walked and every NodeId read or written is collected into <code>declared_reads</code> and <code>declared_writes</code> (<code>crates/types/src/transaction.rs</code>: <code>analyze_instructions_v1</code> / <code>analyze_instructions_v2</code>). The result is <strong>sets</strong> (deduplicated); <strong>instruction order is not preserved</strong> at the consensus layer. Assume:</p>
+            <ul>
+                <li><code>declared_writes</code>: Account_A, Staking_VAULT, LP_COMPONENT (and possibly resource/vault NodeIds)</li>
+                <li><code>declared_reads</code>: any read-only touched nodes (e.g. package, resource type)</li>
+            </ul>
+            <p><strong>Shard mapping (topology):</strong> Each NodeId maps to a shard via <code>shard_for_node(node_id, num_shards)</code> (<code>crates/types/src/topology.rs</code>). Suppose Account_A → shard 1, Staking_VAULT → shard 2, LP_COMPONENT → shard 3. Then:</p>
+            <ul>
+                <li><strong>consensus_shards</strong> = {1, 2, 3} (unique shards of declared_writes), ordered as <strong>1, 2, 3</strong> (BTreeSet by ShardGroupId).</li>
+                <li><strong>provisioning_shards</strong> = read-only shards (if any) not in that set.</li>
+                <li><strong>all_shards_for_transaction</strong> = consensus ∪ provisioning, again in shard-ID order.</li>
+            </ul>
+            <p><strong>Provisioning and coordination:</strong></p>
+            <ul>
+                <li>The tx is sent to shards 1, 2, 3 (<a href="module-01b-tx-flow.html#step-6" target="_blank" rel="noopener noreferrer">step 6 in the tx flow</a>). Each shard runs BFT and execution for its part. When a shard commits its block containing this tx, it produces a <strong>StateProvision</strong> (signed proof of the state it wrote) and sends it to the other shards.</li>
+                <li><strong>ProvisionCoordinator</strong> on each node (e.g. on shard 3) keeps a checklist: “Do we have quorum of provisions from shard 1? From shard 2?” When it has provisions from <strong>every</strong> other participating shard (<code>required_shards</code> in <code>TxRegistration</code>), it emits <strong>ProvisioningComplete</strong> so execution can proceed. So shard 3 cannot “finish” its view of the cross-shard tx until it has proofs from shards 1 and 2—that’s the prerequisite.</li>
+                <li><strong>2PC coordinator</strong> (one of shards 1, 2, or 3) drives prepare → collect yes/no → commit or abort in <strong>shard-ID order</strong> (1, 2, 3), not in manifest order. State updates are applied in that same order after the decision.</li>
+            </ul>
+            <p>So: the <strong>manifest</strong> defines the logical flow (withdraw → split → stake → LP → deposit); the <strong>engine</strong> runs it sequentially; Hyperscale uses <strong>shard ID order</strong> for coordination and <strong>provisions</strong> to enforce “everyone has proof from everyone else” before completion.</p>
+        </div>
+
+        <div class="section">
+            <h2>Order: manifest vs protocol</h2>
+            <p>When building a <strong>RoutableTransaction</strong> from a Radix <strong>UserTransaction</strong>, instruction analysis collects NodeIds into HashSets; the result is deduplicated <strong>sets</strong>. Consensus then derives shard sets in <strong>BTreeSet</strong> order (ShardGroupId). So we do <em>not</em> derive “Account_A shard first, then Staking_VAULT shard, then LP shard” from the manifest—we get a deterministic order by <strong>shard ID</strong>. Prerequisites are enforced by provisions: a shard that needs remote state must receive quorum of provisions from that shard; <code>required_shards</code> is the set of all other participating shards (<code>start_cross_shard_execution</code> in <code>crates/execution/src/state.rs</code>).</p>
+        </div>
+
+        <div class="section">
+            <h2>Quiz: Cross-shard and provisioning</h2>
+            <p>Answer based on the content above. Pass threshold: 70%.</p>
+            <div id="quiz-cross-shard" class="quiz-container"></div>
+        </div>
+
+        <div class="navigation">
+            <a href="../intermediate/module-01-sharding.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="module-06-execution.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
+    <script>
+        initializeModulePage('intermediate-03');
+        const quizQuestions = [
+            {
+                question: "In the complex manifest example (Account_A → shard 1, Staking_VAULT → shard 2, LP → shard 3), in what order does the 2PC coordinator drive prepare and state updates?",
+                options: [
+                    "In manifest order: Account_A first, then Staking_VAULT, then LP",
+                    "In ShardGroupId (numeric) order: 1, then 2, then 3",
+                    "In the order the provisions arrive at each node",
+                    "The coordinator chooses the order dynamically per transaction"
+                ],
+                correct: 1,
+                explanation: "Protocol order is fixed by BTreeSet iteration over ShardGroupIds—i.e. numeric shard ID order (1, 2, 3). Manifest instruction order is not preserved at the consensus layer."
+            },
+            {
+                question: "When building a RoutableTransaction from a Radix UserTransaction, what happens to the order of instructions in the manifest?",
+                options: [
+                    "Instruction order is preserved in declared_reads and declared_writes so shards execute in manifest order",
+                    "Instruction order is lost; only sets of NodeIds (declared_reads, declared_writes) are extracted, and shard order is by ShardGroupId",
+                    "Only the first and last instructions determine shard order",
+                    "The Radix Engine sends the manifest order to Hyperscale in a separate field"
+                ],
+                correct: 1,
+                explanation: "Instruction analysis (analyze_instructions_v1/v2) collects NodeIds into HashSets; result is deduplicated sets. Consensus uses BTreeSet of shards (by ShardGroupId), so instruction order is not preserved."
+            },
+            {
+                question: "For a cross-shard tx, required_shards in TxRegistration (ProvisionCoordinator) is set to what?",
+                options: [
+                    "Only the shards that appear earlier than the local shard in the manifest",
+                    "Only the write shards (consensus_shards)",
+                    "All other participating shards (all_shards_for_transaction minus local shard)",
+                    "Only the 2PC coordinator shard"
+                ],
+                correct: 2,
+                explanation: "In start_cross_shard_execution, remote_shards = participating_shards minus local_shard; TxRegistration.required_shards is that set. So we need provisions from every other participating shard before we can complete."
+            },
+            {
+                question: "In the complex manifest example, before shard 3 (LP) can complete its part of the cross-shard tx, what must ProvisionCoordinator on shard 3's nodes have?",
+                options: [
+                    "Only a commit message from the 2PC coordinator",
+                    "Quorum of StateProvision proofs from shard 1 and quorum of StateProvision proofs from shard 2",
+                    "The full block contents from shards 1 and 2",
+                    "A single aggregated signature from the coordinator shard"
+                ],
+                correct: 1,
+                explanation: "ProvisionCoordinator tracks provisions (StateProvision) from each required shard. When it has quorum of provisions from every required shard (here 1 and 2), it emits ProvisioningComplete so execution can proceed."
+            },
+            {
+                question: "Why does Hyperscale use ShardGroupId order (e.g. BTreeSet) for cross-shard coordination instead of manifest instruction order?",
+                options: [
+                    "Manifest order is not available when the transaction is validated",
+                    "So that all nodes deterministically agree on the same order without exchanging extra messages; instruction order is not exposed to consensus",
+                    "Because the Radix Engine does not define instruction order",
+                    "To minimize the number of provisions sent"
+                ],
+                correct: 1,
+                explanation: "Consensus needs a deterministic order everyone can compute locally. Instruction analysis produces sets of NodeIds, not an ordered list; topology derives shard sets in BTreeSet order (ShardGroupId). So protocol order is by shard ID."
+            },
+            {
+                question: "A transaction has declared_writes on shards 2 and 5, and declared_reads (only) on shards 2 and 7. Which shards are consensus_shards and which are provisioning_shards?",
+                options: [
+                    "Consensus: {2, 5, 7}; provisioning: {}",
+                    "Consensus: {2, 5}; provisioning: {7}",
+                    "Consensus: {2}; provisioning: {5, 7}",
+                    "Consensus: {2, 7}; provisioning: {5}"
+                ],
+                correct: 1,
+                explanation: "consensus_shards = unique shards of declared_writes → {2, 5}. provisioning_shards = shards of declared_reads that are not in write shards → shard 7 (read-only), not 2 (2 is already a write shard)."
+            }
+        ];
+        initializeQuiz('quiz-cross-shard', quizQuestions, 70);
+    </script>
+</body>
+</html>
