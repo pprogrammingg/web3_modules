@@ -97,10 +97,12 @@ MODULES.forEach(({ id, file }) => {
     if (jsPaths.length > 0) {
         console.log(`  📝 JS paths found: ${jsPaths.length}`);
         jsPaths.forEach(jsPath => {
-            if (VALID_JS_PATHS.includes(jsPath)) {
+            const isShared = VALID_JS_PATHS.includes(jsPath);
+            const isSameDir = !jsPath.startsWith('..') && jsPath.endsWith('.js');
+            if (isShared || isSameDir) {
                 console.log(`  ✅ ${path.basename(jsPath)} path is correct`);
             } else {
-                warnings.push(`${file}: JS path '${jsPath}' might be incorrect (expected one of: ${VALID_JS_PATHS.join(', ')})`);
+                warnings.push(`${file}: JS path '${jsPath}' might be incorrect (expected one of: ${VALID_JS_PATHS.join(', ')} or same-dir .js)`);
                 console.log(`  ⚠️  ${path.basename(jsPath)} path might be incorrect`);
             }
         });
@@ -111,6 +113,33 @@ MODULES.forEach(({ id, file }) => {
 
     if (!content.includes('initializeModulePage')) {
         warnings.push(`${file}: Might be missing module initialization`);
+    }
+
+    // Resolve stylesheet path and verify target exists (prevents broken styling when opening from links)
+    if (cssMatches) {
+        const moduleDir = path.dirname(file);
+        const resolvedCss = path.normalize(path.join(COURSES_DIR, moduleDir, cssMatches[1]));
+        if (path.relative(COURSES_DIR, resolvedCss).startsWith('..')) {
+            errors.push(`${file}: Resolved stylesheet path escapes repo: ${resolvedCss}`);
+        } else if (!fs.existsSync(resolvedCss)) {
+            errors.push(`${file}: Resolved stylesheet does not exist: ${path.relative(COURSES_DIR, resolvedCss)}`);
+        }
+    }
+
+    // Resolve each internal .html link and verify target exists (prevents 404 / unstyled pages)
+    const htmlLinkRegex = /<a[^>]+href=["']([^"']*\.html[^"']*)["']/gi;
+    let linkMatch;
+    while ((linkMatch = htmlLinkRegex.exec(content)) !== null) {
+        let href = linkMatch[1];
+        if (href.startsWith('http') || href.startsWith('//') || href.startsWith('#')) continue;
+        const pathOnly = href.replace(/#.*$/, '').replace(/\?.*$/, '');
+        const moduleDir = path.dirname(file);
+        const resolved = path.normalize(path.join(COURSES_DIR, moduleDir, pathOnly));
+        const rel = path.relative(COURSES_DIR, resolved);
+        if (rel.startsWith('..')) continue; // external or outside repo
+        if (!fs.existsSync(resolved)) {
+            errors.push(`${file}: Link target does not exist: ${href} → ${rel}`);
+        }
     }
 });
 

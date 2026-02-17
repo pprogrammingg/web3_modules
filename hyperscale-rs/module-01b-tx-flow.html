@@ -4,7 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Transaction Flow: User to Finality</title>
-    <link rel="stylesheet" href="../shared/styles.css">
+    <link rel="stylesheet" href="../shared/styles.css" id="main-styles">
+    <script>
+    (function(){
+        function ensureStyles() {
+            var link = document.getElementById('main-styles');
+            if (!link || (link.sheet && link.sheet.cssRules && link.sheet.cssRules.length > 0)) return;
+            var p = location.pathname || '';
+            var dir = p.replace(/\/[^/]*$/, '/');
+            var up = dir.replace(/\/[^/]+\/$/, '/');
+            if (up && up !== dir) {
+                var fallback = document.createElement('link');
+                fallback.rel = 'stylesheet';
+                fallback.href = up + 'shared/styles.css';
+                document.head.appendChild(fallback);
+            }
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensureStyles);
+        else ensureStyles();
+        setTimeout(ensureStyles, 150);
+    })();
+    </script>
 </head>
 <body>
     <nav class="site-home-bar">
@@ -23,6 +43,7 @@
         <div class="section">
             <h2>Why This Diagram?</h2>
             <p>Hyperscale-rs is a <strong>consensus layer</strong>, not a full blockchain stack. This diagram shows the end-to-end path of a transaction from the user to finality, and which parts Hyperscale touches versus which are outside (e.g. wallet, Radix Engine semantics, network client). Hover over each step to see which crates implement it.</p>
+            <p><strong>Basic level:</strong> This is the only Hyperscale-specific basic module. The web3 modules (Blockchain, Consensus, Distributed Systems, State Machines) give foundation. After this, go to <strong>Intermediate</strong> for Hyperscale Overview, Crate Groups (with 10-question quizzes per group), Codebase Exploration, and First Contribution.</p>
             <p><strong>Where BFT comes in:</strong> Steps 1–6 get the tx into the system (user, network, node, cross-shard determination, <span data-glossary="mempool">mempool</span>, and for cross-shard txs, travel to involved <span data-glossary="sharding">shards</span>). <strong>BFT consensus runs from step 7</strong> (proposer selection) through step 11 (block committed) <em>per <span data-glossary="sharding">shard</span></em>. Steps 12–14 are execution, then (for cross-shard) coordination &amp; composition, then finality.</p>
         </div>
 
@@ -294,78 +315,59 @@
                     <li><strong>Proposer sends a block to its shard, not “the block” to all shards.</strong> The proposer for <strong>shard S</strong> builds <strong>one block</strong> (header with <code>parent_qc</code> = QC for previous block in S’s chain, plus txs from S’s mempool). It broadcasts that block (or header; full block is assembled via gossip) to <strong>validators in shard S only</strong>. So: one block per shard, broadcast inside that shard. Other shards have their own proposers and their own blocks at the same “logical” time.</li>
                     <li><strong>Voting and execution order.</strong> Validators in <strong>that shard</strong> vote on the <strong>block</strong> (BFT: do we agree on this block?). That yields a QC for that shard’s block. Then the block is committed (step 11). <strong>After</strong> commit, execution runs (step 12): the transactions in the block are run (e.g. via Radix Engine). So: BFT agrees on block → commit → then execute. There is no “each shard votes on validity and reports to the proposer” in the sense of one global proposer; each shard votes on its own block and gets its own QC.</li>
                     <li><strong>Cross-shard: no single “proposer finalizes with all shards’ QCs.”</strong> Each shard has its <strong>own</strong> chain and its <strong>own</strong> QC. For a cross-shard tx, the tx (or sub-tx) is in each involved shard’s mempool; each shard may include it in its block; each shard runs BFT (propose → vote → QC → commit) and then execution. <strong>Atomicity across shards</strong> is achieved by <strong>2PC</strong> (step 13): a coordinator drives prepare → all shards prepare (lock/reserve) and reply yes/no → commit or abort → each shard applies state in an agreed order. So “all report success” is the 2PC prepare phase; then commit/abort and apply. There is no single block that “includes the votes (QC) of each shard” — each shard’s block has its own QC in the <em>next</em> block’s header (the normal two-chain rule per shard).</li>
-                    <li><strong>What is the coordinator?</strong> The <strong>2PC coordinator</strong> (step 13) is <strong>one of the involved shards</strong> (or a designated role), not a separate server. Validators in that shard run the logic that sends prepare to each involved shard, collects yes/no, then sends commit or abort. So it's a shard (and its validators) with a coordination role for that tx. Separately, the <strong>ProvisionCoordinator</strong> (provisions crate) is a sub-state machine that runs on <em>every</em> node: it tracks provisions from other shards until quorum is reached ("all shards done" in the sense of having enough provisions), then emits events so execution can proceed — it is not elected and is not a single designated node.</li>
+                    <li><strong>What is the coordinator?</strong> For the full picture (2PC coordinator vs ProvisionCoordinator, protocol order, concepts), see the <strong>Intermediate</strong> module <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>.</li>
                 </ul>
             </div>
 
-            <div class="info section-tight">
-                <h3>How atomic composability works (cross-shard)</h3>
-                <p>The diagram emphasizes that cross-shard atomicity depends on <strong>correct order</strong> of communication and <strong>when</strong> state updates are applied:</p>
-                <ol class="list-nested">
-                    <li><strong>Coordinator</strong> (one shard or a designated role) sends <strong>prepare</strong> to every involved shard in a defined order.</li>
-                    <li>Each shard <strong>prepares</strong>: runs its part of the tx (e.g. <span data-glossary="prepare phase">reserve/lock</span>), but does <em>not</em> make the state update visible yet. It replies yes or no.</li>
-                    <li>When <strong>all</strong> have voted yes, coordinator sends <strong>commit</strong>; otherwise it sends <strong>abort</strong> to all.</li>
-                    <li><strong>State updates</strong>: Each shard then applies updates in an <strong>agreed order</strong> (e.g. by shard ID, or the order the coordinator specifies). On commit, each applies its state change; on abort, each releases locks. No shard commits while another aborts — the protocol order ensures a single composed outcome.</li>
-                </ol>
-                <p style="margin-bottom: 0;">So shards communicate in this <strong>fixed protocol order</strong> (prepare phase → decision → apply phase), and state updates happen only after the decision, in the same order everywhere. That is what makes the cross-shard tx <strong>atomic</strong> and <strong>composable</strong>.</p>
-            </div>
-
-            <div class="info section-tight">
-                <h3>Two coordinators: 2PC coordinator and ProvisionCoordinator</h3>
-                <p>Cross-shard flow uses two different “coordinator” ideas; they do different jobs.</p>
-                <ul class="list-nested">
-                    <li><strong>2PC coordinator (step 13).</strong> This is <strong>one of the involved shards</strong> (or a designated role), not a separate server. Validators in that shard run the logic that: sends <strong>prepare</strong> to each involved shard (in a fixed order), collects yes/no, then sends <strong>commit</strong> (if all yes) or <strong>abort</strong>. So it’s the shard that “asks whether everyone is ready” and then decides go or cancel. Implementation: <code>execution</code> crate (cross-shard 2PC coordination).</li>
-                    <li><strong>ProvisionCoordinator (provisions crate).</strong> This is a <strong>sub-state machine on every node</strong>, not a single elected node. It tracks <strong>provisions</strong>: after a shard commits its part of a cross-shard tx, it sends a signed proof (a “provision”) to the other shards. ProvisionCoordinator on each node keeps a checklist: “For this tx, do we have quorum of provisions from shard 1? From shard 2? …” When it has enough provisions from every required (earlier) shard, it emits events so execution can proceed. So it’s the “checklist” that checks “did we get enough proofs from the prerequisite shards?” — not the prepare yes/no votes (that’s 2PC). Implementation: <code>provisions</code> crate.</li>
-                </ul>
-                <p style="margin-top: 0.75rem;"><strong>How is the order fixed?</strong> “The protocol fixes an order” means a <strong>deterministic rule</strong> that all nodes follow (e.g. by shard ID, or by the order of NodeIDs in the tx), so everyone agrees on which shard is first, second, third. The <strong>2PC coordinator</strong> does not choose that order; it <strong>drives</strong> the protocol in that pre-agreed order (sends prepare in that order, then commit/abort, then state updates in that order). So: the protocol defines the order; the coordinator executes the protocol in that order.</p>
-                <p style="margin-top: 0.75rem; margin-bottom: 0;"><strong>How is order determined for composite (cross-shard) transactions?</strong> In the <strong>Radix manifest</strong>, instructions are in a fixed order (e.g. withdraw from A → split → put in staking vault → put in LP → return IOUs). The <strong>Radix Engine</strong> runs those instructions sequentially when executing; data dependencies are implicit (instruction 2 sees the result of instruction 1). For <strong>Hyperscale (consensus)</strong>, the transaction is turned into a <strong>RoutableTransaction</strong> by <strong>instruction analysis</strong> (<code>crates/types/src/transaction.rs</code>): the manifest is walked and every NodeId read or written is collected into <code>declared_reads</code> and <code>declared_writes</code>. Those are <strong>sets</strong> (deduplicated); <strong>instruction order is not preserved</strong> at the consensus layer. Shard sets are then derived: <strong>consensus_shards</strong> = unique shards of <code>declared_writes</code>; <strong>provisioning_shards</strong> = shards of <code>declared_reads</code> that are not write shards. Both are stored in <strong>BTreeSet</strong>s, so the <strong>protocol order is by ShardGroupId</strong> (numeric). So: we do <em>not</em> derive "Account_A shard first, then Staking_VAULT shard, then LP shard" from the manifest order—we get a deterministic order by <strong>shard ID</strong>. Prerequisites are enforced by <strong>provisions</strong>: a shard that needs remote state (reads from another shard) must receive quorum of provisions from that shard before it can complete; which shards are "required" is the set of all other participating shards. Parallelism: each shard runs BFT and execution independently; cross-shard atomicity is then 2PC (prepare all in shard-ID order, then commit/abort) and provisioning (everyone waits for provisions from every other participating shard). Refs: <code>crates/types/src/topology.rs</code> (<code>consensus_shards</code>, <code>provisioning_shards</code>, <code>all_shards_for_transaction</code>), <code>crates/types/src/transaction.rs</code> (<code>analyze_instructions_v1</code> / <code>analyze_instructions_v2</code>).</p>
-            </div>
-
-            <div class="section section-tight">
-                <h2>Complex manifest example (intermediate)</h2>
-                <p>For a <strong>complex Radix manifest example</strong> and how provisioning and coordination work for it, see the intermediate module <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>. That module includes a full example (withdraw → split → stake → LP → deposit), shard mapping, ProvisionCoordinator checklist, and a harder quiz.</p>
-                <ul style="margin: 0.5rem 0 0 1.25rem; display: none;">
-                    <li><code>declared_writes</code>: Account_A, Staking_VAULT, LP_COMPONENT (and possibly resource/vault NodeIds)</li>
-                    <li><code>declared_reads</code>: any read-only touched nodes (e.g. package, resource type)</li>
-                </ul>
-                <p><strong>Shard mapping (topology):</strong> Each NodeId maps to a shard via <code>shard_for_node(node_id, num_shards)</code> (e.g. hash-based). Suppose Account_A → shard 1, Staking_VAULT → shard 2, LP_COMPONENT → shard 3. Then:</p>
-                <ul style="margin: 0.5rem 0 0 1.25rem;">
-                    <li><strong>consensus_shards</strong> = {1, 2, 3} (unique shards of declared_writes), ordered as <strong>1, 2, 3</strong> (BTreeSet by ShardGroupId).</li>
-                    <li><strong>provisioning_shards</strong> = read-only shards (if any) not in that set.</li>
-                    <li><strong>all_shards_for_transaction</strong> = consensus ∪ provisioning, again in shard-ID order.</li>
-                </ul>
-                <p><strong>Provisioning and coordination:</strong></p>
-                <ul style="margin: 0.5rem 0 0 1.25rem;">
-                    <li>The tx is sent to shards 1, 2, 3 (step 6). Each shard runs BFT and execution for its part. When a shard commits its block containing this tx, it produces a <strong>StateProvision</strong> (signed proof of the state it wrote) and sends it to the other shards.</li>
-                    <li><strong>ProvisionCoordinator</strong> on each node (e.g. on shard 3) keeps a checklist: “Do we have quorum of provisions from shard 1? From shard 2?” When it has provisions from <strong>every</strong> other participating shard (required_shards), it emits <strong>ProvisioningComplete</strong> so execution can proceed (or finalize). So shard 3 cannot “finish” its view of the cross-shard tx until it has proofs from shards 1 and 2—that’s the prerequisite.</li>
-                    <li><strong>2PC coordinator</strong> (one of shards 1, 2, or 3) drives prepare → collect yes/no → commit or abort in <strong>shard-ID order</strong> (1, 2, 3), not in manifest order. State updates are applied in that same order after the decision.</li>
-                </ul>
-                <p style="margin-bottom: 0;">So: the <strong>manifest</strong> defines the logical flow (withdraw → split → stake → LP → deposit); the <strong>engine</strong> runs it sequentially; Hyperscale uses <strong>shard ID order</strong> for coordination and <strong>provisions</strong> to enforce “everyone has proof from everyone else” before completion.</p>
-            </div>
+            <p class="info section-tight" style="margin-top: 1rem;">For <strong>how atomic composability works</strong> (prepare → commit/abort → state updates), the <strong>two coordinators</strong> (2PC vs ProvisionCoordinator), <strong>how order is fixed</strong>, manifest vs protocol order, and <strong>concepts</strong> (shards, proposer, NodeID, finality), see the Intermediate module <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>.</p>
 
         <div class="section">
-            <h2>Concepts in the Flow</h2>
-            <ul>
-                <li><strong><span data-glossary="sharding">Shards</span></strong> — The network is split into shards; each shard has its own validators and ordering. Your tx is assigned to a shard (e.g. by account or payload). <strong>Each shard has its own BFT consensus state</strong>: its own <span data-glossary="view">view number</span>, its own block chain, and its own proposer per <span data-glossary="view">round</span>. So shard A and shard B run independent BFT instances; they don’t share a single global “view.”</li>
-                <li><strong>Proposer (block leader)</strong> — For each <span data-glossary="view">round (view)</span>, one validator in that shard is the proposer. It builds the block and broadcasts it; the other validators in the shard vote. <strong>Proposer selection</strong> is deterministic: typically a function of the current <span data-glossary="view">view number</span> and the shard's validator set, e.g. <code>proposer = validators[view % validators.len()]</code> (round-robin by index) or by validator identity. That way everyone agrees on who the leader is without extra messages.</li>
-                <li><strong>Validator identity (consensus)</strong> — In the consensus layer, “which validator” is identified by a validator ID (from the node’s public key or protocol assignment). That identity is used for the validator set, proposer selection (e.g. round-robin), and routing. In Hyperscale-rs, types that refer to “which node” in the sense of “which validator” use this.</li>
-                <li><strong><span data-glossary="nodeid">NodeID</span> in Radix (on-chain)</strong> — In Radix, <strong><span data-glossary="nodeid">NodeID</span></strong> often means something different: it refers to <strong>addresses of on-chain entities</strong> — components, resources, packages, accounts. Those are “nodes” in the ledger’s state graph (e.g. a component instance, a resource type). So: validator identity = which machine runs consensus; NodeID/address in Radix = which component, resource, or package you’re talking about on the ledger. Don’t confuse the two when reading Radix docs.</li>
-                <li><strong><span data-glossary="cross-shard transaction">Cross-shard</span> transactions &amp; atomic composability</strong> — If a tx reads or writes <span data-glossary="nodeid">NodeIDs</span> on <strong>different <span data-glossary="sharding">shards</span></strong>, it is cross-shard. It is sent to each involved shard (step 6); each shard runs BFT and execution for its part (steps 7–12). <strong>How shards communicate:</strong> In a defined <strong>order</strong> — typically a <strong>coordinator <span data-glossary="sharding">shard</span></strong> (or role) sends <strong>prepare</strong> to all; each shard prepares (<span data-glossary="prepare phase">lock/reserve</span>, no visible state yet) and replies yes/no. If all vote yes, coordinator sends <strong>commit</strong>; else <strong>abort</strong> (see <span data-glossary="two-phase commit">2PC</span>). <strong>State updates:</strong> Each shard applies updates only <em>after</em> the decision, in an <strong>agreed order</strong> (e.g. by shard ID or coordinator order) — commit = apply state, abort = release. That way every node sees the same composed outcome; no shard commits while another aborts. Atomic composability = one logical result across shards.</li>
-                <li><strong>2PC coordinator vs ProvisionCoordinator</strong> — See the “Two coordinators” box above. In short: the <strong>2PC coordinator</strong> is one involved shard that asks “everyone ready?” (prepare), then sends commit or abort. The <strong>ProvisionCoordinator</strong> is a checklist on every node: “Do we have quorum of provisions (proofs) from each prerequisite shard?” so execution can proceed. The protocol fixes the order (e.g. by shard ID); the 2PC coordinator drives the protocol in that order.</li>
-                <li><strong>Finality</strong> — Once a block has a quorum certificate (2f+1 votes from that shard’s validators), it is final. No reorg under normal BFT assumptions.</li>
-            </ul>
+            <h2>Crate groupings (code reading order)</h2>
+            <p>The codebase is grouped by <strong>transaction-flow progression</strong>. Read the groups in order (1 → 6); use the quizzes in the next module to check understanding.</p>
+            <div class="code-block-light" style="overflow-x: auto;">
+                <table style="width: 100%; min-width: 640px; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: var(--bg2);">
+                            <th style="padding: 0.5rem; text-align: left; border: 1px solid var(--border);">Group</th>
+                            <th style="padding: 0.5rem; text-align: left; border: 1px solid var(--border);">Crates</th>
+                            <th style="padding: 0.5rem; text-align: left; border: 1px solid var(--border);">One-liner</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td style="padding: 0.5rem; border: 1px solid var(--border);"><strong>1. First contact</strong></td><td style="padding: 0.5rem; border: 1px solid var(--border);">production, node, mempool, types, core, messages</td><td style="padding: 0.5rem; border: 1px solid var(--border);">How Hyperscale receives a tx at the RPC and gets it into the right shards’ mempools.</td></tr>
+                        <tr><td style="padding: 0.5rem; border: 1px solid var(--border);"><strong>2. Sharding and routing</strong></td><td style="padding: 0.5rem; border: 1px solid var(--border);">types, core, node</td><td style="padding: 0.5rem; border: 1px solid var(--border);">Who does what once a tx is decomposed into NodeIds and each shard is responsible for a slice of state.</td></tr>
+                        <tr><td style="padding: 0.5rem; border: 1px solid var(--border);"><strong>3. Proposing and building blocks</strong></td><td style="padding: 0.5rem; border: 1px solid var(--border);">bft, mempool, types, core</td><td style="padding: 0.5rem; border: 1px solid var(--border);">How one validator becomes the proposer and assembles the next block from the mempool.</td></tr>
+                        <tr><td style="padding: 0.5rem; border: 1px solid var(--border);"><strong>4. Voting and committing</strong></td><td style="padding: 0.5rem; border: 1px solid var(--border);">bft, types, core</td><td style="padding: 0.5rem; border: 1px solid var(--border);">How validators agree on a block and when it is finally committed (votes and QCs).</td></tr>
+                        <tr><td style="padding: 0.5rem; border: 1px solid var(--border);"><strong>5. Execution after commit</strong></td><td style="padding: 0.5rem; border: 1px solid var(--border);">execution, engine, node, types, core</td><td style="padding: 0.5rem; border: 1px solid var(--border);">Who runs transactions after commit and how single-shard vs cross-shard paths diverge.</td></tr>
+                        <tr><td style="padding: 0.5rem; border: 1px solid var(--border);"><strong>6. Cross-shard: provisions and livelock</strong></td><td style="padding: 0.5rem; border: 1px solid var(--border);">provisions, execution, livelock, types, core</td><td style="padding: 0.5rem; border: 1px solid var(--border);">How state moves between shards and how Hyperscale avoids deadlock.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p style="margin-top: 1rem;">In <strong>Intermediate</strong>, do <a href="module-01c-crate-groups.html">Crate Groups &amp; Quizzes</a> next (one-liners, code pointers, 10-question quiz per group).</p>
         </div>
 
         <div class="section">
-            <h2>Quiz: Transaction Flow</h2>
+            <h2>Practical next steps: run the code and debug</h2>
+            <p>Use these steps to run Hyperscale and follow a transaction with a debugger. They assume you have the repo cloned and <code>cargo build</code> works.</p>
+            <ol>
+                <li><strong>Read <code>Event</code> and <code>Action</code> first.</strong> The flow is “event in → state machine → actions out; runner performs actions and feeds back events.” Skim <code>core::event</code> and <code>core::action</code> (e.g. <code>action.rs</code> / <code>event.rs</code>) so you know what to break on.</li>
+                <li><strong>Run a node or the simulator.</strong> Follow the repo README to run a single node or the sim (e.g. <code>cargo run</code> for the production runner or sim binary). Submit one transaction and note its hash (from logs or RPC).</li>
+                <li><strong>Follow one tx with a debugger.</strong> In your IDE, set breakpoints on: <code>SubmitTransaction</code> / <code>TransactionGossipReceived</code> (first contact), then <code>BlockCommitted</code> (BFT), then <code>TransactionExecuted</code> (execution), then where the certificate is included in a block and status becomes <code>Completed</code>. Step through to see which crates handle each step.</li>
+                <li><strong>Use the crate table.</strong> The production runner is large. Use the table above to jump to “first contact” (RPC handler, submit path, gossip) and “actions to network” (e.g. <code>BroadcastToShard</code> handling) instead of reading the production crate top to bottom.</li>
+                <li><strong>When things go wrong:</strong> tx stuck in <strong>Pending</strong> → check mempool and gossip (did the tx reach all involved shards?). Block not <strong>committing</strong> → BFT and QC (round/timeout, vote collection). Cross-shard tx stuck after <strong>Executed</strong> → certificates and inclusion in a later block (provisions, certificate aggregation).</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>Quiz: Transaction Flow (big picture)</h2>
             <p>Answer based on the diagram and concepts above. Pass threshold: 70%.</p>
             <div id="quiz-tx-flow" class="quiz-container"></div>
         </div>
 
         <div class="navigation">
-            <a href="module-01-overview.html" class="btn btn-secondary">← Previous Module</a>
+            <a href="../basic/module-04-state-machines.html" class="btn btn-secondary">← Previous Module</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="module-02-codebase-exploration.html" class="btn btn-primary">Next Module →</a>
+            <a href="module-03-first-contribution.html" class="btn btn-primary">Next Module →</a>
         </div>
     </div>
 
@@ -484,127 +486,6 @@
                 ],
                 correct: 1,
                 explanation: "Applying in an agreed order (e.g. by shard ID or coordinator order) ensures a single composed outcome everywhere and prevents one shard committing while another aborts — that is what makes the cross-shard tx atomic and composable."
-            },
-            {
-                question: "Which of these is Hyperscale-rs responsible for, and which is outside?",
-                options: [
-                    "Hyperscale: consensus (order, BFT, cross-shard coordination). Outside: wallet, RPC client, Radix Engine execution semantics",
-                    "Hyperscale: wallet and signing. Outside: consensus and execution",
-                    "Hyperscale: Radix Engine semantics. Outside: BFT and mempool",
-                    "Hyperscale: all steps 1–14. Outside: nothing"
-                ],
-                correct: 0,
-                explanation: "Hyperscale-rs is a consensus layer: it handles ordering, BFT per shard, mempool, execution state machine wiring, and cross-shard coordination. Wallet, RPC/gateway, and execution semantics (e.g. Radix Engine) are outside."
-            },
-            {
-                question: "In Radix terminology, what does 'NodeID' usually refer to in documentation?",
-                options: [
-                    "The validator node's identity used for proposer selection and routing in consensus",
-                    "Addresses of on-chain entities (components, resources, packages, accounts) — nodes in the ledger state graph",
-                    "The hash of the current block",
-                    "The shard identifier"
-                ],
-                correct: 1,
-                explanation: "In Radix, NodeID often means on-chain entity addresses (components, resources, packages, accounts). Validator identity (which machine runs consensus) is a different concept — don't confuse the two."
-            },
-            {
-                question: "Do shard A and shard B share a single BFT view number and block chain?",
-                options: [
-                    "Yes; there is one global view and one chain across all shards",
-                    "No; each shard has its own BFT consensus state (own view number, own block chain, own proposer per round); they run independent BFT instances",
-                    "Only the coordinator shard has a view; others follow it",
-                    "They share a view but have separate chains"
-                ],
-                correct: 1,
-                explanation: "Each shard has its own BFT consensus state: its own view number, its own block chain, and its own proposer per round. Shard A and shard B run independent BFT instances; they don't share a single global view."
-            },
-            {
-                question: "Which crate is primarily responsible for turning incoming network bytes into Events and feeding the node?",
-                options: [
-                    "bft",
-                    "execution",
-                    "production (I/O, turns network into events); node (NodeStateMachine) receives them",
-                    "mempool"
-                ],
-                correct: 2,
-                explanation: "Step 3: the runner (production) turns incoming bytes into Events and feeds the node; the NodeStateMachine in the node crate receives events."
-            },
-            {
-                question: "For a single-shard transaction, which step is skipped that cross-shard transactions use?",
-                options: [
-                    "Step 4 (Cross-shard determination)",
-                    "Steps 6 (Tx travels to involved shards) and 13 (Coordination & composition)",
-                    "Step 7 (Proposer selection)",
-                    "Step 10 (QC formed)"
-                ],
-                correct: 1,
-                explanation: "Single-shard txs skip step 6 (tx travels to each involved shard) and step 13 (coordination & composition). Step 4 still runs (to determine it is single-shard); BFT steps 7–11 run once on that shard."
-            },
-            {
-                question: "Where does execution semantics (e.g. what a Radix Engine instruction does) live relative to Hyperscale-rs?",
-                options: [
-                    "In the execution crate; Hyperscale-rs defines all semantics",
-                    "In the bft crate as part of block validation",
-                    "Hyperscale runs the execution state machine (execution crate), but semantics (e.g. Radix Engine) are outside this repo",
-                    "In the mempool crate"
-                ],
-                correct: 2,
-                explanation: "Hyperscale runs the execution state machine (execution crate); execution semantics — what instructions and components do — are defined outside (e.g. Radix Engine)."
-            },
-            {
-                question: "What is the role of the coordinator in cross-shard 2PC?",
-                options: [
-                    "It executes the entire transaction and broadcasts the result to other shards",
-                    "It sends prepare to each involved shard, collects yes/no votes, then sends commit if all yes or abort otherwise; it drives the fixed protocol order",
-                    "It aggregates QCs from each shard into one global QC",
-                    "It is the proposer for every involved shard"
-                ],
-                correct: 1,
-                explanation: "The coordinator (one shard or role) sends prepare to all, collects yes/no, then sends commit or abort. It drives the fixed protocol order so state updates happen only after the decision in an agreed order."
-            },
-            {
-                question: "After the coordinator sends 'abort', what do involved shards do?",
-                options: [
-                    "Apply their state changes anyway to maintain availability",
-                    "Release locks / reserve; no state change is applied; the cross-shard tx has no visible effect",
-                    "Vote again in a new round",
-                    "Send their prepared state to the coordinator for rollback"
-                ],
-                correct: 1,
-                explanation: "On abort, each shard releases locks; no state update is applied. The cross-shard tx has no visible effect — atomic all-or-nothing."
-            },
-            {
-                question: "Which step ensures that a cross-shard transaction is atomic (all shards commit or all abort)?",
-                options: [
-                    "Step 5 (Mempool) by ordering the tx the same way on every shard",
-                    "Step 10 (QC formed) because the QC binds all shards",
-                    "Step 13 (Coordination & composition): 2PC prepare → commit or abort → state updates in agreed order",
-                    "Step 14 (Finality) when state is persisted"
-                ],
-                correct: 2,
-                explanation: "Step 13 (coordination & composition) ensures atomicity: prepare on all, then commit (all apply) or abort (all release); state updates in agreed order so no shard commits while another aborts."
-            },
-            {
-                question: "Why is the QC for a block included in the *next* block's header rather than broadcast separately?",
-                options: [
-                    "To reduce message size",
-                    "The next block's proposer includes the previous block's QC in its header; the QC proves that block was agreed by 2f+1 validators, and all can verify it when they receive the next block",
-                    "Because the BFT crate does not support separate QC messages",
-                    "To allow the proposer to change the QC before inclusion"
-                ],
-                correct: 1,
-                explanation: "Votes are broadcast; when a validator has 2f+1 votes it requests QC build; the QC is stored as latest_qc and included as parent_qc in the next block’s header (types/block.rs BlockHeader.parent_qc; bft/state.rs for building block with latest_qc). No separate QC message—everyone sees QC(H) when they receive block H+1."
-            },
-            {
-                question: "Validator identity (consensus layer) is used for which of the following?",
-                options: [
-                    "Identifying on-chain components and resources in the ledger state",
-                    "Validator set membership, proposer selection (e.g. round-robin), and routing messages to the right validator node",
-                    "Signing transactions on behalf of users",
-                    "Deriving the shard ID for a given NodeID"
-                ],
-                correct: 1,
-                explanation: "Validator identity identifies 'which validator' in the consensus layer: validator set, proposer selection (e.g. round-robin), and routing. It is not NodeID (on-chain addresses) or user signing."
             }
         ];
         initializeQuiz('quiz-tx-flow', quizQuestions, 70);

@@ -69,52 +69,22 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
-                    id: 'basic-05',
-                    title: 'Hyperscale-rs Overview & Setup',
-                    duration: '1.5-2 hours',
-                    difficulty: 'Basic',
-                    path: 'hyperscale-rs/module-01-overview.html',
-                    description: 'Understand what hyperscale-rs is, what it does, and set up your environment',
-                    objectives: [
-                        'Learn what hyperscale-rs is and what it\'s not',
-                        'Explore the project structure',
-                        'Set up development environment',
-                        'Understand design philosophy'
-                    ],
-                    hyperscaleSpecific: true
-                },
-                {
                     id: 'basic-05b',
                     title: 'Transaction Flow: User to Finality',
-                    duration: '~30 min',
+                    duration: '~45 min',
                     difficulty: 'Basic',
                     path: 'hyperscale-rs/module-01b-tx-flow.html',
-                    description: 'End-to-end diagram: where a tx goes from user to finality, and which crates Hyperscale touches',
+                    description: 'End-to-end diagram, crate map, and practical next steps: run the code and debug a transaction',
                     objectives: [
-                        'See the full path of a transaction',
+                        'See the full path of a transaction from user to finality',
                         'Distinguish Hyperscale vs outside (wallet, engine, network)',
                         'Map flow steps to crates (hover popups)',
-                        'Understand shards, proposer, and finality in the flow'
+                        'Follow practical next steps: Event/Action, debug one tx, where to look when things go wrong'
                     ],
                     hyperscaleSpecific: true
                 },
                 {
                     id: 'basic-06',
-                    title: 'Exploring the Hyperscale-rs Codebase',
-                    duration: '1.5-2 hours',
-                    difficulty: 'Basic',
-                    path: 'hyperscale-rs/module-02-codebase-exploration.html',
-                    description: 'Deep dive into core, types, and node crates',
-                    objectives: [
-                        'Navigate the codebase effectively',
-                        'Understand core types and traits',
-                        'Learn how NodeStateMachine works',
-                        'Read and understand Rust code patterns'
-                    ],
-                    hyperscaleSpecific: true
-                },
-                {
-                    id: 'basic-07',
                     title: 'Your First Contribution: Documentation & Tests',
                     duration: '1.5-2 hours',
                     difficulty: 'Basic',
@@ -134,6 +104,21 @@ const COURSE_DATA = {
             title: 'Intermediate Level',
             description: 'Dive deeper into implementation details and start making meaningful contributions',
             modules: [
+                {
+                    id: 'intermediate-hs-crate-groups',
+                    title: 'Crate Groups: First Contact to Cross-Shard',
+                    duration: '2–3 hours',
+                    difficulty: 'Intermediate',
+                    path: 'hyperscale-rs/module-01c-crate-groups.html',
+                    description: 'Six crate groups by transaction-flow progression, with 10-question quiz per group and a Quick Test from tx submission to cross-shard flow',
+                    objectives: [
+                        'Read groups 1–6 in order (first contact, sharding, proposing, voting, execution, cross-shard)',
+                        'Pass the 10-question quiz for each group (70% threshold)',
+                        'Pass the Quick Test on crates from tx submission to cross-shard flow',
+                        'Tie code reading to the transaction flow'
+                    ],
+                    hyperscaleSpecific: true
+                },
                 {
                     id: 'intermediate-01',
                     title: 'BFT Consensus Implementation Deep Dive',

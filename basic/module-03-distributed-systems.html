@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Module 1.2b: Distributed Systems Fundamentals</title>
+    <title>Distributed Systems Fundamentals</title>
     <link rel="stylesheet" href="../shared/styles.css">
 </head>
 <body>
@@ -12,11 +12,10 @@
     </nav>
     <div class="course-content">
         <div class="course-header">
-            <h1>Module 1.2b: Distributed Systems Fundamentals</h1>
+            <h1>Distributed Systems Fundamentals</h1>
             <div class="course-meta">
                 <span>⏱️ Duration: 2-2.5 hours</span>
                 <span>📊 Difficulty: Basic</span>
-                <span>📅 Month 1, Week 2–3</span>
             </div>
         </div>
 
@@ -139,7 +138,7 @@
 
         <div class="section">
             <h2>8. Leader-Based Consensus: View, Round, and Timeouts</h2>
-            <p>BFT protocols like HotStuff are <strong>leader-based</strong>: in each <span data-glossary="view">view</span> (or round), one node—the <strong>proposer/leader</strong>—is designated to propose a block. Validators then vote; when 2f+1 vote, a QC is formed. For the exact steps (i)–(v) of how a QC is formed and how it is carried in the next block, plus crate and line references in hyperscale-rs, see <strong>Module 1.2 (Consensus Basics)</strong>, section “How a QC is formed”.</p>
+            <p>BFT protocols like HotStuff are <strong>leader-based</strong>: in each <span data-glossary="view">view</span> (or round), one node—the <strong>proposer/leader</strong>—is designated to propose a block. Validators then vote; when 2f+1 vote, a QC is formed. For the exact steps (i)–(v) of how a QC is formed and how it is carried in the next block, plus crate and line references in hyperscale-rs, see <a href="module-02-consensus-basics.html">Consensus Algorithms: From Basics to BFT</a>, section “How a QC is formed”.</p>
             <h3>What if the leader is faulty or partitioned?</h3>
             <p>If the leader doesn't send a block, or validators don't receive it, the round would never finish. So protocols use <strong>timeouts</strong>: if no QC is formed within some time bound (after <span data-glossary="gst">GST (Global Stabilization Time)</span>), nodes assume the leader is faulty and move to the <strong>next view</strong>, where a new leader (chosen deterministically, e.g. round-robin) proposes. This is a <span data-glossary="view change">view change</span>.</p>
             <ul>

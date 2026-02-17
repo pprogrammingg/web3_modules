@@ -6,10 +6,9 @@ const AVAILABLE_MODULES = [
     'basic-02', // Consensus Algorithms
     'basic-03', // Distributed Systems
     'basic-04', // State Machines
-    'basic-05', // Hyperscale-rs Overview
-    'basic-05b', // Transaction Flow: User to Finality
-    'basic-06', // Exploring the Hyperscale-rs Codebase
-    'basic-07', // Your First Contribution
+    'basic-05b', // Transaction Flow (only Hyperscale basic)
+    'basic-06', // Your First Contribution: Documentation & Tests
+    'intermediate-hs-crate-groups', // Crate Groups
     'intermediate-01', // BFT Consensus Implementation Deep Dive
     'intermediate-02', // Sharding & Cross-Shard Transactions (general)
     'intermediate-03', // Cross-Shard Transactions in Hyperscale-rs
