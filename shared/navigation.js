@@ -6,6 +6,7 @@ const AVAILABLE_MODULES = [
     'basic-02', // Consensus Algorithms
     'basic-03', // Distributed Systems
     'basic-04', // State Machines
+    'intermediate-hs-overview', // Hyperscale-rs Overview & Setup
     'basic-05b', // Transaction Flow (only Hyperscale basic)
     'basic-06', // Your First Contribution: Documentation & Tests
     'intermediate-hs-crate-groups', // Crate Groups
@@ -13,6 +14,10 @@ const AVAILABLE_MODULES = [
     'intermediate-02', // Sharding & Cross-Shard Transactions (general)
     'intermediate-03', // Cross-Shard Transactions in Hyperscale-rs
     'intermediate-04', // Transaction Execution & Radix Engine
+    'intermediate-08', // Cryptography in Hyperscale-rs
+    'basic-07', // libp2p basic
+    'intermediate-libp2p', // libp2p intermediate
+    'advanced-libp2p', // libp2p advanced
 ];
 
 function isModuleAvailable(moduleId) {
@@ -164,8 +169,8 @@ function initializeQuiz(quizId, questions, passingScore = 70) {
         option.addEventListener('click', function() {
             if (quizSubmitted) return;
             
-            const questionIndex = parseInt(this.dataset.question);
-            const optionIndex = parseInt(this.dataset.option);
+            const questionIndex = parseInt(this.dataset.question, 10);
+            const optionIndex = parseInt(this.dataset.option, 10);
             
             // Remove previous selection
             const questionDiv = this.closest('.question');
@@ -189,18 +194,28 @@ function submitQuiz(quizId, questions, userAnswers, passingScore) {
     
     // Check answers and highlight correct/incorrect options and wrong-answered questions
     questions.forEach((question, index) => {
-        const userAnswer = userAnswers[index];
-        const correctAnswer = question.correct;
+        const userAnswer = Number(userAnswers[index]);
+        const correctAnswer = Number(question.correct);
         const isWrong = userAnswer !== correctAnswer;
         const optionDivs = quizContainer.querySelectorAll(`[data-question="${index}"]`);
         const questionDiv = quizContainer.querySelectorAll('.question')[index];
 
         optionDivs.forEach((div, optIndex) => {
             div.classList.remove('selected', 'correct', 'incorrect');
+            const existingLabel = div.querySelector('.option-feedback');
+            if (existingLabel) existingLabel.remove();
             if (optIndex === correctAnswer) {
                 div.classList.add('correct');
+                const label = document.createElement('span');
+                label.className = 'option-feedback option-feedback-correct';
+                label.textContent = '✓ Correct';
+                div.appendChild(label);
             } else if (optIndex === userAnswer && isWrong) {
                 div.classList.add('incorrect');
+                const label = document.createElement('span');
+                label.className = 'option-feedback option-feedback-incorrect';
+                label.textContent = '✗ Your answer';
+                div.appendChild(label);
             }
         });
 
@@ -210,9 +225,9 @@ function submitQuiz(quizId, questions, userAnswers, passingScore) {
         }
     });
     
-    // Calculate score
+    // Calculate score (use same numeric comparison as above)
     questions.forEach((question, index) => {
-        if (userAnswers[index] === question.correct) {
+        if (Number(userAnswers[index]) === Number(question.correct)) {
             correct++;
         }
     });

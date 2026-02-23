@@ -215,4 +215,5 @@ The crates **hyperscale-simulation**, **hyperscale-simulator**, **hyperscale-spa
 - **Intermediate:** Running the simulator (`hyperscale-sim`), how the simulation runner maps actions to events, and using the spammer against a local cluster to see the flow end-to-end.
 - **Advanced:** Deterministic vs parallel simulation, stress testing, and using test-helpers to build fixtures and write tests (bft, execution, provisions).
 
-When those docs exist, they will link here. For now, treat Basic as: flow (top) → crate groupings + quizzes → hands-on next steps.
+When those docs exist, they will link here. For now, treat Basic as: flow (top) → crate groupings + quizzes → hands-on next 
+steps.

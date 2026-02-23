@@ -41,6 +41,17 @@
         </div>
 
         <div class="section">
+            <h2>Learning Objectives</h2>
+            <p>By the end of this module, you will:</p>
+            <ul>
+                <li>See the full path of a transaction from user to finality</li>
+                <li>Distinguish Hyperscale vs outside (wallet, engine, network)</li>
+                <li>Map flow steps to crates (hover popups)</li>
+                <li>Follow practical next steps: Event/Action, debug one tx, where to look when things go wrong</li>
+            </ul>
+        </div>
+
+        <div class="section">
             <h2>Why This Diagram?</h2>
             <p>Hyperscale-rs is a <strong>consensus layer</strong>, not a full blockchain stack. This diagram shows the end-to-end path of a transaction from the user to finality, and which parts Hyperscale touches versus which are outside (e.g. wallet, Radix Engine semantics, network client). Hover over each step to see which crates implement it.</p>
             <p><strong>Basic level:</strong> This is the only Hyperscale-specific basic module. The web3 modules (Blockchain, Consensus, Distributed Systems, State Machines) give foundation. After this, go to <strong>Intermediate</strong> for Hyperscale Overview, Crate Groups (with 10-question quizzes per group), Codebase Exploration, and First Contribution.</p>
@@ -374,8 +385,8 @@
     <script src="../shared/course-data.js"></script>
     <script src="../shared/navigation.js"></script>
     <script src="../shared/glossary.js"></script>
+    <script src="../shared/module-init.js" data-module-id="basic-05b"></script>
     <script>
-        initializeModulePage('basic-05b');
         const quizQuestions = [
             {
                 question: "At which step does BFT consensus first participate in the transaction flow?",

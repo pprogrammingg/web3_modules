@@ -1,0 +1,52 @@
+/* Mobile test page only. Keeps test-specific styles out of main styles.css. */
+.test-banner {
+    background: var(--warning);
+    color: #78350f;
+    padding: 0.75rem 1rem;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+.test-banner a {
+    color: #78350f;
+    text-decoration: underline;
+}
+.test-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text2);
+    margin-bottom: 0.5rem;
+}
+.mobile-test-container {
+    padding: 1rem;
+}
+.mobile-test-container h1 {
+    margin-bottom: 0.5rem;
+}
+.mobile-test-subtitle {
+    color: var(--text2);
+    margin-bottom: 2rem;
+}
+.mobile-test-btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+.mobile-test-card-desc {
+    font-size: 0.9rem;
+    color: var(--text2);
+    margin: 0.5rem 0;
+}
+.mobile-test-content-block {
+    margin-top: 2rem;
+}
+.mobile-test-content-block h2 {
+    margin-top: 0;
+}
+.mobile-test-footer {
+    margin-top: 2rem;
+    text-align: center;
+    color: var(--text2);
+    font-size: 0.9rem;
+}

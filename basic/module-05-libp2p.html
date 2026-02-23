@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>libp2p: Why It Matters for Protocol Engineers</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>libp2p: Why It Matters for Protocol Engineers</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 1.5–2 hours</span>
+                <span>📊 Difficulty: Basic</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand what libp2p is and why it matters for protocol engineering</li>
+                <li>See who uses libp2p in production (Ethereum, IPFS, Filecoin, etc.)</li>
+                <li>Grasp the high-level components: transports, identity, security, discovery</li>
+                <li>Relate P2P networking to blockchain and distributed systems</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Is libp2p Important for Protocol Engineers?</h2>
+            <p><strong>Yes.</strong> libp2p is the dominant modular networking stack for decentralized and blockchain systems. Protocol engineers working on consensus, L2s, storage networks, or any P2P system will encounter it or concepts it solves: peer identity, transport diversity, secure channels, discovery without central registries, and scalable pub/sub (e.g. GossipSub). Understanding libp2p helps you design, debug, and integrate networking in production protocols.</p>
+        </div>
+
+        <div class="section">
+            <h2>What is libp2p?</h2>
+            <p><strong>libp2p</strong> is an open-source, <strong>modular</strong> network stack and library for building peer-to-peer (P2P) applications. It originated as the networking layer of the InterPlanetary File System (IPFS) and was later spun off as a standalone project. It is not a single protocol but a <strong>collection of protocols and specifications</strong> that you compose: transports, security, peer identity, discovery, routing, and pub/sub.</p>
+            <ul>
+                <li><strong>Modular</strong> — You choose transports (TCP, QUIC, WebSocket, etc.), security (Noise, TLS), and discovery (DHT, mDNS, bootstrap list) to fit your environment.</li>
+                <li><strong>Language-agnostic</strong> — Specifications are shared; implementations exist in Go, Rust, JavaScript, Nim, Java/Kotlin, Python, and others.</li>
+                <li><strong>Encrypted by default</strong> — Connections are secured with cryptographic identity and handshakes (Noise or TLS 1.3).</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Who Uses libp2p?</h2>
+            <p>Major blockchain and distributed systems rely on libp2p as their networking foundation:</p>
+            <ul>
+                <li><strong>Ethereum</strong> — Used in Ethereum 2.0 (proof-of-stake) for peer discovery and communication.</li>
+                <li><strong>IPFS</strong> — Created libp2p; uses it for content-addressed storage and retrieval across hundreds of thousands of nodes.</li>
+                <li><strong>Filecoin</strong> — Uses libp2p’s Kademlia DHT for peer discovery and GossipSub for block and message propagation.</li>
+                <li><strong>Polkadot / Parity</strong> — Notable user of libp2p for validator and relay chain networking.</li>
+                <li><strong>Optimism</strong> — Listed among libp2p users for L2 infrastructure.</li>
+            </ul>
+            <p>If you work on or with these ecosystems, you will benefit from understanding libp2p.</p>
+        </div>
+
+        <div class="section">
+            <h2>P2P Basics: Why Not a Central Server?</h2>
+            <p>In a peer-to-peer network there is no single central server that all clients talk to. Peers are both clients and servers: they discover each other, form connections, and exchange data. Benefits include:</p>
+            <ul>
+                <li><strong>Resilience</strong> — No single point of failure; the network can survive nodes joining and leaving.</li>
+                <li><strong>Decentralization</strong> — Aligns with blockchain and censorship-resistant design.</li>
+                <li><strong>Offline and NAT</strong> — libp2p supports NAT traversal and can work in constrained or browser environments (WebRTC, WebSocket).</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>High-Level Components</h2>
+            <p>You can think of libp2p in layers (conceptually):</p>
+            <ul>
+                <li><strong>Identity</strong> — Each peer has a <strong>PeerId</strong> derived from a public key (e.g. Ed25519, secp256k1). This is the stable identity used in routing and security.</li>
+                <li><strong>Addressing</strong> — <strong>Multiaddr</strong> is a self-describing address format (e.g. <code>/ip4/192.168.1.1/tcp/4001</code>) so peers can advertise how they are reachable over which transport.</li>
+                <li><strong>Transport</strong> — The actual bytes on the wire: TCP, QUIC, WebSocket, WebRTC, etc. Multiple transports allow the same protocol to run over different networks.</li>
+                <li><strong>Security</strong> — After a transport connection is established, a security handshake (Noise or TLS 1.3) runs to authenticate the peer and encrypt the channel.</li>
+                <li><strong>Discovery &amp; routing</strong> — How peers find each other: DHT (e.g. Kademlia) for peer and content routing, bootstrap nodes, mDNS, or rendezvous.</li>
+                <li><strong>Pub/sub</strong> — Topic-based messaging; GossipSub is the main protocol for scalable, resilient broadcast (blocks, transactions, attestations).</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>What libp2p Gives Protocol Engineers</h2>
+            <p>libp2p abstracts recurring P2P challenges so you can focus on application and protocol logic:</p>
+            <ul>
+                <li>Peer identity and verification without building your own PKI.</li>
+                <li>Multiple transports and NAT traversal so your protocol works in data centers, home networks, and browsers.</li>
+                <li>Encrypted, authenticated channels by default.</li>
+                <li>Discovery and routing (DHT, bootstrap) so nodes can find each other without a central registry.</li>
+                <li>Efficient pub/sub (GossipSub) for block and message propagation in consensus and L2 designs.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Quiz: libp2p basics</h2>
+            <p>Pass threshold: 70%.</p>
+            <div id="quiz-libp2p-basic" class="quiz-container"></div>
+        </div>
+
+        <div class="navigation">
+            <a href="module-04-state-machines.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="../intermediate/module-06-libp2p.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
+    <script src="../shared/module-init.js" data-module-id="basic-07"></script>
+    <script src="module-05-libp2p-quiz.js"></script>
+</body>
+</html>

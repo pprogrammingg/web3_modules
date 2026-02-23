@@ -5,24 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mobile layout test</title>
     <link rel="stylesheet" href="shared/styles.css">
-    <style>
-        .test-banner {
-            background: var(--warning);
-            color: #78350f;
-            padding: 0.75rem 1rem;
-            text-align: center;
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-        .test-banner a { color: #78350f; text-decoration: underline; }
-        .test-label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text2);
-            margin-bottom: 0.5rem;
-        }
-    </style>
+    <link rel="stylesheet" href="shared/mobile-test.css">
 </head>
 <body>
     <div class="test-banner">
@@ -32,22 +15,20 @@
         <a href="index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
     </nav>
 
-    <div class="container" style="padding: 1rem;">
-        <h1 style="margin-bottom: 0.5rem;">Mobile test page</h1>
-        <p class="subtitle" style="color: var(--text2); margin-bottom: 2rem;">Check buttons, module cards, and module-page nav stack correctly on small screens.</p>
+    <div class="container mobile-test-container">
+        <h1>Mobile test page</h1>
+        <p class="subtitle mobile-test-subtitle">Check buttons, module cards, and module-page nav stack correctly on small screens.</p>
 
-        <!-- 1. Buttons (standalone) -->
         <div class="section">
             <h2>1. Buttons</h2>
             <p class="test-label">Primary and secondary; should be tappable, labels centered</p>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+            <div class="mobile-test-btn-row">
                 <a href="#" class="btn btn-primary">Primary button</a>
                 <a href="#" class="btn btn-secondary">Secondary</a>
                 <button type="button" class="btn btn-primary">Mark as Complete</button>
             </div>
         </div>
 
-        <!-- 2. Module nav (same as bottom of module page) -->
         <div class="section">
             <h2>2. Module page navigation (bottom of module)</h2>
             <p class="test-label">On mobile these should stack vertically, full width, with "Next Module →" centered in its button</p>
@@ -58,7 +39,6 @@
             </div>
         </div>
 
-        <!-- 3. Module cards grid -->
         <div class="section">
             <h2>3. Module cards grid</h2>
             <p class="test-label">Cards should stack in one column on narrow screens; no horizontal squeeze</p>
@@ -68,7 +48,7 @@
                         <h3>Transaction Flow: User to Finality</h3>
                         <span class="badge-hyperscale">Hyperscale-rs</span>
                     </div>
-                    <p style="font-size: 0.9rem; color: var(--text2); margin: 0.5rem 0;">End-to-end diagram and 21-question quiz.</p>
+                    <p class="mobile-test-card-desc">End-to-end diagram and 21-question quiz.</p>
                     <div class="module-meta">
                         <span>~30 min</span>
                         <span class="module-status status-pending">Pending</span>
@@ -79,7 +59,7 @@
                         <h3>Exploring the Hyperscale-rs Codebase</h3>
                         <span class="badge-hyperscale">Hyperscale-rs</span>
                     </div>
-                    <p style="font-size: 0.9rem; color: var(--text2); margin: 0.5rem 0;">Core types, NodeStateMachine, harder quiz.</p>
+                    <p class="mobile-test-card-desc">Core types, NodeStateMachine, harder quiz.</p>
                     <div class="module-meta">
                         <span>1.5–2 hours</span>
                         <span class="module-status status-completed">Completed</span>
@@ -90,7 +70,7 @@
                         <h3>BFT Consensus Implementation Deep Dive</h3>
                         <span class="badge-coming">Coming</span>
                     </div>
-                    <p style="font-size: 0.9rem; color: var(--text2); margin: 0.5rem 0;">Not yet available.</p>
+                    <p class="mobile-test-card-desc">Not yet available.</p>
                     <div class="module-meta">
                         <span>—</span>
                         <span class="module-status status-pending">Locked</span>
@@ -99,9 +79,8 @@
             </div>
         </div>
 
-        <!-- 4. Course content block (like inside a module) -->
-        <div class="course-content" style="margin-top: 2rem;">
-            <h2 style="margin-top: 0;">4. Inside a module (course-content)</h2>
+        <div class="course-content mobile-test-content-block">
+            <h2>4. Inside a module (course-content)</h2>
             <div class="course-header">
                 <h1>Sample module title</h1>
                 <div class="course-meta">
@@ -132,7 +111,7 @@
             </div>
         </div>
 
-        <p style="margin-top: 2rem; text-align: center; color: var(--text2); font-size: 0.9rem;">
+        <p class="mobile-test-footer">
             <a href="index.html" class="btn btn-secondary">Back to course index</a>
         </p>
     </div>

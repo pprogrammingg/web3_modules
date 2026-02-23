@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>libp2p: Gossipsub, Production & Protocol Design</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>libp2p: Gossipsub, Production & Protocol Design</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 2–2.5 hours</span>
+                <span>📊 Difficulty: Advanced</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand GossipSub in depth: mesh, graft, prune, PX, backoff</li>
+                <li>Relate topic-based meshes and control messages (IHAVE, IWANT)</li>
+                <li>Know hardening and attack resistance (e.g. GossipSub v1.1)</li>
+                <li>Consider production: connectivity, NAT, metrics</li>
+                <li>Design protocols on top of libp2p and integrate with consensus</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>GossipSub: Mesh-Based Pub/Sub</h2>
+            <p><strong>GossipSub</strong> is libp2p’s main pub/sub protocol for scalable, resilient message propagation. It uses a <strong>mesh</strong> structure: for each topic, each peer maintains a set of mesh links to other peers (mesh members). Messages are sent to mesh peers and gossiped further. The mesh is kept sparse to control traffic while keeping delivery reliable and fast.</p>
+            <ul>
+                <li><strong>Mesh</strong> — The set of peers you are directly connected to for a topic. You send and receive messages and control messages (graft, prune) over these links.</li>
+                <li><strong>Topic</strong> — A named channel (e.g. <code>blocks</code>, <code>transactions</code>). Each topic has its own mesh; a peer can be in different meshes for different topics.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>GRAFT and PRUNE</h2>
+            <p>Mesh membership is dynamic. Two main control messages:</p>
+            <ul>
+                <li><strong>GRAFT</strong> — Add a peer to your mesh for a given topic. You will send them messages for that topic and expect them to participate in the mesh.</li>
+                <li><strong>PRUNE</strong> — Remove a peer from your mesh for that topic. The link is no longer used for that topic’s mesh (the transport connection can still be used for other topics or protocols).</li>
+            </ul>
+            <p>Peers use graft/prune to maintain a healthy mesh size (e.g. minimum and maximum number of mesh peers per topic), to replace bad or slow peers, and to react to churn (peers joining and leaving).</p>
+        </div>
+
+        <div class="section">
+            <h2>IHAVE and IWANT</h2>
+            <p>GossipSub can also use <strong>IHAVE</strong> / <strong>IWANT</strong> for lazy propagation: a peer sends compact IHAVE messages (message IDs it has) instead of full messages; recipients that need a message send IWANT and receive the full message. This reduces bandwidth when many peers already have the message. The balance between full message gossip and IHAVE/IWANT depends on the implementation and parameters.</p>
+        </div>
+
+        <div class="section">
+            <h2>Prune Peer eXchange (PX) and Prune Backoff</h2>
+            <p>In <strong>GossipSub v1.1</strong> and later:</p>
+            <ul>
+                <li><strong>Prune Peer eXchange (PX)</strong> — When you send a PRUNE to a peer, you can include a list of alternative peers (peers that are in your mesh or that you know about). The pruned peer can use this list to connect to others and rejoin the mesh elsewhere, reducing dependence on external discovery (e.g. DHT) for mesh repair.</li>
+                <li><strong>Prune backoff</strong> — After pruning a peer, that peer is not allowed to be grafted back immediately. A backoff period prevents rapid graft–prune cycles and limits abuse (e.g. a peer that gets pruned and immediately tries to re-graft).</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Hardening and Attack Resistance</h2>
+            <p>GossipSub is designed to balance efficiency and resilience. Attack considerations include:</p>
+            <ul>
+                <li><strong>Spam</strong> — Malicious peers can try to flood the mesh with messages. Rate limiting, message validation, and peer scoring (downgrading or pruning bad peers) are used in production (e.g. in Ethereum’s use of GossipSub).</li>
+                <li><strong>Eclipse</strong> — Attackers try to surround a victim with malicious peers so the victim only sees attacker traffic. Diverse discovery (DHT, bootstrap, PX) and peer scoring help.</li>
+                <li><strong>GossipSub v1.1</strong> — Adds PX and prune backoff; further scoring and hardening are implementation- and deployment-specific.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Production: Connectivity, NAT, Metrics</h2>
+            <p>In production deployments:</p>
+            <ul>
+                <li><strong>Connectivity</strong> — Peers need to be reachable (listen addresses, NAT traversal). libp2p supports relay (e.g. relay protocol for peers behind symmetric NAT) and AutoNAT (discovering whether you are reachable from the public internet).</li>
+                <li><strong>NAT</strong> — Hole punching (e.g. with WebRTC or QUIC), relay, and port forwarding are options; choice depends on environment.</li>
+                <li><strong>Metrics</strong> — Observability: connection counts, peer counts per topic, message rates, graft/prune rates, and peer scoring state help operate and tune the network.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Protocol Design on libp2p</h2>
+            <p>When building a protocol on libp2p:</p>
+            <ul>
+                <li><strong>Protocol ID</strong> — Use a clear, versioned protocol ID (e.g. <code>/myapp/1.0.0</code>) so multistream-select can negotiate and you can evolve the protocol.</li>
+                <li><strong>Discovery</strong> — Decide how peers find each other: DHT, bootstrap, rendezvous, or out-of-band (e.g. config). For closed or permissioned networks, bootstrap and config are common.</li>
+                <li><strong>Pub/sub vs request–response</strong> — Use GossipSub (or similar) for broadcast; use streams for request–response or RPC-style communication.</li>
+                <li><strong>Identity</strong> — Tie application identity (e.g. validator ID) to PeerId if needed (e.g. derive PeerId from consensus key, or maintain a mapping).</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Integration with Consensus</h2>
+            <p>Consensus and L2 protocols often use libp2p for:</p>
+            <ul>
+                <li><strong>Block and transaction propagation</strong> — GossipSub topics per shard or global; validators subscribe and publish blocks and transactions.</li>
+                <li><strong>Attestations and votes</strong> — Another topic or the same topic with different message types; depends on the protocol.</li>
+                <li><strong>Peer set</strong> — Validator set or committee can be known; PeerIds may be derived from consensus keys (as in Hyperscale-rs) or mapped via config so that only validators are trusted for certain topics.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Quiz: libp2p advanced</h2>
+            <p>Pass threshold: 70%.</p>
+            <div id="quiz-libp2p-advanced" class="quiz-container"></div>
+        </div>
+
+        <div class="navigation">
+            <a href="../intermediate/module-06-libp2p.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="../hyperscale-rs/module-08-cryptography.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
+    <script src="../shared/module-init.js" data-module-id="advanced-libp2p"></script>
+    <script src="module-09-libp2p-quiz.js"></script>
+</body>
+</html>

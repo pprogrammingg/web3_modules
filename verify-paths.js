@@ -17,6 +17,7 @@ const SHARED_FILES = [
     'course-data.js',
     'navigation.js',
     'glossary.js',
+    'module-init.js',
 ];
 
 // Derive module list from course-data.js so we don't duplicate it
@@ -40,7 +41,7 @@ function expectedCssPathFor(moduleFile) {
     return '../'.repeat(depth) + 'shared/styles.css';
 }
 
-const VALID_JS_PATHS = ['../shared/course-data.js', '../shared/navigation.js', '../shared/glossary.js'];
+const VALID_JS_PATHS = ['../shared/course-data.js', '../shared/navigation.js', '../shared/glossary.js', '../shared/module-init.js'];
 
 let errors = [];
 let warnings = [];
@@ -111,7 +112,7 @@ MODULES.forEach(({ id, file }) => {
         console.log(`  ❌ No JS scripts found`);
     }
 
-    if (!content.includes('initializeModulePage')) {
+    if (!content.includes('initializeModulePage') && !content.includes('module-init.js')) {
         warnings.push(`${file}: Might be missing module initialization`);
     }
 

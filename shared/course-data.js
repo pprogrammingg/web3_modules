@@ -69,6 +69,20 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    id: 'intermediate-hs-overview',
+                    title: 'Hyperscale-rs Overview & Setup',
+                    duration: '1.5-2 hours',
+                    difficulty: 'Basic',
+                    path: 'hyperscale-rs/module-01-overview.html',
+                    description: 'What hyperscale-rs is, key links, and how to trace flows end-to-end (event→action, debugger, logs)',
+                    objectives: [
+                        'Know what hyperscale-rs is and where to find the repo and docs',
+                        'Understand the event→action loop and how to trace one flow',
+                        'Know the next step: Crate Groups module and its quizzes'
+                    ],
+                    hyperscaleSpecific: true
+                },
+                {
                     id: 'basic-05b',
                     title: 'Transaction Flow: User to Finality',
                     duration: '~45 min',
@@ -97,6 +111,21 @@ const COURSE_DATA = {
                         'Submit a PR'
                     ],
                     hyperscaleSpecific: true
+                },
+                {
+                    id: 'basic-07',
+                    title: 'libp2p: Why It Matters for Protocol Engineers',
+                    duration: '1.5–2 hours',
+                    difficulty: 'Basic',
+                    path: 'basic/module-05-libp2p.html',
+                    description: 'What libp2p is, who uses it (Ethereum, IPFS, Filecoin, etc.), and why it matters for P2P and blockchain',
+                    objectives: [
+                        'Understand what libp2p is and why it matters for protocol engineering',
+                        'See who uses libp2p in production',
+                        'Grasp high-level components: transports, identity, security, discovery',
+                        'Relate P2P networking to blockchain and distributed systems'
+                    ],
+                    hyperscaleSpecific: false
                 }
             ]
         },
@@ -230,14 +259,30 @@ const COURSE_DATA = {
                     duration: '1.5-2 hours',
                     difficulty: 'Intermediate',
                     path: 'hyperscale-rs/module-08-cryptography.html',
-                    description: 'Understand cryptographic implementation in hyperscale-rs',
+                    description: 'Why BLS for QC and StateCertificate, signature comparison table (Ed25519, BLS, ECDSA), and where to look in the repo',
                     objectives: [
-                        'Understand BLS signature usage',
-                        'Learn QC formation',
-                        'Understand vote verification',
-                        'Learn key management'
+                        'Understand why BLS is used for quorum and state certificates',
+                        'Compare signature schemes (table: pros/cons)',
+                        'Find QC and StateCertificate types in the repo',
+                        'Understand Ed25519 vs BLS roles (fast signing vs aggregation)'
                     ],
                     hyperscaleSpecific: true
+                },
+                {
+                    id: 'intermediate-libp2p',
+                    title: 'libp2p: Transports, Identity, Security & Discovery',
+                    duration: '2–2.5 hours',
+                    difficulty: 'Intermediate',
+                    path: 'intermediate/module-06-libp2p.html',
+                    description: 'Transports (TCP, QUIC, WebSocket), PeerId and multiaddr, Noise and TLS, DHT and discovery',
+                    objectives: [
+                        'Understand transports and when to use which',
+                        'Deepen PeerId and multiaddr',
+                        'Understand security: Noise vs TLS 1.3',
+                        'Learn stream multiplexing and protocol negotiation',
+                        'Understand the DHT: Kademlia, peer and content routing'
+                    ],
+                    hyperscaleSpecific: false
                 },
                 {
                     id: 'intermediate-09',
@@ -364,6 +409,22 @@ const COURSE_DATA = {
                         'Trace view change flow'
                     ],
                     hyperscaleSpecific: true
+                },
+                {
+                    id: 'advanced-libp2p',
+                    title: 'libp2p: Gossipsub, Production & Protocol Design',
+                    duration: '2–2.5 hours',
+                    difficulty: 'Advanced',
+                    path: 'advanced/module-09-libp2p.html',
+                    description: 'GossipSub (mesh, graft, prune, PX, backoff), production concerns, protocol design on libp2p',
+                    objectives: [
+                        'Understand GossipSub in depth: mesh, graft, prune, PX, backoff',
+                        'Relate topic-based meshes and control messages',
+                        'Know hardening and attack resistance',
+                        'Consider production: connectivity, NAT, metrics',
+                        'Design protocols on libp2p and integrate with consensus'
+                    ],
+                    hyperscaleSpecific: false
                 },
                 {
                     id: 'advanced-03',

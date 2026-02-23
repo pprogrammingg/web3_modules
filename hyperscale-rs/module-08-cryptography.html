@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cryptography in Hyperscale-rs</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Cryptography in Hyperscale-rs</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 1.5–2 hours</span>
+                <span>📊 Difficulty: Intermediate</span>
+                <span>🎯 Hyperscale-rs Specific</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand why BLS is used for quorum and state certificates</li>
+                <li>Compare signature schemes used in blockchain (table)</li>
+                <li>Understand why libp2p keypair is derived from BLS public key</li>
+                <li>See where BLS and Ed25519 appear in the repo</li>
+                <li>Understand QC and StateCertificate aggregation</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Why BLS is chosen</h2>
+            <p>The repo doesn’t spell out “we chose BLS because …” in one place, but the usage makes the reason clear: <strong>aggregatable signatures for consensus</strong>.</p>
+            <ul>
+                <li><strong>QuorumCertificate</strong> (e.g. in <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/types/src/quorum_certificate.rs" target="_blank" rel="noopener">crates/types/src/quorum_certificate.rs</a>) holds a single <code>Bls12381G2Signature</code> that is an <strong>aggregated signature</strong> from 2f+1 validators for the same message (block hash, etc.).</li>
+                <li><strong>StateCertificate</strong> (in <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/types/src/state.rs" target="_blank" rel="noopener">crates/types/src/state.rs</a>) also uses an aggregated BLS signature from many <code>StateVoteBlock</code>s.</li>
+            </ul>
+            <p>Flow:</p>
+            <ol>
+                <li>Many validators sign the <strong>same message</strong> (e.g. block hash).</li>
+                <li>Their BLS signatures are <strong>combined into one</strong> aggregated signature.</li>
+                <li>You store and verify <strong>one signature and one aggregated public key</strong>, instead of N Ed25519 signatures.</li>
+            </ol>
+            <p>That gives:</p>
+            <ul>
+                <li><strong>Constant size and cost</strong> — QC size and verification cost don’t grow with committee size.</li>
+                <li><strong>Compact quorum certificates</strong> — One 96-byte BLS G2 signature instead of N×64-byte Ed25519 signatures.</li>
+                <li><strong>Same-message aggregation</strong> — Matches the “everyone signs this block hash” pattern (as in Ethereum 2, Chia, etc.).</li>
+            </ul>
+            <p>In the types module, the split is summarized as: <strong>Ed25519 for “fast signing”</strong> and <strong>BLS (BLS12-381 G1 pubkey / G2 sig) for “aggregatable signatures”</strong>. So BLS is chosen for quorum/state certificates; the keygen binary generates the validator BLS key (from a 32-byte hex seed or at random) used in that aggregation scheme.</p>
+        </div>
+
+        <div class="section">
+            <h2>Signature schemes: comparison</h2>
+            <p>Different schemes are used for different roles. The table below summarizes pros and cons so you can see why BLS fits consensus certificates and why Ed25519 is used where aggregation isn’t needed.</p>
+            <table class="content-table">
+                <thead>
+                    <tr>
+                        <th>Scheme</th>
+                        <th>Typical use</th>
+                        <th>Pros</th>
+                        <th>Cons</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Ed25519</strong></td>
+                        <td>Tx signing, fast one-off signatures</td>
+                        <td>Fast signing/verify; small keys &amp; sigs; no pairing</td>
+                        <td>No native aggregation; N sigs = N times size/cost</td>
+                    </tr>
+                    <tr>
+                        <td><strong>BLS (BLS12-381)</strong></td>
+                        <td>QC, StateCertificate, attestations</td>
+                        <td>Same-message aggregation; constant-size QC; one verify for 2f+1 signers</td>
+                        <td>Slower than Ed25519; pairing-based; need same message for aggregation</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ECDSA (e.g. secp256k1)</strong></td>
+                        <td>Bitcoin, Ethereum (legacy) tx signing</td>
+                        <td>Widely used; hardware support; no aggregation needed for single-sig txs</td>
+                        <td>No aggregation; larger sigs than Ed25519; malleability concerns</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>In Hyperscale-rs: use the table to justify “BLS for QC/StateCertificate, Ed25519 for fast signing” where the design is explained (e.g. in docs or a future general Cryptography module).</p>
+        </div>
+
+        <div class="section">
+            <h2>Why we derive libp2p keypair from BLS public key</h2>
+            <p><strong>One identity, two roles.</strong> Consensus identity is the BLS public key (votes, QCs, validator set). libp2p needs an Ed25519-style keypair for TLS and <code>PeerId</code>, not BLS. Instead of two unrelated keys, the libp2p keypair is <strong>derived</strong> from the BLS public key — one logical identity, with the p2p key as a deterministic view for transport.</p>
+            <p><strong>Derivation uses the public key only</strong> (no secret): hash the BLS public key bytes with a <strong>domain separator</strong>, use the hash as seed for an Ed25519 keypair (see <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/production/src/adapter.rs" target="_blank" rel="noopener">adapter.rs</a>). In the code this separator is <code>LIBP2P_IDENTITY_DOMAIN</code> = <code>b"hyperscale-libp2p-identity-v1:"</code>: it is prepended (or otherwise combined) with the pubkey before hashing so that the derived key is bound to this specific use. That way the same BLS pubkey hashed with a different domain would yield a different PeerId, avoiding collisions and tying the derivation to “Hyperscale libp2p identity” only. So anyone who knows a validator’s BLS public key can compute that validator’s <code>PeerId</code> (e.g. <code>compute_peer_id_for_validator(public_key)</code>). The topology already has every validator’s BLS public key, so at startup the runner can fill <code>validator_peers</code> and <code>peer_validators</code> without out-of-band PeerId exchange.</p>
+            <p><strong>In production:</strong> the validator binary builds the libp2p identity from the same BLS key it uses for consensus (<code>derive_libp2p_keypair(&signing_keypair.public_key())</code> in <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/production/src/validator.rs" target="_blank" rel="noopener">validator.rs</a>). The runner registers <code>validator_id → peer_id</code>; the network layer uses that mapping for peer validation (only known validators in <code>peer_validators</code>).</p>
+            <p><strong>Why not BLS for libp2p?</strong> libp2p’s identity and TLS are built for key types like Ed25519. So: BLS = consensus identity; Ed25519 = derived only for transport. The stack works without changing libp2p, and every validator has a deterministic, derivable <code>PeerId</code> from their public key.</p>
+        </div>
+
+        <div class="section">
+            <h2>Where to look in the repo</h2>
+            <ul>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/types/src/quorum_certificate.rs" target="_blank" rel="noopener">crates/types/src/quorum_certificate.rs</a> — QC type and BLS aggregated signature.</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/types/src/state.rs" target="_blank" rel="noopener">crates/types/src/state.rs</a> — StateCertificate and aggregated BLS.</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/production/src/adapter.rs" target="_blank" rel="noopener">crates/production/src/adapter.rs</a> — <code>derive_libp2p_keypair</code>, <code>LIBP2P_IDENTITY_DOMAIN</code> (domain separator), PeerId from BLS pubkey.</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/production/src/validator.rs" target="_blank" rel="noopener">crates/production/src/validator.rs</a> — validator builds p2p identity from BLS key.</li>
+                <li>Keygen / crypto crate — validator BLS key generation (32-byte hex seed or random).</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Quiz: Cryptography and identity</h2>
+            <p>These questions are designed to be challenging: answers are not obvious and some distractors are plausible. Use the module text and repo links to decide. Pass threshold: 70%.</p>
+            <div id="quiz-cryptography" class="quiz-container"></div>
+        </div>
+
+        <div class="navigation">
+            <a href="module-05-cross-shard.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="module-09-simulation.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
+    <script src="../shared/module-init.js" data-module-id="intermediate-08"></script>
+    <script src="module-08-cryptography-quiz.js"></script>
+</body>
+</html>

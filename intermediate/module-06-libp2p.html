@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>libp2p: Transports, Identity, Security & Discovery</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>libp2p: Transports, Identity, Security & Discovery</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 2–2.5 hours</span>
+                <span>📊 Difficulty: Intermediate</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand transports (TCP, QUIC, WebSocket) and when to use which</li>
+                <li>Deepen PeerId and multiaddr: how identity and addressing work</li>
+                <li>Understand security: Noise vs TLS 1.3, encrypted channels by default</li>
+                <li>Learn stream multiplexing and protocol negotiation</li>
+                <li>Understand the DHT: Kademlia, peer routing, content routing</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Transports</h2>
+            <p>The <strong>transport</strong> is the layer that actually moves bytes between peers. libp2p supports multiple transports so the same application can run over different networks:</p>
+            <ul>
+                <li><strong>TCP</strong> — Reliable, widely supported; often used with a separate security layer (Noise or TLS).</li>
+                <li><strong>QUIC</strong> — Built on UDP; can have built-in encryption (e.g. TLS 1.3 in QUIC). Lower latency and better for lossy networks.</li>
+                <li><strong>WebSocket</strong> — Runs over HTTP; useful for browsers and environments where raw TCP is blocked.</li>
+                <li><strong>WebRTC</strong> — Enables browser-to-browser and NAT traversal (e.g. hole punching).</li>
+            </ul>
+            <p>Transports that lack native encryption (e.g. TCP, WebSocket) are secured by a libp2p security handshake (Noise or TLS) on top. QUIC may already include encryption.</p>
+        </div>
+
+        <div class="section">
+            <h2>PeerId and Multiaddr</h2>
+            <p><strong>PeerId</strong> is a stable identity for a peer, derived from its public key (e.g. hash of the key). It is used in the DHT, in security handshakes, and to identify who you are talking to. It does not change with network location.</p>
+            <p><strong>Multiaddr</strong> is a self-describing address. Examples:</p>
+            <ul>
+                <li><code>/ip4/192.168.1.1/tcp/4001</code> — IPv4 address, TCP, port 4001.</li>
+                <li><code>/ip6/::1/tcp/4001</code> — IPv6 loopback, TCP, port 4001.</li>
+                <li><code>/dns4/node.example.com/tcp/443/wss</code> — DNS name, TCP 443, WebSocket Secure.</li>
+            </ul>
+            <p>Peers advertise multiaddrs so others know how to dial them. A single peer can have multiple multiaddrs (e.g. IPv4 and IPv6).</p>
+        </div>
+
+        <div class="section">
+            <h2>Security: Noise and TLS 1.3</h2>
+            <p>libp2p specifies two security handshake protocols for transports that need an explicit security layer:</p>
+            <ul>
+                <li><strong>Noise</strong> — Built on the Noise Protocol Framework. Uses the XX handshake pattern and ChaChaPoly. Protocol ID: <code>/noise</code>. Authenticates the peer and encrypts the channel.</li>
+                <li><strong>TLS 1.3</strong> — Standard TLS (RFC 8446). Protocol ID: <code>/tls/1.0.0</code>. The peer’s libp2p public key can be encoded in the certificate so PeerId is bound to the connection.</li>
+            </ul>
+            <p>Connection establishment typically goes: (1) transport connection, (2) security handshake (Noise or TLS), (3) stream multiplexing. After that, application protocols run over multiplexed streams.</p>
+        </div>
+
+        <div class="section">
+            <h2>Stream Multiplexing</h2>
+            <p><strong>Multiplexing</strong> allows many logical streams (e.g. different protocols or requests) to share a single transport connection. Without it, each stream would require a new connection (more overhead, more NAT/firewall issues). With multiplexing, one connection is established and secured once, then reused for multiple streams. libp2p uses protocols like mplex or yamux for this.</p>
+        </div>
+
+        <div class="section">
+            <h2>Protocol Negotiation</h2>
+            <p>When opening a new stream, peers must agree on which application protocol to run (e.g. <code>/myapp/1.0.0</code>). <strong>Multistream-select</strong> (or similar) is the mechanism: one peer proposes a list of supported protocols, the other selects one. This allows versioning and backward compatibility: new protocols can be added while old ones still work.</p>
+        </div>
+
+        <div class="section">
+            <h2>The DHT: Kademlia, Peer Routing, Content Routing</h2>
+            <p>libp2p uses a <strong>Kademlia-style DHT</strong> (Distributed Hash Table) for:</p>
+            <ul>
+                <li><strong>Peer routing</strong> — Finding the multiaddrs (network addresses) of a peer given its PeerId. Operations like FIND_NODE: find the k closest peers to a given key (PeerId).</li>
+                <li><strong>Content routing</strong> — Finding which peers have (or provide) specific content. ADD_PROVIDER / GET_PROVIDERS: advertise and look up providers for a content ID (e.g. CID).</li>
+            </ul>
+            <p>Kademlia organizes nodes by XOR distance from a key. Each node keeps a routing table (e.g. k-buckets). Lookups take O(log n) hops in a network of n nodes. PUT_VALUE/GET_VALUE store and retrieve arbitrary signed values (e.g. peer records).</p>
+        </div>
+
+        <div class="section">
+            <h2>Discovery in Practice</h2>
+            <p>Besides the DHT, peers can be discovered via:</p>
+            <ul>
+                <li><strong>Bootstrap list</strong> — Hardcoded or configured nodes to connect to first; from there, the DHT and gossip spread knowledge of more peers.</li>
+                <li><strong>mDNS</strong> — Local network discovery.</li>
+                <li><strong>Rendezvous</strong> — A designated peer or service where nodes register and find each other for a given topic.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Quiz: libp2p intermediate</h2>
+            <p>Pass threshold: 70%.</p>
+            <div id="quiz-libp2p-intermediate" class="quiz-container"></div>
+        </div>
+
+        <div class="navigation">
+            <a href="../basic/module-05-libp2p.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="../advanced/module-09-libp2p.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
+    <script src="../shared/module-init.js" data-module-id="intermediate-libp2p"></script>
+    <script src="module-06-libp2p-quiz.js"></script>
+</body>
+</html>

@@ -24,400 +24,197 @@
             <h2>Learning Objectives</h2>
             <p>By the end of this module, you will:</p>
             <ul>
-                <li>Know what hyperscale-rs is and what it's not</li>
-                <li>Understand the Hyperscale protocol and where to find it</li>
-                <li>Understand the project's goals and design philosophy</li>
-                <li>Have your development environment set up</li>
-                <li>Know where to find key information in the codebase</li>
+                <li>Know what hyperscale-rs is and where to find the repo and docs</li>
+                <li>Understand the best ways to trace transaction flow end to end (run, debugger, logs)</li>
+                <li>Know the next step: complete the Crate Groups module and its quizzes</li>
             </ul>
         </div>
 
         <div class="section">
-            <h2>1. What is Hyperscale-rs?</h2>
+            <h2>1. Intro to the project: what it is and links</h2>
             
             <h3>Hyperscale (the protocol)</h3>
-            <p><strong>Hyperscale</strong> is the BFT <span data-glossary="consensus">consensus</span> protocol designed for high-throughput, <span data-glossary="sharding">sharded</span> blockchain networks. It defines how validators agree on blocks, handle <span data-glossary="cross-shard transaction">cross-shard</span> coordination, and achieve <span data-glossary="finality">finality</span>. The protocol design and specification are documented in the same repository as the Rust implementation.</p>
-            <p><strong>Repository and docs:</strong> <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">github.com/flightofthefox/hyperscale-rs</a> — code and protocol docs live here. The <strong>guides</strong> are markdown files in the repo’s <a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/guides" target="_blank" rel="noopener"><code>guides/</code></a> directory (overview, architecture, codebase structure, consensus protocol).</p>
+            <p><strong>Hyperscale</strong> is the BFT <span data-glossary="consensus">consensus</span> protocol designed for high-throughput, <span data-glossary="sharding">sharded</span> blockchain networks. It defines how validators agree on blocks, handle <span data-glossary="cross-shard transaction">cross-shard</span> coordination, and achieve <span data-glossary="finality">finality</span>. The protocol and the Rust implementation live in the same repository.</p>
             
             <h3>Hyperscale-rs (the implementation)</h3>
-            <p><strong><span data-glossary="hyperscale-rs">Hyperscale-rs</span></strong> is the Rust implementation of the Hyperscale protocol: a <span data-glossary="bft">Byzantine Fault Tolerant (BFT)</span> consensus system for high-throughput, sharded blockchain networks.</p>
+            <p><strong><span data-glossary="hyperscale-rs">Hyperscale-rs</span></strong> is the Rust implementation: a <span data-glossary="bft">Byzantine Fault Tolerant (BFT)</span> consensus system for high-throughput, sharded networks. It is <strong>not</strong> a full blockchain platform — it is the consensus layer that decides which transactions get included and in what order. Execution, storage, and user-facing apps are separate.</p>
 
-            <div class="highlight">
-                <strong>Key Point:</strong> Hyperscale-rs is NOT a full blockchain platform. It's a consensus layer — the "engine" that decides which transactions get included and in what order.
-            </div>
-
-            <div class="info" style="margin-top: 1rem;">
-                <strong>🤔 Think about it:</strong> If you were building a full wallet app, would the consensus layer (hyperscale-rs) be the only piece you need? What else would you need (e.g. execution, storage, networking to users)?
-            </div>
-
-            <h3>What Hyperscale-rs IS:</h3>
+            <p><strong>Key links:</strong></p>
             <ul>
-                <li>✅ A BFT consensus protocol implementation</li>
-                <li>✅ Designed for high throughput and low latency</li>
-                <li>✅ Supports <span data-glossary="sharding">sharding</span> (dividing the network into parallel chains)</li>
-                <li>✅ Handles <span data-glossary="cross-shard transaction">cross-shard transactions</span> securely</li>
-                <li>✅ Pure consensus logic (no I/O, no locks, no async in core)</li>
-                <li>✅ <span data-glossary="deterministic">Deterministic</span> and testable</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">Repository</a> — code and protocol docs</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/README.md" target="_blank" rel="noopener">README.md</a> — setup and “What’s different”</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/core/src/traits.rs" target="_blank" rel="noopener">StateMachine trait</a>, <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/node/src/state.rs" target="_blank" rel="noopener">node state</a> — core types to skim early</li>
             </ul>
 
-            <h3>What Hyperscale-rs is NOT:</h3>
-            <ul>
-                <li>❌ A full blockchain platform (like Ethereum or Bitcoin)</li>
-                <li>❌ A cryptocurrency (no native token)</li>
-                <li>❌ A smart contract platform (though it integrates with Radix Engine)</li>
-                <li>❌ A wallet or user-facing application</li>
-                <li>❌ Production-ready (still work in progress)</li>
-            </ul>
-
-            <h3>Design Philosophy</h3>
-            <p>Hyperscale-rs follows several key design principles:</p>
-            <ol>
-                <li><strong>Pure Consensus Layer</strong> — No I/O, no locks, no async in consensus logic</li>
-                <li><strong><span data-glossary="state machine">State Machine</span> Model</strong> — Everything is a deterministic state machine</li>
-                <li><strong><span data-glossary="event-driven">Event-Driven</span></strong> — Events flow in, actions flow out</li>
-                <li><strong><span data-glossary="deterministic">Deterministic</span> Testing</strong> — Same code runs in simulation and production</li>
-            </ol>
-
-            <div class="info" style="margin-top: 1rem;">
-                <strong>🤔 Check your understanding:</strong> Why do you think "no I/O in consensus logic" makes the code easier to test and reason about? (Hint: what would be hard if the consensus code could read the network or the clock whenever it wanted?)
-            </div>
-
-            <div class="warning" style="margin-top: 1.5rem;">
-                <strong>Important Context:</strong> Hyperscale-rs is not a toy repo. It touches distributed systems, async Rust at scale, networking/performance, and architectural correctness. Contributions require different levels of expertise.
-            </div>
+            <p>Design: <strong>pure consensus</strong> (no I/O in core), <strong>state machine</strong> model, <strong>event-driven</strong> (events in → actions out), <strong>deterministic</strong> so the same code runs in simulation and production.</p>
         </div>
 
         <div class="section">
-            <h2>2. Contribution Roadmap & Realistic Expectations</h2>
-            
-            <p>Understanding what contribution levels actually mean helps set realistic expectations. Here's a breakdown of what each level entails:</p>
+            <h2>2. Trace flows end-to-end</h2>
+            <p>The system is <strong>"events in, actions out"</strong>: the node receives <code>Event</code>s and returns <code>Action</code>s; the runner does I/O (network, storage). Below are three flows with step-by-step instructions: where to add <code>tracing::debug!</code>, the command to run the sim, and the log order you should see. Do the prerequisite once, then pick one flow at a time.</p>
 
-            <table style="width: 100%; margin: 1.5rem 0;">
-                <tr>
-                    <th style="padding: 0.75rem; background: var(--bg2);">Level</th>
-                    <th style="padding: 0.75rem; background: var(--bg2);">What It Actually Means</th>
-                </tr>
-                <tr>
-                    <td style="padding: 0.75rem;"><strong>Basic</strong></td>
-                    <td style="padding: 0.75rem;">Docs, tests, small refactors, safe bug fixes</td>
-                </tr>
-                <tr>
-                    <td style="padding: 0.75rem;"><strong>Intermediate</strong></td>
-                    <td style="padding: 0.75rem;">New components, performance fixes, API design</td>
-                </tr>
-                <tr>
-                    <td style="padding: 0.75rem;"><strong>Advanced</strong></td>
-                    <td style="padding: 0.75rem;">Architecture changes, consensus/network logic, scaling</td>
-                </tr>
+            <h3>Prerequisite: Build and run (do this first)</h3>
+            <ol type="a">
+                <li>Clone: <code>git clone --recurse-submodules https://github.com/flightofthefox/hyperscale-rs.git</code>, then <code>cd hyperscale-rs</code>. If you already cloned without submodules: <code>git submodule update --init --recursive</code>.</li>
+                <li>Build: <code>cargo build --release</code>. Wait until it finishes without errors.</li>
+            </ol>
+            <p><strong>Tracing:</strong> Use <code>tracing::debug!</code> (or <code>debug!</code> with <code>use tracing::debug</code>). Run the sim with <code>RUST_LOG=debug</code> so these logs show up. Remove or comment out the lines before committing.</p>
+
+            <h3>Flow 1: Transaction submit (workload → sim runner → node → mempool)</h3>
+            <p><strong>Overview:</strong> The simulator workload submits a transaction; the simulation runner receives <code>Event::SubmitTransaction</code> and gossips it; the node loop intercepts it and queues validation; the state machine gets <code>TransactionGossipReceived</code> and the mempool adds the tx. You see the path from submit to tx in mempool.</p>
+
+            <p><strong>1. Where to add <code>debug!</code></strong></p>
+            <table class="flow-steps">
+                <thead>
+                    <tr><th>Step</th><th>File</th><th>Place</th><th>Add</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td><code>crates/simulator/src/runner.rs</code></td>
+                        <td>Right before the loop that calls <code>schedule_initial_event</code> for each node (around line 176), inside the <code>for tx in batch</code> loop, after you have <code>tx</code> and <code>target_shard</code> (e.g. after <code>let tx = std::sync::Arc::new(tx);</code>).</td>
+                        <td><code>tracing::debug!(tx_hash = ?hash, target_shard = target_shard.0, nodes = ?shard_nodes, "sim: workload submitting tx to shard nodes");</code></td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td><code>crates/simulation/src/runner.rs</code></td>
+                        <td>Inside the <code>if let Event::SubmitTransaction { ref tx } = event</code> block (around 602), at the top of the block.</td>
+                        <td><code>tracing::debug!(node = node_index, tx_hash = ?tx.hash(), shards = ?shards, "sim runner: SubmitTransaction received, gossiping to peers");</code></td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td><code>crates/node/src/node_loop.rs</code></td>
+                        <td>At the start of <code>if let Event::SubmitTransaction { ref tx } = event</code> (around 481).</td>
+                        <td><code>tracing::debug!(tx_hash = ?tx_hash, "node_loop: SubmitTransaction intercepted, gossip + queue validation");</code></td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td><code>crates/node/src/state.rs</code></td>
+                        <td>At the start of the <code>Event::TransactionGossipReceived { tx, submitted_locally }</code> arm (around 832), before the <code>if !self.topology.involves_local_shard(tx)</code> check.</td>
+                        <td><code>tracing::debug!(tx_hash = ?tx.hash(), submitted_locally = submitted_locally, "node state: TransactionGossipReceived -> mempool");</code></td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td><code>crates/mempool/src/state.rs</code></td>
+                        <td>In <code>on_transaction_gossip_arc</code>, right after <code>let hash = tx.hash();</code> (e.g. around 374). (There may already be a <code>tracing::debug!</code> a bit lower; ensure <code>RUST_LOG=debug</code> shows it, or add this.)</td>
+                        <td><code>tracing::debug!(tx_hash = ?hash, submitted_locally, "mempool: adding tx via gossip");</code></td>
+                    </tr>
+                </tbody>
             </table>
 
-            <div class="info">
-                <strong>Time estimates</strong> assume 1–2 hours per day of focused study and practice. These are realistic ranges based on the complexity of each level.
-            </div>
-
-            <h3>1️⃣ Basic Contributions to Hyperscale-rs</h3>
-            <p><strong>⏱️ ~1–2 months</strong></p>
-            
-            <h4>What you'll be able to do:</h4>
+            <p><strong>2. Command to run (tx submit in simulation)</strong></p>
+            <div class="code-block"><pre><code>RUST_LOG=debug cargo run --release --bin hyperscale-sim -- --seed 42 -s 1 -v 4 -d 5 --tps 20</code></pre></div>
             <ul>
-                <li>✅ Build & run the project locally</li>
-                <li>✅ Understand module boundaries</li>
-                <li>✅ Fix small bugs</li>
-                <li>✅ Improve documentation</li>
-                <li>✅ Add tests</li>
-                <li>✅ Make "safe" PRs that get merged</li>
+                <li><code>RUST_LOG=debug</code> — your <code>debug!</code> and existing debug logs appear.</li>
+                <li><code>--seed 42</code> — reproducible run.</li>
+                <li><code>-s 1</code> — one shard (simplest path).</li>
+                <li><code>-v 4</code> — 4 validators (BFT quorum).</li>
+                <li><code>-d 5</code> — 5 seconds.</li>
+                <li><code>--tps 20</code> — low TPS so logs are easier to follow.</li>
             </ul>
+            <p><strong>3. Optional shorter run</strong></p>
+            <p>To see just a few submissions: <code>RUST_LOG=debug cargo run --release --bin hyperscale-sim -- --seed 42 -s 1 -v 4 -d 2 --tps 5</code> (2 seconds, 5 TPS).</p>
+            <p><strong>4. Summary — log order for each tx</strong></p>
+            <table class="flow-steps">
+                <thead>
+                    <tr><th>Step</th><th>File</th><th>What you see</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td><code>crates/simulator/src/runner.rs</code></td><td>Workload submits tx to shard nodes</td></tr>
+                    <tr><td>2</td><td><code>crates/simulation/src/runner.rs</code></td><td>Runner receives SubmitTransaction and gossips</td></tr>
+                    <tr><td>3</td><td><code>crates/node/src/node_loop.rs</code></td><td>NodeLoop intercepts and queues validation</td></tr>
+                    <tr><td>4</td><td><code>crates/node/src/state.rs</code></td><td>TransactionGossipReceived handed to mempool</td></tr>
+                    <tr><td>5</td><td><code>crates/mempool/src/state.rs</code></td><td>Tx added to pool (existing or your debug)</td></tr>
+                </tbody>
+            </table>
 
-            <h4>What you need to study:</h4>
-            <ul>
-                <li>Repo architecture</li>
-                <li>Async Rust patterns (tokio, channels, lifetimes)</li>
-                <li>Existing design docs / issues</li>
-            </ul>
+            <h3>Flow 2: Block vote (message in → BFT → vote out)</h3>
+            <p><strong>Overview:</strong> A vote for a block arrives from the network (or the node produces its own vote). The simulation runner decodes it and feeds an event into the node; the BFT layer processes it and may emit <code>Action::SendMessage</code> (vote); the runner sends it over the simulated network. You see the consensus vote round-trip.</p>
 
-            <div class="success">
-                <strong>This stage is faster for someone with Rust knowledge to complete:</strong>
-            </div>
+            <p><strong>1. Where to add <code>debug!</code></strong></p>
+            <table class="flow-steps">
+                <thead>
+                    <tr><th>Step</th><th>File</th><th>Place</th><th>Add</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td><code>crates/simulation/src/runner.rs</code></td>
+                        <td>Where incoming BFT messages are decoded and turned into an event for the node (search for the BFT message handler / event injection). At the start of that block.</td>
+                        <td><code>tracing::debug!(node = node_index, "sim runner: BFT message received, forwarding to node");</code></td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td><code>crates/node/src/state.rs</code></td>
+                        <td>At the start of the <code>match</code> arm that handles the BFT event (e.g. <code>Event::Bft(...)</code> or similar — the arm that processes votes).</td>
+                        <td><code>tracing::debug!("node state: BFT event handled (vote in/out)");</code></td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td><code>crates/bft</code> or <code>crates/node</code></td>
+                        <td>Where the node emits <code>Action::SendMessage</code> for a vote (e.g. in the BFT state machine or in the node's BFT handler when it decides to send a vote).</td>
+                        <td><code>tracing::debug!("bft: emitting SendMessage (vote)");</code></td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td><code>crates/simulation/src/runner.rs</code></td>
+                        <td>Where <code>Action::SendMessage</code> is executed (action dispatch / send to network). At the start of that branch.</td>
+                        <td><code>tracing::debug!(node = node_index, "sim runner: SendMessage executed (vote on wire)");</code></td>
+                    </tr>
+                </tbody>
+            </table>
 
-            <h3>2️⃣ Intermediate Contributions to Hyperscale-rs</h3>
-            <p><strong>⏱️ ~4–7 months total</strong> (including the first phase)</p>
-            
-            <h4>What "intermediate" really means:</h4>
-            <ul>
-                <li>Modify or extend subsystems</li>
-                <li>Improve performance or correctness</li>
-                <li>Design APIs used by others</li>
-                <li>Reason about tradeoffs (latency vs throughput vs safety)</li>
-            </ul>
+            <p><strong>2. Command to run</strong></p>
+            <p>Same as Flow 1 so that proposals and votes happen: <code>RUST_LOG=debug cargo run --release --bin hyperscale-sim -- --seed 42 -s 1 -v 4 -d 5 --tps 20</code>. Votes occur as the sim runs; watch for your four log lines in order.</p>
+            <p><strong>3. Summary</strong></p>
+            <table class="flow-steps">
+                <thead>
+                    <tr><th>Step</th><th>File</th><th>What you see</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td><code>crates/simulation/src/runner.rs</code></td><td>BFT message received, forwarded to node</td></tr>
+                    <tr><td>2</td><td><code>crates/node/src/state.rs</code></td><td>BFT event handled (vote in/out)</td></tr>
+                    <tr><td>3</td><td>BFT / node</td><td>SendMessage (vote) emitted</td></tr>
+                    <tr><td>4</td><td><code>crates/simulation/src/runner.rs</code></td><td>SendMessage executed (vote on wire)</td></tr>
+                </tbody>
+            </table>
 
-            <h4>New mental models required:</h4>
-            <ul>
-                <li><strong>Distributed systems basics:</strong>
-                    <ul>
-                        <li>Failure modes</li>
-                        <li>Partial failures</li>
-                        <li>Backpressure</li>
-                    </ul>
-                </li>
-                <li><strong>Blockchain internals:</strong>
-                    <ul>
-                        <li>State machines</li>
-                        <li>Gossip / networking</li>
-                        <li>Determinism</li>
-                    </ul>
-                </li>
-                <li><strong>Rust performance profiling</strong></li>
-            </ul>
+            <h3>Flow 3: Block commit (commit → execution)</h3>
+            <p><strong>Overview:</strong> BFT agrees on a block and commits it. The node receives a "block committed" event; the state machine hands off to the execution layer, which runs the transactions in that block. You see consensus output becoming execution input.</p>
 
-            <div class="highlight">
-                <strong>What changes here:</strong> You stop asking "What does this code do?" and start asking "What happens if this node is slow / malicious / partitioned?" That shift takes time. <strong>This is where many people stall. You probably won't.</strong>
-            </div>
+            <p><strong>1. Where to add <code>debug!</code></strong></p>
+            <table class="flow-steps">
+                <thead>
+                    <tr><th>Step</th><th>File</th><th>Place</th><th>Add</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td><code>crates/node/src/state.rs</code></td>
+                        <td>At the start of the <code>match</code> arm that handles the block-committed event (e.g. <code>Event::BlockCommitted</code> or similar — search for "BlockCommitted" or "block committed" in this file).</td>
+                        <td><code>tracing::debug!(height = ?height, "node state: BlockCommitted, entering execution");</code> (use the height/block id variable that exists there if available, else drop the field.)</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td><code>crates/execution</code> or <code>crates/node</code></td>
+                        <td>Where execution is invoked for a committed block (e.g. "execute block" or "apply block" entry point). At the start of that path.</td>
+                        <td><code>tracing::debug!("execution: applying committed block");</code></td>
+                    </tr>
+                </tbody>
+            </table>
 
-            <h3>3️⃣ Advanced Contributions to Hyperscale-rs</h3>
-            <p><strong>⏱️ ~12–24 months</strong></p>
-            
-            <div class="warning">
-                <strong>This is the hard jump.</strong>
-            </div>
+            <p><strong>2. Command to run</strong></p>
+            <p>Same as Flow 1: <code>RUST_LOG=debug cargo run --release --bin hyperscale-sim -- --seed 42 -s 1 -v 4 -d 5 --tps 20</code>. Blocks commit as the sim runs; you should see "BlockCommitted, entering execution" then "execution: applying committed block" when a block commits.</p>
+            <p><strong>3. Summary</strong></p>
+            <table class="flow-steps">
+                <thead>
+                    <tr><th>Step</th><th>File</th><th>What you see</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td><code>crates/node/src/state.rs</code></td><td>BlockCommitted, entering execution</td></tr>
+                    <tr><td>2</td><td><code>crates/execution</code> or node</td><td>Applying committed block</td></tr>
+                </tbody>
+            </table>
 
-            <h4>What "advanced" really means:</h4>
-            <ul>
-                <li>Designing or changing core architecture</li>
-                <li>Modifying consensus or execution assumptions</li>
-                <li>Introducing new scalability mechanisms</li>
-                <li>Evaluating security tradeoffs</li>
-                <li>Reviewing other people's protocol PRs</li>
-            </ul>
-
-            <h4>You must deeply understand:</h4>
-            <ul>
-                <li>Consensus algorithms (BFT, PoS variants)</li>
-                <li>Network topology & message complexity</li>
-                <li>State growth & pruning</li>
-                <li>Cryptographic assumptions</li>
-                <li>Economic incentives</li>
-            </ul>
-
-            <h4>Why this takes longer:</h4>
-            <ul>
-                <li>Knowledge compounds non-linearly</li>
-                <li>Mistakes are expensive</li>
-                <li>You're now operating in adversarial environments</li>
-            </ul>
-
-            <div class="info">
-                <strong>Judgment matters more than speed.</strong>
-            </div>
+                        <p><strong>Full picture:</strong> The complete end-to-end flow — from user signing a transaction to finality — is covered in a dedicated Basic module: <a href="module-01b-tx-flow.html">Transaction Flow: User to Finality</a>. Use that module for the full diagram and to map every step to crates.</p>
         </div>
-
-        <div class="section">
-            <h2>3. Project Structure</h2>
-            
-            <p>Hyperscale-rs is organized as a Cargo workspace with multiple crates:</p>
-
-            <div class="code-block"><pre><code>hyperscale-rs/
-├── crates/
-│   ├── core/          # Core types and traits
-│   ├── types/         # Shared types (blocks, votes, etc.)
-│   ├── bft/           # BFT consensus implementation
-│   ├── execution/     # Transaction execution
-│   ├── mempool/       # Transaction pool
-│   ├── node/          # Main node state machine
-│   ├── simulation/    # Deterministic simulator
-│   └── production/    # Production runner
-├── guides/            # Documentation (you are here!)
-└── scripts/          # Helper scripts</code></pre></div>
-
-            <h3>Key Files to Know</h3>
-            <p>View these in the repo (links go to the file on GitHub):</p>
-            <ul>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/README.md" target="_blank" rel="noopener">README.md</a> — project overview and setup</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/01-overview.md" target="_blank" rel="noopener">guides/01-overview.md</a> — detailed project overview</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/02-architecture.md" target="_blank" rel="noopener">guides/02-architecture.md</a> — architecture deep dive</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/03-codebase-structure.md" target="_blank" rel="noopener">guides/03-codebase-structure.md</a> — codebase organization</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/core/src/traits.rs" target="_blank" rel="noopener">crates/core/src/traits.rs</a> — <code>StateMachine</code> trait</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/node/src/state.rs" target="_blank" rel="noopener">crates/node/src/state.rs</a> — main node implementation</li>
-            </ul>
-        </div>
-
-        <div class="section">
-            <h2>4. Setting Up Your Environment</h2>
-            
-            <h3>Prerequisites</h3>
-            <ol>
-                <li><strong>Install Rust</strong> (if not already installed):
-                    <div class="code-block"><pre><code class="language-bash">curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh</code></pre></div>
-                </li>
-                <li><strong>Install Build Dependencies</strong>:
-                    <ul>
-                        <li>macOS: <code>brew install llvm protobuf openssl pkg-config</code></li>
-                        <li>Linux: <code>sudo apt-get install clang lld pkg-config protobuf-compiler libssl-dev</code></li>
-                    </ul>
-                </li>
-                <li><strong>Clone the Repository</strong>:
-                    <div class="code-block"><pre><code class="language-bash">git clone --recurse-submodules https://github.com/flightofthefox/hyperscale-rs.git
-cd hyperscale-rs</code></pre></div>
-                </li>
-                <li><strong>Build the Project</strong>:
-                    <div class="code-block"><pre><code class="language-bash">cargo build --release</code></pre></div>
-                </li>
-                <li><strong>Run Tests</strong>:
-                    <div class="code-block"><pre><code class="language-bash">cargo test</code></pre></div>
-                </li>
-            </ol>
-
-            <div class="warning">
-                <strong>Important:</strong> Make sure to clone with <code>--recurse-submodules</code> as the project uses git submodules for Radix Engine dependencies.
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>5. Exploring the Codebase</h2>
-            
-            <h3>Practical Exercise</h3>
-            <p>In the repo, do the following (each link opens the file on GitHub):</p>
-            <ol>
-                <li>Open the <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/README.md" target="_blank" rel="noopener">README</a> and read the "What's different" section</li>
-                <li>Read <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/01-overview.md" target="_blank" rel="noopener">guides/01-overview.md</a> — focus on "What is Hyperscale?" and "Design Philosophy"</li>
-                <li>Open <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/core/src/traits.rs" target="_blank" rel="noopener">crates/core/src/traits.rs</a> and find the <code>StateMachine</code> trait</li>
-                <li>Browse <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/bft/src/lib.rs" target="_blank" rel="noopener">crates/bft/src/lib.rs</a> — read the module documentation at the top</li>
-                <li>Check <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/Cargo.toml" target="_blank" rel="noopener">Cargo.toml</a> — see all workspace members</li>
-            </ol>
-
-            <h3>Questions to Answer</h3>
-            <ul>
-                <li>What makes hyperscale-rs different from other consensus implementations?</li>
-                <li>Why is the "pure consensus layer" design important?</li>
-                <li>What is the relationship between events and actions?</li>
-            </ul>
-        </div>
-
-        <div class="section">
-            <h2>6. Knowledge Check Quiz</h2>
-            <div id="quiz-01" class="quiz-container"></div>
-        </div>
-
-        <div class="section">
-            <h2>7. Practical Assignment</h2>
-            <div class="assignment">
-                <h3>Assignment: Environment Setup & First Exploration</h3>
-                <p><strong>Goal:</strong> Set up your development environment and create a summary document.</p>
-                
-                <h4>Tasks:</h4>
-                <ol>
-                    <li><strong>Environment Setup</strong>:
-                        <ul>
-                            <li>Install all prerequisites</li>
-                            <li>Clone the repository with submodules</li>
-                            <li>Build the project successfully</li>
-                            <li>Run the test suite</li>
-                        </ul>
-                    </li>
-                    <li><strong>Codebase Exploration</strong>:
-                        <ul>
-                            <li>View the <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/README.md" target="_blank" rel="noopener">README</a> and <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/01-overview.md" target="_blank" rel="noopener">guides/01-overview.md</a> in the repo</li>
-                            <li>Explore at least 3 different crates (e.g. <a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">core</a>, <a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">bft</a>, <a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a>)</li>
-                            <li>Find and read the <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/core/src/traits.rs" target="_blank" rel="noopener">StateMachine trait</a> definition</li>
-                            <li>Identify one TODO or FIXME comment in the codebase (search in repo)</li>
-                        </ul>
-                    </li>
-                    <li><strong>Create Summary Document</strong>:
-                        <ul>
-                            <li>Create a file: <code>MY_LEARNING_JOURNEY.md</code> in the root</li>
-                            <li>Document what hyperscale-rs is and isn't (and how it relates to the Hyperscale protocol)</li>
-                            <li>List 3 things you found interesting in the codebase</li>
-                            <li>List 3 questions you have</li>
-                        </ul>
-                    </li>
-                </ol>
-
-                <h4>Success Criteria:</h4>
-                <ul>
-                    <li>✅ Project builds without errors</li>
-                    <li>✅ All tests pass</li>
-                    <li>✅ Summary document created with meaningful content</li>
-                    <li>✅ You can explain what hyperscale-rs is to someone else</li>
-                </ul>
-
-                <h4>Next Steps:</h4>
-                <p>Once complete, move to the next module. Don't worry if you don't understand everything yet - we'll dive deeper in subsequent modules!</p>
-            </div>
-        </div>
-
-        <div class="navigation">
-            <a href="module-01b-tx-flow.html" class="btn btn-secondary">← Previous Module</a>
-            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="module-01c-crate-groups.html" class="btn btn-primary">Next Module →</a>
-        </div>
-    </div>
-
-    <script src="../shared/course-data.js"></script>
-    <script src="../shared/navigation.js"></script>
-    <script src="../shared/glossary.js"></script>
-    <script>
-        // Initialize module
-        initializeModulePage('intermediate-hs-overview');
-
-        // Conceptual quiz: tests understanding, not rote memorization
-        const quizQuestions = [
-            {
-                question: "Why would a project keep consensus logic separate from I/O (network, disk, timers)?",
-                options: [
-                    "So that the same consensus code can be tested in simulation and run in production with the same behavior",
-                    "To make the code run faster",
-                    "To avoid using Rust",
-                    "So that no one can run it on a real network"
-                ],
-                correct: 0,
-                explanation: "If consensus could touch the network or clock directly, tests would depend on real time and real sockets — flaky and hard to reproduce. By feeding in Events and executing Actions via a \"runner,\" the same state machine gets deterministic tests and real deployment."
-            },
-            {
-                question: "Events flow *into* the state machine; Actions flow *out*. What problem does this separation solve?",
-                options: [
-                    "It makes the code shorter",
-                    "The core logic only has to say \"what to do\" (actions); something else does the I/O and turns results into new events",
-                    "It removes the need for any tests",
-                    "It allows multiple programming languages"
-                ],
-                correct: 1,
-                explanation: "The state machine stays pure: same state + same event ⇒ same actions. Runners (simulation or production) execute actions and inject new events. That way consensus is testable without mocking the whole world."
-            },
-            {
-                question: "Someone says: \"Hyperscale-rs is like a mini Ethereum.\" What's the best response?",
-                options: [
-                    "Yes, it has smart contracts and a token",
-                    "Not really — it's just the consensus engine (agreement on blocks); execution and full chain behavior live elsewhere",
-                    "It is exactly Ethereum but in Rust",
-                    "It replaces Ethereum"
-                ],
-                correct: 1,
-                explanation: "Hyperscale-rs implements agreement on a sequence of blocks (BFT, sharding). It doesn't implement execution, tokens, or smart contracts by itself; those are in other layers (e.g. Radix Engine) that build on top."
-            },
-            {
-                question: "Why might \"deterministic\" matter for a consensus protocol?",
-                options: [
-                    "It makes the protocol faster than others",
-                    "So that every honest node, given the same inputs and events, produces the same decisions and avoids forks from inconsistent behavior",
-                    "Only for unit tests",
-                    "It doesn't matter"
-                ],
-                correct: 1,
-                explanation: "Consensus means everyone agrees. If the logic were non-deterministic (e.g. depended on random or wall clock), different nodes could reach different conclusions and the chain could fork. Determinism keeps everyone in sync."
-            },
-            {
-                question: "What's one benefit of the Hyperscale protocol being designed for sharding from the start?",
-                options: [
-                    "Sharding is optional and rarely used",
-                    "Throughput can scale with more shards; cross-shard coordination is part of the design",
-                    "It uses less disk space",
-                    "It avoids BFT entirely"
-                ],
-                correct: 1,
-                explanation: "Sharding lets different groups of validators process different shards in parallel. Hyperscale is designed so that cross-shard transactions and coordination are first-class, instead of bolted on later."
-            }
-        ];
-
-        initializeQuiz('quiz-01', quizQuestions, 70);
-    </script>
-</body>
-</html>
