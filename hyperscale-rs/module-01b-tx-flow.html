@@ -56,6 +56,9 @@
             <p>Hyperscale-rs is a <strong>consensus layer</strong>, not a full blockchain stack. This diagram shows the end-to-end path of a transaction from the user to finality, and which parts Hyperscale touches versus which are outside (e.g. wallet, Radix Engine semantics, network client). Hover over each step to see which crates implement it.</p>
             <p><strong>Basic level:</strong> This is the only Hyperscale-specific basic module. The web3 modules (Blockchain, Consensus, Distributed Systems, State Machines) give foundation. After this, go to <strong>Intermediate</strong> for Hyperscale Overview, Crate Groups (with 10-question quizzes per group), Codebase Exploration, and First Contribution.</p>
             <p><strong>Where BFT comes in:</strong> Steps 1–6 get the tx into the system (user, network, node, cross-shard determination, <span data-glossary="mempool">mempool</span>, and for cross-shard txs, travel to involved <span data-glossary="sharding">shards</span>). <strong>BFT consensus runs from step 7</strong> (proposer selection) through step 11 (block committed) <em>per <span data-glossary="sharding">shard</span></em>. Steps 12–14 are execution, then (for cross-shard) coordination &amp; composition, then finality.</p>
+            <div class="info section-tight">
+                <p><strong>Single-shard vs multi-shard (canonical split):</strong> Steps 1–6 are the same. From step 7 onward, <strong>BFT runs per shard</strong> (each shard has its own proposer, block, votes, QC, commit). <strong>Single-shard:</strong> After step 11 (block committed), step 12 (execution) runs immediately—no provisioning. <strong>Multi-shard:</strong> After step 11, the execution crate <strong>registers</strong> the tx with ProvisionCoordinator and waits for <strong>ProvisioningComplete</strong> (quorum of StateProvisions from each required shard); then it runs the five-phase protocol (State Provisioning → Provision Verification → Deterministic Execution → Vote Aggregation → Finalization). There is <strong>no 2PC coordinator</strong> in hyperscale-rs; atomicity is provision-based. See <a href="module-05-cross-shard.html">Cross-Shard Transactions</a> for detail.</p>
+            </div>
         </div>
 
         <div class="section">
@@ -103,8 +106,8 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/production" target="_blank" rel="noopener">production</a> — I/O, turns network into events</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — NodeStateMachine receives events</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/production" data-crate="production" target="_blank" rel="noopener">production</a> — I/O, turns network into events</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">node</a> — NodeStateMachine receives events</li>
                                 </ul>
                             </div>
                         </div>
@@ -120,8 +123,8 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — routing, shard mapping</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">core</a> — Event/Action types</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">node</a> — routing, shard mapping</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">core</a> — Event/Action types</li>
                                 </ul>
                                 <p class="outside-note">Shard assignment of NodeIDs is defined by the protocol / Radix Engine; consensus uses it to decide single- vs cross-shard.</p>
                             </div>
@@ -138,9 +141,9 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/mempool" target="_blank" rel="noopener">mempool</a> — transaction pool</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — composes mempool</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">core</a> — Event/Action types</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/mempool" data-crate="mempool" target="_blank" rel="noopener">mempool</a> — transaction pool</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">node</a> — composes mempool</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">core</a> — Event/Action types</li>
                                 </ul>
                             </div>
                         </div>
@@ -156,12 +159,12 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/provisions" target="_blank" rel="noopener">provisions</a> — centralized provision coordination; drives cross-shard flow</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/production" target="_blank" rel="noopener">production</a> — cross-shard messaging (libp2p Gossipsub on shard-scoped topics)</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — composes provisions, coordination state</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/provisions" data-crate="provisions" target="_blank" rel="noopener">provisions</a> — centralized provision coordination; drives cross-shard flow</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/production" data-crate="production" target="_blank" rel="noopener">production</a> — cross-shard messaging (libp2p Gossipsub on shard-scoped topics)</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">node</a> — composes provisions, coordination state</li>
                                 </ul>
                                 <p class="outside-note">In Hyperscale-rs, the node sends the tx to other shards via the production network layer: <strong>libp2p Gossipsub</strong> with shard-scoped topics (e.g. <code>hyperscale/{msg_type}/shard-{id}/1.0.0</code>). RPC is only for client→node submission.</p>
-                                <p class="outside-note">livelock crate handles cross-shard deadlock detection and prevention.</p>
+                                <p class="outside-note"><span data-glossary="livelock">Livelock</span> crate handles cross-shard dependency-cycle detection and prevention.</p>
                             </div>
                         </div>
                     </div>
@@ -176,9 +179,9 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">bft</a> — view, leader election</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">core</a> — traits, time</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" target="_blank" rel="noopener">types</a> — block, validator set</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" data-crate="bft" target="_blank" rel="noopener">bft</a> — view, leader election</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">core</a> — traits, time</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">types</a> — block, validator set</li>
                                 </ul>
                             </div>
                         </div>
@@ -194,9 +197,9 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">bft</a> — proposal logic</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" target="_blank" rel="noopener">types</a> — Block, BlockHeader</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — routes ProposalTimer, etc.</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" data-crate="bft" target="_blank" rel="noopener">bft</a> — proposal logic</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">types</a> — Block, BlockHeader</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">node</a> — routes ProposalTimer, etc.</li>
                                 </ul>
                             </div>
                         </div>
@@ -212,8 +215,8 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">bft</a> — block validation logic and voting; collects votes</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" target="_blank" rel="noopener">types</a> — Block, Vote, signatures</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" data-crate="bft" target="_blank" rel="noopener">bft</a> — block validation logic and voting; collects votes</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">types</a> — Block, Vote, signatures</li>
                                 </ul>
                             </div>
                         </div>
@@ -229,11 +232,11 @@
                             <div class="flow-step-popup">
                                 <h4>Crates &amp; code</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">bft</a> — vote collection, QC build request, <code>latest_qc</code>, block build with <code>parent_qc</code></li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" target="_blank" rel="noopener">types</a> — <code>BlockHeader.parent_qc</code> (block.rs:75), <code>QuorumCertificate</code></li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">core</a> — <code>Action::PersistAndBroadcastVote</code> (action.rs:444), <code>Action::VerifyAndBuildQuorumCertificate</code> (action.rs:113)</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" data-crate="bft" target="_blank" rel="noopener">bft</a> — vote collection, QC build request, <code>latest_qc</code>, block build with <code>parent_qc</code></li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">types</a> — <code>BlockHeader.parent_qc</code> in <code>block.rs</code>, <code>QuorumCertificate</code></li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">core</a> — <code>Action::PersistAndBroadcastVote</code>, <code>Action::VerifyAndBuildQuorumCertificate</code> in <code>action.rs</code></li>
                                 </ul>
-                                <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem;"><strong>Locations:</strong> BFT state emits vote broadcast in <code>bft/src/state.rs</code> (≈2575), emits QC build in <code>bft/src/state.rs</code> (≈2765); <code>on_qc_formed</code> sets <code>latest_qc</code> (state.rs:3583); <code>latest_qc</code> from received header (state.rs:1597); block build uses <code>latest_qc</code> as <code>parent_qc</code> (state.rs:1013–1017, 1147, 1182–1208). <code>vote_set.build_qc</code> in <code>bft/src/vote_set.rs</code> (307).</p>
+                                <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem;"><strong>Locations:</strong> BFT state in <code>bft/src/state.rs</code> (vote broadcast, QC build, <code>on_qc_formed</code> → <code>latest_qc</code>; block build uses <code>latest_qc</code> as <code>parent_qc</code>). <code>vote_set.build_qc</code> in <code>bft/src/vote_set.rs</code>. Line numbers may vary with repo version; search for the symbol names.</p>
                             </div>
                         </div>
                     </div>
@@ -248,9 +251,9 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — CommitBlock action, composition</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">bft</a> — commit rule</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">core</a> — Action::CommitBlock</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">node</a> — CommitBlock action, composition</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" data-crate="bft" target="_blank" rel="noopener">bft</a> — commit rule</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">core</a> — Action::CommitBlock</li>
                                 </ul>
                                 <p class="outside-note">“Node” = any validator running the NodeStateMachine in this shard; the proposer is one of them. All commit the same block in the same order.</p>
                             </div>
@@ -267,9 +270,9 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" target="_blank" rel="noopener">execution</a> — execution state machine; cross-shard 2PC coordination</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/engine" target="_blank" rel="noopener">engine</a> — Radix Engine integration for smart contract execution</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — composes execution</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" data-crate="execution" target="_blank" rel="noopener">execution</a> — execution state machine; cross-shard 2PC coordination</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/engine" data-crate="engine" target="_blank" rel="noopener">engine</a> — Radix Engine integration for smart contract execution</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">node</a> — composes execution</li>
                                 </ul>
                                 <p class="outside-note">Execution semantics (Radix Engine) are in engine crate / vendor; BFT only orders and coordinates.</p>
                             </div>
@@ -286,10 +289,10 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/provisions" target="_blank" rel="noopener">provisions</a> — centralized provision coordination for cross-shard txs</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" target="_blank" rel="noopener">execution</a> — transaction execution with cross-shard <span data-glossary="two-phase commit">2PC</span> coordination</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — composes provisions, execution, core</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">core</a> — Event/Action for coordination</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/provisions" data-crate="provisions" target="_blank" rel="noopener">provisions</a> — centralized provision coordination for cross-shard txs</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" data-crate="execution" target="_blank" rel="noopener">execution</a> — transaction execution with cross-shard <span data-glossary="two-phase commit">2PC</span> coordination</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">node</a> — composes provisions, execution, core</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">core</a> — Event/Action for coordination</li>
                                 </ul>
                                 <p class="outside-note">See module “Cross-Shard Transactions” for 2PC and provision coordination details.</p>
                             </div>
@@ -306,8 +309,8 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">bft</a> — finality rule</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">node</a> — state, persistence</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" data-crate="bft" target="_blank" rel="noopener">bft</a> — finality rule</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">node</a> — state, persistence</li>
                                 </ul>
                             </div>
                         </div>
@@ -326,17 +329,17 @@
                     <li><strong>Proposer sends a block to its shard, not “the block” to all shards.</strong> The proposer for <strong>shard S</strong> builds <strong>one block</strong> (header with <code>parent_qc</code> = QC for previous block in S’s chain, plus txs from S’s mempool). It broadcasts that block (or header; full block is assembled via gossip) to <strong>validators in shard S only</strong>. So: one block per shard, broadcast inside that shard. Other shards have their own proposers and their own blocks at the same “logical” time.</li>
                     <li><strong>Voting and execution order.</strong> Validators in <strong>that shard</strong> vote on the <strong>block</strong> (BFT: do we agree on this block?). That yields a QC for that shard’s block. Then the block is committed (step 11). <strong>After</strong> commit, execution runs (step 12): the transactions in the block are run (e.g. via Radix Engine). So: BFT agrees on block → commit → then execute. There is no “each shard votes on validity and reports to the proposer” in the sense of one global proposer; each shard votes on its own block and gets its own QC.</li>
                     <li><strong>Cross-shard: no single “proposer finalizes with all shards’ QCs.”</strong> Each shard has its <strong>own</strong> chain and its <strong>own</strong> QC. For a cross-shard tx, the tx (or sub-tx) is in each involved shard’s mempool; each shard may include it in its block; each shard runs BFT (propose → vote → QC → commit) and then execution. <strong>Atomicity across shards</strong> is achieved by <strong>2PC</strong> (step 13): a coordinator drives prepare → all shards prepare (lock/reserve) and reply yes/no → commit or abort → each shard applies state in an agreed order. So “all report success” is the 2PC prepare phase; then commit/abort and apply. There is no single block that “includes the votes (QC) of each shard” — each shard’s block has its own QC in the <em>next</em> block’s header (the normal two-chain rule per shard).</li>
-                    <li><strong>What is the coordinator?</strong> For the full picture (2PC coordinator vs ProvisionCoordinator, protocol order, concepts), see the <strong>Intermediate</strong> module <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>.</li>
+                    <li><strong>What is the coordinator?</strong> In hyperscale-rs there is no 2PC coordinator; cross-shard flow uses <strong>ProvisionCoordinator</strong> only (provision-based protocol). For the full picture (protocol order, five phases, livelock), see the <strong>Intermediate</strong> module <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>.</li>
                 </ul>
             </div>
 
-            <p class="info section-tight" style="margin-top: 1rem;">For <strong>how atomic composability works</strong> (prepare → commit/abort → state updates), the <strong>two coordinators</strong> (2PC vs ProvisionCoordinator), <strong>how order is fixed</strong>, manifest vs protocol order, and <strong>concepts</strong> (shards, proposer, NodeID, finality), see the Intermediate module <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>.</p>
+            <p class="info section-tight" style="margin-top: 1rem;">For <strong>how cross-shard atomicity works</strong> (provision-based protocol: StateProvision → ProvisionCoordinator → execution), <strong>ProvisionCoordinator</strong> (no 2PC coordinator in hyperscale-rs), <strong>how order is fixed</strong>, manifest vs protocol order, and <strong>concepts</strong> (shards, proposer, NodeID, finality), see the Intermediate module <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>.</p>
 
         <div class="section">
             <h2>Crate groupings (code reading order)</h2>
             <p>The codebase is grouped by <strong>transaction-flow progression</strong>. Read the groups in order (1 → 6); use the quizzes in the next module to check understanding.</p>
             <div class="code-block-light" style="overflow-x: auto;">
-                <table style="width: 100%; min-width: 640px; border-collapse: collapse;">
+                <table class="table-crate-groups" style="width: 100%; min-width: 640px; border-collapse: collapse;">
                     <thead>
                         <tr style="background: var(--bg2);">
                             <th style="padding: 0.5rem; text-align: left; border: 1px solid var(--border);">Group</th>
@@ -383,6 +386,8 @@
     </div>
 
     <script src="../shared/course-data.js"></script>
+    <script src="../shared/hyperscale-flow-data.js"></script>
+    <script src="../shared/hyperscale-links.js"></script>
     <script src="../shared/navigation.js"></script>
     <script src="../shared/glossary.js"></script>
     <script src="../shared/module-init.js" data-module-id="basic-05b"></script>

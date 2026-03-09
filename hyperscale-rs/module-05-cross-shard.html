@@ -23,35 +23,120 @@
         <div class="section">
             <h2>Learning Objectives</h2>
             <ul>
-                <li>Understand 2PC and provision coordination in hyperscale-rs</li>
+                <li>Understand provision-based cross-shard atomicity in hyperscale-rs (no 2PC coordinator)</li>
                 <li>Map a complex Radix manifest to shards, provisioning, and coordination</li>
                 <li>See how protocol order (ShardGroupId) differs from manifest instruction order</li>
-                <li>Understand livelock prevention in cross-shard flow</li>
+                <li>Understand <span data-glossary="livelock">livelock</span> prevention in cross-shard flow</li>
                 <li>Trace cross-shard flow in the codebase (types, topology, execution, provisions)</li>
             </ul>
         </div>
 
         <div class="info section-tight">
             <h2>How atomic composability works (cross-shard)</h2>
-            <p>The diagram in <a href="module-01b-tx-flow.html" target="_blank" rel="noopener noreferrer">Transaction Flow</a> emphasizes that cross-shard atomicity depends on <strong>correct order</strong> of communication and <strong>when</strong> state updates are applied:</p>
-            <ol class="list-nested">
-                <li><strong>Coordinator</strong> (one shard or a designated role) sends <strong>prepare</strong> to every involved shard in a defined order.</li>
-                <li>Each shard <strong>prepares</strong>: runs its part of the tx (e.g. <span data-glossary="prepare phase">reserve/lock</span>), but does <em>not</em> make the state update visible yet. It replies yes or no.</li>
-                <li>When <strong>all</strong> have voted yes, coordinator sends <strong>commit</strong>; otherwise it sends <strong>abort</strong> to all.</li>
-                <li><strong>State updates</strong>: Each shard then applies updates in an <strong>agreed order</strong> (e.g. by shard ID, or the order the coordinator specifies). On commit, each applies its state change; on abort, each releases locks. No shard commits while another aborts — the protocol order ensures a single composed outcome.</li>
-            </ol>
-            <p style="margin-bottom: 0;">So shards communicate in this <strong>fixed protocol order</strong> (prepare phase → decision → apply phase), and state updates happen only after the decision, in the same order everywhere. That is what makes the cross-shard tx <strong>atomic</strong> and <strong>composable</strong>.</p>
+            <p>The diagram in <a href="module-01b-tx-flow.html" target="_blank" rel="noopener noreferrer">Transaction Flow</a> emphasizes that cross-shard atomicity depends on <strong>correct order</strong> of communication and <strong>when</strong> state updates are applied. Below is the same flow as a flowchart (consistent with <a href="module-01b-tx-flow.html">Transaction Flow</a>):</p>
+            <div class="tx-flow">
+                <div class="tx-flow-legend">
+                    <span><span class="dot-hyperscale"></span> Cross-shard atomic execution (provision-based; no 2PC coordinator)</span>
+                </div>
+                <div class="tx-flow-diagram">
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">1. State provisioning</div>
+                            <div class="flow-step-desc">When a block commits with cross-shard txs, the block proposer broadcasts <strong>StateProvision</strong> (with merkle inclusion proofs) to target shards.</div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">2. Provision verification</div>
+                            <div class="flow-step-desc"><strong>ProvisionCoordinator</strong> on each node receives provisions, verifies QC signature and merkle proofs against the committed state root, and tracks quorum per required shard. When it has quorum from every required shard, it marks <strong>ProvisioningComplete</strong>.</div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">3. Deterministic execution</div>
+                            <div class="flow-step-desc">With provisioned state, validators execute the tx and create an <strong>ExecutionVote</strong> (merkle root of execution results).</div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">4. Vote aggregation</div>
+                            <div class="flow-step-desc">When 2f+1 voting power agrees on the same merkle root, an <strong>ExecutionCertificate</strong> is created and broadcast to remote participating shards.</div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">5. Finalization</div>
+                            <div class="flow-step-desc">Validators collect <strong>ExecutionCertificates</strong> from all participating shards. When all are received, a <strong>TransactionCertificate</strong> is created. Atomicity comes from this provision + vote + certificate flow; there is <strong>no</strong> separate 2PC coordinator in hyperscale-rs.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p style="margin-top: 1rem;">Hyperscale-rs uses a <strong>provision-based atomic execution protocol</strong> (execution crate: five phases above). There is <strong>no 2PC coordinator</strong>—no prepare/commit/abort round. Atomicity is achieved by StateProvisions from source shards, ProvisionCoordinator checklist, then execution and certificate aggregation.</p>
         </div>
 
-        <div class="section">
-            <h2>Two coordinators: 2PC coordinator and ProvisionCoordinator</h2>
-            <p>Cross-shard flow uses two different “coordinator” ideas:</p>
+                <div class="section">
+            <h2>ProvisionCoordinator (the only coordinator in cross-shard flow)</h2>
+            <p>In hyperscale-rs, cross-shard flow has <strong>one</strong> coordinator concept: <strong>ProvisionCoordinator</strong> (provisions crate). There is no 2PC coordinator; the code uses the five-phase provision-based protocol above.</p>
             <ul>
-                <li><strong>2PC coordinator (<a href="module-01b-tx-flow.html#step-13" target="_blank" rel="noopener noreferrer">step 13 in the tx flow</a>).</strong> This is <strong>one of the involved shards</strong> (or a designated role), not a separate server. Validators in that shard run the logic that: sends <strong>prepare</strong> to each involved shard (in a fixed order), collects yes/no, then sends <strong>commit</strong> (if all yes) or <strong>abort</strong>. So it’s the shard that “asks whether everyone is ready” and then decides go or cancel. Implementation: <code>execution</code> crate (cross-shard 2PC coordination).</li>
-                <li><strong>ProvisionCoordinator (provisions crate).</strong> This is a <strong>sub-state machine on every node</strong>, not a single elected node. It tracks <strong>provisions</strong>: after a shard commits its part of a cross-shard tx, it sends a signed proof (a "provision") to the other shards. ProvisionCoordinator on each node keeps a checklist: “For this tx, do we have quorum of provisions from shard 1? From shard 2? …” When it has enough from every required shard, it emits <strong>ProvisioningComplete</strong> so execution can proceed. So it’s the “checklist” for “did we get enough proofs from the prerequisite shards?” — not the prepare yes/no (that’s 2PC).</li>
+                <li><strong>ProvisionCoordinator (provisions crate).</strong> A <strong>sub-state machine on every node</strong>, not a single elected node. After a shard commits its block (with part of a cross-shard tx), it produces a signed proof (<strong>StateProvision</strong>) and sends it to other shards. ProvisionCoordinator on each node keeps a checklist: "For this tx, do we have quorum of provisions from shard 1? From shard 2? …" (<code>required_shards</code> = all other participating shards). When it has enough from every required shard, it emits <strong>ProvisioningComplete</strong> so the execution crate can proceed (Phase 3–5). So it answers "can this shard complete its part?" — we have the proofs we need from prerequisite shards.</li>
             </ul>
-            <p><strong>How is the order fixed?</strong> "The protocol fixes an order" means a <strong>deterministic rule</strong> that all nodes follow (e.g. by shard ID, or by the order of NodeIDs in the tx), so everyone agrees on which shard is first, second, third. The <strong>2PC coordinator</strong> does not choose that order; it <strong>drives</strong> the protocol in that pre-agreed order (sends prepare in that order, then commit/abort, then state updates in that order). So: the protocol defines the order; the coordinator executes the protocol in that order.</p>
-            <p><strong>How is order determined for composite (cross-shard) transactions?</strong> In the <strong>Radix manifest</strong>, instructions are in a fixed order (e.g. withdraw from A → split → put in staking vault → put in LP → return IOUs). The <strong>Radix Engine</strong> runs those instructions sequentially when executing; data dependencies are implicit (instruction 2 sees the result of instruction 1). For <strong>Hyperscale (consensus)</strong>, the transaction is turned into a <strong>RoutableTransaction</strong> by <strong>instruction analysis</strong> (<code>crates/types/src/transaction.rs</code>): the manifest is walked and every NodeId read or written is collected into <code>declared_reads</code> and <code>declared_writes</code>. Those are <strong>sets</strong> (deduplicated); <strong>instruction order is not preserved</strong> at the consensus layer. Shard sets are then derived: <strong>consensus_shards</strong> = unique shards of <code>declared_writes</code>; <strong>provisioning_shards</strong> = shards of <code>declared_reads</code> that are not write shards. Both are stored in <strong>BTreeSet</strong>s, so the <strong>protocol order is by ShardGroupId</strong> (numeric). So: we do <em>not</em> derive "Account_A shard first, then Staking_VAULT shard, then LP shard" from the manifest order—we get a deterministic order by <strong>shard ID</strong>. Prerequisites are enforced by <strong>provisions</strong>: a shard that needs remote state (reads from another shard) must receive quorum of provisions from that shard before it can complete; which shards are "required" is the set of all other participating shards. Parallelism: each shard runs BFT and execution independently; cross-shard atomicity is then 2PC (prepare all in shard-ID order, then commit/abort) and provisioning (everyone waits for provisions from every other participating shard). Refs: <code>crates/types/src/topology.rs</code> (<code>consensus_shards</code>, <code>provisioning_shards</code>, <code>all_shards_for_transaction</code>), <code>crates/types/src/transaction.rs</code> (<code>analyze_instructions_v1</code> / <code>analyze_instructions_v2</code>).</p>
+            <div class="info section-tight">
+                <p><strong>Nuance: Why "centralized" ProvisionCoordinator?</strong> The provisions crate doc calls it <em>centralized</em> in the sense that <strong>on each node</strong>, one sub-state machine (<code>ProvisionCoordinator</code>) owns all provision tracking and verification for that node—instead of scattering that logic across execution, BFT, and mempool. There is <strong>no</strong> single network-wide coordinator; each validator runs its own ProvisionCoordinator. <strong>Pros:</strong> Single place to join provisions with remote headers, verify QC + merkle proofs, and emit ProvisioningComplete; consistent with execution crate (which registers and waits on it); livelock can query <code>txs_with_provisions_from</code> in one place. <strong>Cons:</strong> All provision state and verification complexity lives in one component per node; backpressure for cross-shard txs is handled by mempool (which calls <code>has_any_verified_provisions</code>), not inside the coordinator—so the design splits "have we got provisions?" (provisions crate) from "should we relax limits?" (mempool).</p>
+            </div>
+            <p><strong>State Provision flow (same style as <a href="module-01b-tx-flow.html">Transaction Flow</a>):</strong> After a shard commits its block, it produces a signed proof (StateProvision) and sends it to other shards. ProvisionCoordinator on each node tracks whether it has quorum of provisions from each required shard; when complete, it emits ProvisioningComplete so execution can proceed.</p>
+            <div class="info section-tight">
+                <p><strong>Multi-shard finality in rounds:</strong> Yes — a multi-shard tx is effectively finalized in <strong>multiple rounds</strong>, one per shard that holds a part of it. Shard 0 finalizes its block (and thus its part of the tx and the outgoing receipt); it then sends the receipt (via StateProvision) to Shard 1. Shard 1 can only complete its part after it has those provisions; when Shard 1’s block that applies the receipt is finalized, that part is final too. So each “round” is a block finalized on one shard. The <strong>transaction as a whole</strong> is finalized only when <strong>every</strong> such block (on every involved shard) is finalized.</p>
+            </div>
+            <div class="tx-flow">
+                <div class="tx-flow-legend">
+                    <span><span class="dot-hyperscale"></span> Provisions / ProvisionCoordinator</span>
+                </div>
+                <div class="tx-flow-diagram">
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">1. Shard commits block</div>
+                            <div class="flow-step-desc">A shard <span data-glossary="finalized">finalizes</span> its block containing (part of) a cross-shard tx.</div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">2. Produce StateProvision</div>
+                            <div class="flow-step-desc">The shard produces a <strong>StateProvision</strong> (signed proof of the state it wrote) and sends it to the other involved shards.</div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">3. ProvisionCoordinator checklist</div>
+                            <div class="flow-step-desc">On each node, <strong>ProvisionCoordinator</strong> (provisions crate) keeps a checklist: for this tx, do we have <strong>quorum of provisions</strong> from shard 1? From shard 2? … (<code>required_shards</code> = all other participating shards).</div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+                    <div class="flow-step hyperscale">
+                        <div class="flow-step-lane hyperscale"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">4. ProvisioningComplete</div>
+                            <div class="flow-step-desc">When the node has provisions from <strong>every</strong> required shard, it emits <strong>ProvisioningComplete</strong> so execution can proceed. Shard 3 cannot finish its view of the cross-shard tx until it has proofs from shards 1 and 2.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p><strong>Multiple source shards:</strong> A target shard can have <strong>multiple</strong> source shards. Example: tx touches shards 0, 1, 2; shard 2’s step depends on both shard 0 and shard 1. Then <code>required_shards</code> for shard 2 = {0, 1}. ProvisionCoordinator on shard 2 waits until it has <strong>quorum of provisions from shard 0</strong> <em>and</em> <strong>quorum from shard 1</strong>. Those provisions can arrive <strong>in parallel</strong> (in any order); it is not “first shard 0, then shard 1.” As soon as the checklist is complete (every required shard has delivered quorum), ProvisioningComplete fires.</p>
+            <p><strong>How is the order fixed?</strong> Order is determined by a <strong>deterministic rule</strong> (e.g. by <strong>ShardGroupId</strong>): consensus_shards, required_shards, and certificate collection all use the same ordering so every node agrees. There is no separate coordinator that "drives" prepare/commit—atomicity is achieved by the provision-based protocol (phases 1–5 above).</p>
+            <p><strong>How is order determined for composite (cross-shard) transactions?</strong> In the <strong>Radix manifest</strong>, instructions are in a fixed order (e.g. withdraw from A → split → put in staking vault → put in LP → return IOUs). The <strong>Radix Engine</strong> runs those instructions sequentially when executing; data dependencies are implicit (instruction 2 sees the result of instruction 1). For <strong>Hyperscale (consensus)</strong>, the transaction is turned into a <strong>RoutableTransaction</strong> by <strong>instruction analysis</strong> (<code>crates/types/src/transaction.rs</code>): the manifest is walked and every NodeId read or written is collected into <code>declared_reads</code> and <code>declared_writes</code>. Those are <strong>sets</strong> (deduplicated); <strong>instruction order is not preserved</strong> at the consensus layer. Shard sets are then derived: <strong>consensus_shards</strong> = unique shards of <code>declared_writes</code>; <strong>provisioning_shards</strong> = shards of <code>declared_reads</code> that are not write shards. Both are stored in <strong>BTreeSet</strong>s, so the <strong>protocol order is by ShardGroupId</strong> (numeric). So: we do <em>not</em> derive "Account_A shard first, then Staking_VAULT shard, then LP shard" from the manifest order—we get a deterministic order by <strong>shard ID</strong>. Prerequisites are enforced by <strong>provisions</strong>: a shard that needs remote state (reads from another shard) must receive quorum of provisions from that shard before it can complete; which shards are "required" is the set of all other participating shards. Parallelism: each shard runs BFT and execution independently; cross-shard atomicity is achieved by provisioning (quorum of StateProvisions from each required shard via ProvisionCoordinator) and then execution and certificate aggregation—no 2PC coordinator in hyperscale-rs. Refs: <code>crates/types/src/topology.rs</code> (<code>consensus_shards</code>, <code>provisioning_shards</code>, <code>all_shards_for_transaction</code>), <code>crates/types/src/transaction.rs</code> (<code>analyze_instructions_v1</code> / <code>analyze_instructions_v2</code>).</p>
             <p>See the <a href="module-01b-tx-flow.html" target="_blank" rel="noopener noreferrer">Transaction Flow</a> diagram for the full step-by-step from user to finality.</p>
         </div>
 
@@ -67,7 +152,7 @@
 6. CallMethod(Account_A, "deposit", staking_IOU)        # → NodeID_Account_A
 7. CallMethod(Account_A, "deposit", lp_IOU)             # → NodeID_Account_A</code></pre>
             <p><strong>Radix Engine:</strong> Runs these instructions <strong>in order</strong>. Data flow is implicit (e.g. step 4 uses the bucket from step 3; step 6–7 deposit what step 4–5 returned).</p>
-            <p><strong>Instruction analysis (Hyperscale):</strong> The manifest is walked and every NodeId read or written is collected into <code>declared_reads</code> and <code>declared_writes</code> (<code>crates/types/src/transaction.rs</code>: <code>analyze_instructions_v1</code> / <code>analyze_instructions_v2</code>). The result is <strong>sets</strong> (deduplicated); <strong>instruction order is not preserved</strong> at the consensus layer. Assume:</p>
+            <p><strong>Instruction analysis (Hyperscale):</strong> The manifest is walked and every NodeId read or written is collected into <code>declared_reads</code> and <code>declared_writes</code> (<code>crates/types/src/transaction.rs</code>: <code>analyze_instructions_v1</code> / <code>analyze_instructions_v2</code>). The result is <strong>sets</strong> (no duplicate NodeIds—each node appears at most once); <strong>instruction order is not preserved</strong> at the consensus layer. Assume:</p>
             <ul>
                 <li><code>declared_writes</code>: Account_A, Staking_VAULT, LP_COMPONENT (and possibly resource/vault NodeIds)</li>
                 <li><code>declared_reads</code>: any read-only touched nodes (e.g. package, resource type)</li>
@@ -82,7 +167,7 @@
             <ul>
                 <li>The tx is sent to shards 1, 2, 3 (<a href="module-01b-tx-flow.html#step-6" target="_blank" rel="noopener noreferrer">step 6 in the tx flow</a>). Each shard runs BFT and execution for its part. When a shard commits its block containing this tx, it produces a <strong>StateProvision</strong> (signed proof of the state it wrote) and sends it to the other shards.</li>
                 <li><strong>ProvisionCoordinator</strong> on each node (e.g. on shard 3) keeps a checklist: “Do we have quorum of provisions from shard 1? From shard 2?” When it has provisions from <strong>every</strong> other participating shard (<code>required_shards</code> in <code>TxRegistration</code>), it emits <strong>ProvisioningComplete</strong> so execution can proceed. So shard 3 cannot “finish” its view of the cross-shard tx until it has proofs from shards 1 and 2—that’s the prerequisite.</li>
-                <li><strong>2PC coordinator</strong> (one of shards 1, 2, or 3) drives prepare → collect yes/no → commit or abort in <strong>shard-ID order</strong> (1, 2, 3), not in manifest order. State updates are applied in that same order after the decision.</li>
+                <li>Execution and certificate aggregation proceed in the same deterministic order (by shard ID); there is no 2PC coordinator—only ProvisionCoordinator and the five-phase protocol.</li>
             </ul>
             <p>So: the <strong>manifest</strong> defines the logical flow (withdraw → split → stake → LP → deposit); the <strong>engine</strong> runs it sequentially; Hyperscale uses <strong>shard ID order</strong> for coordination and <strong>provisions</strong> to enforce “everyone has proof from everyone else” before completion.</p>
         </div>
@@ -93,14 +178,25 @@
         </div>
 
         <div class="section">
+            <h2>Livelock in this codebase</h2>
+            <p><span data-glossary="livelock">Livelock</span> here means a <strong>cycle of cross-shard dependencies</strong> that would block progress: e.g. Shard A commits TX₁ (needs state from C) and Shard C commits TX₂ (needs state from A) → A is waiting on C and C on A. The <strong>livelock crate</strong> handles this:</p>
+            <ul>
+                <li>When a shard gets a <strong>provision</strong> (proof that another shard committed a cross-shard tx), it runs <strong>cycle detection</strong>: “Do we have a committed tx that needs their state, and do they have one that needs ours?” If both are true, that’s a cycle.</li>
+                <li>To <strong>break</strong> it, one of the transactions is <strong>deferred</strong> (e.g. the one with the larger hash “loses” and is retried later). Both shards use the same deterministic rule so they agree without extra messages.</li>
+                <li><strong>TransactionDefer</strong> / <strong>TransactionAbort</strong> and retry are in the livelock and execution crates; the mempool tracks original vs retry for status and eviction.</li>
+            </ul>
+            <p>The simulator’s <code>--analyze-livelocks</code> flag reports how often such cycles occurred in a run.</p>
+        </div>
+
+        <div class="section">
             <h2>Concepts in the Flow</h2>
             <ul>
                 <li><strong><span data-glossary="sharding">Shards</span></strong> — The network is split into shards; each shard has its own validators and ordering. Your tx is assigned to a shard (e.g. by account or payload). <strong>Each shard has its own BFT consensus state</strong>: its own <span data-glossary="view">view number</span>, its own block chain, and its own proposer per <span data-glossary="view">round</span>. So shard A and shard B run independent BFT instances; they don't share a single global "view."</li>
                 <li><strong>Proposer (block leader)</strong> — For each <span data-glossary="view">round (view)</span>, one validator in that shard is the proposer. It builds the block and broadcasts it; the other validators in the shard vote. <strong>Proposer selection</strong> is deterministic: typically a function of the current <span data-glossary="view">view number</span> and the shard's validator set, e.g. <code>proposer = validators[view % validators.len()]</code> (round-robin by index) or by validator identity. That way everyone agrees on who the leader is without extra messages.</li>
                 <li><strong>Validator identity (consensus)</strong> — In the consensus layer, "which validator" is identified by a validator ID (from the node's public key or protocol assignment). That identity is used for the validator set, proposer selection (e.g. round-robin), and routing. In Hyperscale-rs, types that refer to "which node" in the sense of "which validator" use this.</li>
                 <li><strong><span data-glossary="nodeid">NodeID</span> in Radix (on-chain)</strong> — In Radix, <strong><span data-glossary="nodeid">NodeID</span></strong> often means something different: it refers to <strong>addresses of on-chain entities</strong> — components, resources, packages, accounts. Those are "nodes" in the ledger's state graph (e.g. a component instance, a resource type). So: validator identity = which machine runs consensus; NodeID/address in Radix = which component, resource, or package you're talking about on the ledger. Don't confuse the two when reading Radix docs.</li>
-                <li><strong><span data-glossary="cross-shard transaction">Cross-shard</span> transactions &amp; atomic composability</strong> — If a tx touches <span data-glossary="nodeid">NodeIDs</span> on <strong>different <span data-glossary="sharding">shards</span></strong>, it is cross-shard: sent to each involved shard (step 6); each runs BFT and execution for its part (steps 7–12). Atomicity across shards: <span data-glossary="two-phase commit">2PC</span> (prepare → commit/abort) and provisions (see "How atomic composability works" and "Two coordinators" above).</li>
-                <li><strong>2PC coordinator vs ProvisionCoordinator</strong> — See the "Two coordinators" section above. In short: the <strong>2PC coordinator</strong> is one involved shard that asks "everyone ready?" (prepare), then sends commit or abort. The <strong>ProvisionCoordinator</strong> is a checklist on every node: "Do we have quorum of provisions (proofs) from each prerequisite shard?" so execution can proceed. The protocol fixes the order (e.g. by shard ID); the 2PC coordinator drives the protocol in that order.</li>
+                <li><strong><span data-glossary="cross-shard transaction">Cross-shard</span> transactions &amp; atomic composability</strong> — If a tx touches <span data-glossary="nodeid">NodeIDs</span> on <strong>different <span data-glossary="sharding">shards</span></strong>, it is cross-shard: sent to each involved shard (step 6); each runs BFT and execution for its part (steps 7–12). Atomicity across shards: <strong>provision-based protocol</strong> (StateProvision, <span data-glossary="provisioncoordinator">ProvisionCoordinator</span>, then execution and certificate aggregation)—no 2PC coordinator in hyperscale-rs (see "How atomic composability works" and "ProvisionCoordinator" above).</li>
+                <li><strong>ProvisionCoordinator</strong> — See the "ProvisionCoordinator" section above. It is the only coordinator in cross-shard flow: a checklist on every node for "Do we have quorum of provisions (proofs) from each required shard?" so execution can proceed. Order is deterministic (e.g. by shard ID); there is no separate 2PC coordinator.</li>
                 <li><strong>Finality</strong> — Once a block has a quorum certificate (2f+1 votes from that shard's validators), it is final. No reorg under normal BFT assumptions.</li>
             </ul>
         </div>
@@ -125,15 +221,15 @@
     <script>
         const quizQuestions = [
             {
-                question: "In the complex manifest example (Account_A → shard 1, Staking_VAULT → shard 2, LP → shard 3), in what order does the 2PC coordinator drive prepare and state updates?",
+                question: "In the complex manifest example (Account_A → shard 1, Staking_VAULT → shard 2, LP → shard 3), in what order does the protocol define cross-shard coordination (e.g. required_shards, certificate collection)?",
                 options: [
                     "In manifest order: Account_A first, then Staking_VAULT, then LP",
                     "In ShardGroupId (numeric) order: 1, then 2, then 3",
                     "In the order the provisions arrive at each node",
-                    "The coordinator chooses the order dynamically per transaction"
+                    "A coordinator chooses the order dynamically per transaction"
                 ],
                 correct: 1,
-                explanation: "Protocol order is fixed by BTreeSet iteration over ShardGroupIds—i.e. numeric shard ID order (1, 2, 3). Manifest instruction order is not preserved at the consensus layer."
+                explanation: "Protocol order is fixed by BTreeSet iteration over ShardGroupIds—i.e. numeric shard ID order (1, 2, 3). There is no 2PC coordinator in hyperscale-rs; ProvisionCoordinator and execution use this deterministic order."
             },
             {
                 question: "When building a RoutableTransaction from a Radix UserTransaction, what happens to the order of instructions in the manifest?",
@@ -144,7 +240,7 @@
                     "The Radix Engine sends the manifest order to Hyperscale in a separate field"
                 ],
                 correct: 1,
-                explanation: "Instruction analysis (analyze_instructions_v1/v2) collects NodeIds into HashSets; result is deduplicated sets. Consensus uses BTreeSet of shards (by ShardGroupId), so instruction order is not preserved."
+                explanation: "Instruction analysis (analyze_instructions_v1/v2) collects NodeIds into HashSets, so each NodeId appears at most once (no duplicates). Consensus uses BTreeSet of shards by ShardGroupId; instruction order is not preserved."
             },
             {
                 question: "For a cross-shard tx, required_shards in TxRegistration (ProvisionCoordinator) is set to what?",
@@ -152,7 +248,7 @@
                     "Only the shards that appear earlier than the local shard in the manifest",
                     "Only the write shards (consensus_shards)",
                     "All other participating shards (all_shards_for_transaction minus local shard)",
-                    "Only the 2PC coordinator shard"
+                    "Only the shard with the lowest ShardGroupId"
                 ],
                 correct: 2,
                 explanation: "In start_cross_shard_execution, remote_shards = participating_shards minus local_shard; TxRegistration.required_shards is that set. So we need provisions from every other participating shard before we can complete."
@@ -160,10 +256,10 @@
             {
                 question: "In the complex manifest example, before shard 3 (LP) can complete its part of the cross-shard tx, what must ProvisionCoordinator on shard 3's nodes have?",
                 options: [
-                    "Only a commit message from the 2PC coordinator",
+                    "A commit message from a designated coordinator shard",
                     "Quorum of StateProvision proofs from shard 1 and quorum of StateProvision proofs from shard 2",
                     "The full block contents from shards 1 and 2",
-                    "A single aggregated signature from the coordinator shard"
+                    "A single aggregated signature from one other shard"
                 ],
                 correct: 1,
                 explanation: "ProvisionCoordinator tracks provisions (StateProvision) from each required shard. When it has quorum of provisions from every required shard (here 1 and 2), it emits ProvisioningComplete so execution can proceed."

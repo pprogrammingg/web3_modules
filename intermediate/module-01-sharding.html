@@ -24,9 +24,8 @@
             <h2>Learning Objectives</h2>
             <ul>
                 <li>Understand <span data-glossary="sharding">sharding</span> concepts and why they matter for scalability</li>
-                <li>Learn the <span data-glossary="two-phase commit">2PC</span> protocol for cross-shard atomicity</li>
                 <li>Understand provision coordination (proofs across shards)</li>
-                <li>Learn livelock prevention in cross-shard flow</li>
+                <li>Learn <span data-glossary="livelock">livelock</span> prevention in cross-shard flow</li>
             </ul>
         </div>
 
@@ -56,17 +55,18 @@
 
         <div class="section">
             <h2>Livelock Prevention</h2>
-            <p>In cross-shard protocols, livelock can occur if shards keep retrying or re-ordering without ever committing. Common techniques:</p>
+            <p>In cross-shard protocols, <span data-glossary="livelock">livelock</span> can occur if shards keep retrying or re-ordering without ever committing. (Livelock = processes are active but no useful progress; unlike deadlock where everyone is blocked waiting.) Common techniques:</p>
             <ul>
                 <li><strong>Deterministic order</strong> – Use a fixed order (e.g. by shard ID) for prepare and for applying commits, so all nodes agree on the same sequence.</li>
                 <li><strong>Timeouts and back-off</strong> – If a participant doesn’t respond in time, abort and release resources so the system can make progress elsewhere.</li>
                 <li><strong>Conflict detection</strong> – Detect conflicting transactions and serialize or reject them so the system doesn’t spin forever.</li>
+                <li><strong>Cycle detection and deferral</strong> – When two (or more) shards each have a committed tx that depends on the other's state, that's a dependency cycle. Break it by deferring one of the transactions (e.g. by a deterministic rule like "larger tx hash loses") so both shards agree who retries later. The Hyperscale-rs <code>livelock</code> crate does this; the simulator's <code>--analyze-livelocks</code> flag reports how often such situations occurred.</li>
             </ul>
         </div>
 
         <div class="section">
             <h2>Next: Hyperscale-rs</h2>
-            <p>This module is the <strong>conceptual intro</strong> to sharding and cross-shard transactions; <strong>Cross-Shard Transactions in Hyperscale-rs</strong> is the implementation. In the next module you’ll see how hyperscale-rs implements these ideas: 2PC in the execution crate, provision coordination in the provisions crate, and how protocol order (e.g. <code>ShardGroupId</code>) and livelock prevention are handled. Continue to <a href="../hyperscale-rs/module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>.</p>
+            <p>This module is the <strong>conceptual intro</strong> to sharding and cross-shard transactions; <strong>Cross-Shard Transactions in Hyperscale-rs</strong> is the implementation. In the next module you’ll see how hyperscale-rs implements these ideas: provision-based coordination only (no 2PC coordinator)—the provisions crate (ProvisionCoordinator) and execution crate (five-phase protocol), and how protocol order (e.g. <code>ShardGroupId</code>) and <span data-glossary="livelock">livelock</span> prevention are handled. Continue to <a href="../hyperscale-rs/module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>.</p>
         </div>
 
         <div class="navigation">

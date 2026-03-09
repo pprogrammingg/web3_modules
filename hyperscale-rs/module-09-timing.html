@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timing: Rounds, Heights, Timeouts & Timers</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Timing: Rounds, Heights, Timeouts & Timers</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 1–1.5 hours</span>
+                <span>📊 Difficulty: Intermediate</span>
+                <span>🎯 Hyperscale-rs Specific</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand <strong>height</strong> vs <strong>round</strong> (view) and how they drive BFT progress</li>
+                <li>Know how <strong>timeouts</strong> trigger round advancement (view change) when no quorum is reached in time</li>
+                <li>See how <strong>timers</strong> (Proposal, Cleanup) are set and fired in the node and BFT state machine</li>
+                <li>Map timing-related config (<code>proposal_interval</code>, <code>min_block_interval</code>) and state (<code>view</code>, <code>view_at_height_start</code>) to the codebase</li>
+                <li>Relate timing to liveness: why timeouts and view changes are necessary for progress under delay or faults</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Why timing matters</h2>
+            <p>BFT consensus must make <strong>progress</strong> even when the network is slow or some validators are slow or faulty. If the leader never proposes, or proposals never reach quorum, the chain would stall. <strong>Heights</strong> and <strong>rounds</strong> structure the protocol; <strong>timeouts</strong> and <strong>timers</strong> ensure that after some bounded time the system moves to a new round (new leader) or triggers the next proposal. This module goes into detail on how hyperscale-rs does that.</p>
+            <p>For the full BFT flow (propose → vote → QC → commit), see <a href="module-04-bft-implementation.html">Dynamics of Node State Machine and BFT</a>. Here we focus on the <em>when</em>: rounds, heights, timeouts, and timers.</p>
+        </div>
+
+        <div class="section">
+            <h2>Height and round (view)</h2>
+            <p><strong>Height</strong> is the index of the block slot in the chain (block 0 = genesis, block 1, 2, …). One height = one block to be decided. <strong>Round</strong> (also called <strong>view</strong> in the code) is the attempt number for that height. If round 0 doesn’t produce a quorum in time, the protocol advances to round 1 (new proposer, new proposal) for the <em>same</em> height, and so on until a QC is formed.</p>
+            <ul>
+                <li><strong>Height</strong> advances only when a block at that height gets a QC and (with the two-chain rule) is committed; then the next height starts.</li>
+                <li><strong>Round</strong> advances on timeout: if no QC is formed before the round timeout, validators move to the next round (view change). The proposer for round <code>r</code> is typically <code>committee[(height + round) % len]</code> (round-robin), so each round has a different leader.</li>
+            </ul>
+            <p>In <a href="#" data-file="crates/bft/src/state.rs" target="_blank" rel="noopener">crates/bft/src/state.rs</a>, <code>BftState</code> holds:</p>
+            <ul>
+                <li><code>view: u64</code> — current round (view)</li>
+                <li><code>view_at_height_start: u64</code> — round when the current height started (used e.g. for backoff or logging)</li>
+                <li><code>committed_height: u64</code>, <code>committed_hash: Hash</code> — chain progress</li>
+            </ul>
+            <p>So: <strong>same height, multiple rounds</strong> = multiple attempts to get a block certified; <strong>height advances</strong> only when a block is committed (two-chain rule).</p>
+        </div>
+
+        <div class="section">
+            <h2>Timeouts and view change</h2>
+            <p>If the proposer is slow, or the network delays messages, or not enough validators vote in time, the round may not produce a QC. To avoid waiting forever, the protocol uses a <strong>round timeout</strong>: if no QC is formed before the timeout expires, the round is abandoned and the system advances to the next round (view change).</p>
+            <ul>
+                <li><strong>Who checks the timeout?</strong> In the flow described in the BFT module, <code>NodeStateMachine::handle()</code> checks <strong>round timeout</strong> before dispatching <code>Event::ProposalTimer</code> to BFT. So the node layer decides “has this round run long enough?” and can advance the view or trigger the next proposal.</li>
+                <li><strong>Effect:</strong> When the round times out, the next round starts: <code>view</code> increments (or is updated), a new proposer is chosen, and a new proposal can be made for the same height. Validators may then vote for the new proposal; that’s a <strong>revote</strong> (allowed), not equivocation (same height, different round).</li>
+            </ul>
+            <p>Timeouts are what give the protocol <strong>liveness</strong>: eventually, either a QC is formed (progress at this height) or the round changes (new leader, new attempt). Under partial synchrony, after GST (global stabilization time), timeouts can be chosen so that progress is guaranteed.</p>
+        </div>
+
+        <div class="section">
+            <h2>Timers: Proposal and Cleanup</h2>
+            <p>Hyperscale-rs uses <strong>timers</strong> to drive periodic actions. The BFT state machine doesn’t own a clock; instead it emits <strong><code>Action::SetTimer</code></strong> with a delay and a timer type. The runner (node/simulator) is responsible for firing the timer and enqueueing the corresponding event (e.g. <code>Event::ProposalTimer</code>).</p>
+            <h3>Proposal timer</h3>
+            <ul>
+                <li><strong>When set:</strong> After <code>BftState::initialize_genesis(genesis)</code>, and again after <code>BftState::on_proposal_timer(...)</code> runs (so the next proposal is scheduled).</li>
+                <li><strong>When fired:</strong> The runner delivers <code>Event::ProposalTimer</code>. The node’s <code>NodeStateMachine::handle()</code> runs: it checks round timeout, gathers <code>ready_txs</code>, <code>certificates</code>, etc., then calls <code>self.bft.on_proposal_timer(ready_txs, deferred, aborted, certificates, commitment_proofs)</code>.</li>
+                <li><strong>What happens:</strong> <code>on_proposal_timer</code> computes the next (height, round), checks if this node is the proposer for that (height, round); if yes, sets <code>pending_proposal</code> and returns <code>Action::BuildProposal</code> and another <code>SetTimer</code> for the next proposal tick. So the proposal timer drives “when do we try to propose the next block?”</li>
+            </ul>
+            <h3>Cleanup timer</h3>
+            <ul>
+                <li><strong>When set:</strong> Returned together with the Proposal timer from <code>initialize_genesis</code> (and possibly elsewhere).</li>
+                <li><strong>Purpose:</strong> Used to periodically clean old state (e.g. old pending blocks, expired vote sets) so memory and state don’t grow unbounded. When <code>Event::CleanupTimer</code> fires, BFT runs cleanup logic.</li>
+            </ul>
+            <p>So: <strong>SetTimer</strong> is the way BFT asks the runner “wake me in Δ time”; the runner turns that into an event; BFT then reacts (propose, cleanup, or advance round depending on logic).</p>
+        </div>
+
+        <div class="section">
+            <h2>Config: proposal_interval and min_block_interval</h2>
+            <p><code>BftConfig</code> (and any node/simulator config that feeds it) typically includes:</p>
+            <ul>
+                <li><strong><code>proposal_interval</code></strong> — How often the proposal timer is set (e.g. every 500 ms). This drives how frequently the node attempts to propose (when it’s the proposer) or at least evaluates “should we propose?”.</li>
+                <li><strong><code>min_block_interval</code></strong> — Minimum time between blocks (can be used to throttle block production or align with real time in simulation).</li>
+            </ul>
+            <p>These values affect latency and throughput: shorter intervals mean faster rounds but more messages; longer intervals may reduce load but increase time to finality. Round timeout is usually derived or configured so that slow or missing proposals don’t block progress (view change after timeout).</p>
+            <p>In the repo, look for <code>BftConfig</code> and timer-related constants in <a href="#" data-crate="bft" target="_blank" rel="noopener">crates/bft</a> and in the node/simulator that constructs <code>BftState</code>.</p>
+        </div>
+
+        <div class="section">
+            <h2>Where to look in the code</h2>
+            <table class="content-table">
+                <thead>
+                    <tr>
+                        <th>Concept</th>
+                        <th>Where</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Height, round (view)</td>
+                        <td><a href="#" data-file="crates/bft/src/state.rs" target="_blank" rel="noopener">crates/bft/src/state.rs</a> — <code>BftState::view</code>, <code>view_at_height_start</code>, <code>committed_height</code>; block header has <code>height</code>, <code>round</code></td>
+                    </tr>
+                    <tr>
+                        <td>Proposal timer</td>
+                        <td><code>BftState::initialize_genesis</code>, <code>BftState::on_proposal_timer</code> return <code>SetTimer</code>; node turns timer into <code>Event::ProposalTimer</code></td>
+                    </tr>
+                    <tr>
+                        <td>Round timeout check</td>
+                        <td><a href="#" data-file="crates/node/src/state.rs" target="_blank" rel="noopener">crates/node/src/state.rs</a> — <code>NodeStateMachine::handle()</code> checks round timeout before calling <code>self.bft.on_proposal_timer</code></td>
+                    </tr>
+                    <tr>
+                        <td>Cleanup timer</td>
+                        <td><code>BftState::initialize_genesis</code> returns <code>SetTimer</code> for Cleanup; <code>Event::CleanupTimer</code> handled in BFT</td>
+                    </tr>
+                    <tr>
+                        <td>BftConfig</td>
+                        <td><a href="#" data-crate="bft" target="_blank" rel="noopener">crates/bft</a> — <code>proposal_interval</code>, <code>min_block_interval</code>, and related fields</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Summary</h2>
+            <ul>
+                <li><strong>Height</strong> = block index; <strong>round (view)</strong> = attempt for that height. Multiple rounds per height until a QC is formed; then height advances (after two-chain commit).</li>
+                <li><strong>Timeouts</strong> ensure liveness: if no QC in time, round advances (view change), new proposer tries for the same height.</li>
+                <li><strong>Timers</strong>: BFT emits <code>SetTimer</code> (Proposal, Cleanup); the runner fires events; <code>on_proposal_timer</code> drives “request block build” and schedules the next tick.</li>
+                <li><strong>Config</strong>: <code>proposal_interval</code>, <code>min_block_interval</code>, and round timeout govern how fast the chain can progress and when view changes happen.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Quiz: Timing</h2>
+            <p>Answer the following to check your understanding. Pass threshold: 70%.</p>
+            <div id="quiz-timing" class="quiz-container"></div>
+        </div>
+
+        <div class="navigation">
+            <a href="module-08-cryptography.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="module-09-simulation.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/hyperscale-flow-data.js"></script>
+    <script src="../shared/hyperscale-links.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
+    <script src="../shared/module-init.js" data-module-id="intermediate-timing"></script>
+    <script>
+        (function() {
+            const quizQuestions = [
+                {
+                    question: "What is the difference between height and round (view) in BFT?",
+                    options: [
+                        "Height is the block index in the chain; round is the attempt number for that height. Multiple rounds can occur for the same height until a QC is formed.",
+                        "Height and round are the same thing; both advance when a block is committed.",
+                        "Round is the block index; height is the attempt number.",
+                        "Height advances on every proposal; round advances only when a block is committed."
+                    ],
+                    correct: 0,
+                    explanation: "Height is the slot (block 0, 1, 2, …); one height = one block to decide. Round (view) is the attempt: if round 0 doesn’t get a quorum, we go to round 1 for the same height. Height advances only when the block is committed (two-chain rule)."
+                },
+                {
+                    question: "When does the round (view) advance?",
+                    options: [
+                        "Only when a block is committed.",
+                        "When a QC is formed for the current block.",
+                        "When no QC is formed before the round timeout (view change); a new proposer then tries for the same height.",
+                        "When the proposer sends a new proposal."
+                    ],
+                    correct: 2,
+                    explanation: "Round advancement is driven by timeout: if the round doesn’t produce a QC in time, the protocol moves to the next round (view change) so a new proposer can try. A QC being formed leads to commit and then the next height, not necessarily a new round for the same height."
+                },
+                {
+                    question: "Who checks the round timeout before calling BFT's on_proposal_timer?",
+                    options: [
+                        "BftState checks it inside on_proposal_timer.",
+                        "The runner (simulator or production) checks it when the ProposalTimer event is created.",
+                        "NodeStateMachine::handle() checks round timeout before dispatching Event::ProposalTimer to BFT.",
+                        "The Cleanup timer handler checks round timeout."
+                    ],
+                    correct: 2,
+                    explanation: "The BFT module states that NodeStateMachine::handle() checks round timeout and gathers ready_txs, certificates, etc., then calls self.bft.on_proposal_timer(...). So the node layer performs the timeout check before invoking BFT."
+                },
+                {
+                    question: "What does BftState return from initialize_genesis to drive timing?",
+                    options: [
+                        "It returns nothing; the runner sets timers externally.",
+                        "It returns SetTimer for Proposal and SetTimer for Cleanup.",
+                        "It returns the new height and round only.",
+                        "It returns a single SetTimer for the next block."
+                    ],
+                    correct: 1,
+                    explanation: "The module states that initialize_genesis sets genesis state and returns SetTimer for Proposal and Cleanup. So BFT asks the runner to fire two timer types; the runner later delivers ProposalTimer and CleanupTimer events."
+                },
+                {
+                    question: "What is the main purpose of the Proposal timer?",
+                    options: [
+                        "To clean old pending blocks and vote sets.",
+                        "To drive periodic 'should we propose?' checks: when it fires, on_proposal_timer runs and may emit BuildProposal (and set the next Proposal timer).",
+                        "To advance the round when no QC is formed.",
+                        "To commit the block after QC is formed."
+                    ],
+                    correct: 1,
+                    explanation: "The Proposal timer fires Event::ProposalTimer; the node then calls on_proposal_timer, which may emit Action::BuildProposal and SetTimer for the next proposal tick. Cleanup is for cleanup; round advancement is via timeout check; commit is triggered by QC and two-chain rule."
+                },
+                {
+                    question: "Why are timeouts necessary for BFT liveness?",
+                    options: [
+                        "They are not; liveness comes only from having a correct majority.",
+                        "Without timeouts, if the leader is slow or messages are delayed, the system could wait forever for a QC; timeouts force a view change so a new leader can try.",
+                        "Timeouts are used only to limit how long execution can run.",
+                        "Timeouts ensure that blocks are committed within a fixed time."
+                    ],
+                    correct: 1,
+                    explanation: "Liveness requires progress. If the current round never gets a quorum (slow/faulty leader or network), the protocol would stall unless something changes. Timeouts trigger view change so the round advances and a new proposer gets a chance. Under partial synchrony, this yields eventual progress."
+                },
+                {
+                    question: "In BftState, what is view_at_height_start used for?",
+                    options: [
+                        "It is the same as view and is redundant.",
+                        "It stores the round number when the current height started; useful for backoff or logging how many rounds have been tried at this height.",
+                        "It is the height of the last committed block.",
+                        "It is the timestamp when the current round started."
+                    ],
+                    correct: 1,
+                    explanation: "The module states that view_at_height_start is the round at start of current height (for backoff). So it’s the round when we began trying for this height, distinct from the current view (round) which may have advanced."
+                },
+                {
+                    question: "How does the BFT state machine know 'what time it is' to decide timeouts?",
+                    options: [
+                        "BftState keeps a local clock and checks it in every handler.",
+                        "BftState does not own a clock; it emits SetTimer and the runner fires events. The node/runner checks round timeout before calling on_proposal_timer.",
+                        "Only the Cleanup timer carries a timestamp.",
+                        "Time is passed into every BftState method as an argument."
+                    ],
+                    correct: 1,
+                    explanation: "The design is event-driven: BFT emits SetTimer actions; the runner (node or simulator) is responsible for the clock and for firing the corresponding events. The node checks round timeout in its handle() before dispatching to BFT. So BFT does not read the clock directly."
+                }
+            ];
+            if (typeof initializeQuiz === 'function') {
+                initializeQuiz('quiz-timing', quizQuestions, 70);
+            }
+        })();
+    </script>
+</body>
+</html>

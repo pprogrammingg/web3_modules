@@ -32,7 +32,7 @@
         </div>
 
         <div class="section">
-            <p>Read the groups in order (1 → 6). Each group has a short description, code pointers, a <strong>📖 What to read</strong> list (links to the <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> repo), and a <strong>10-question quiz</strong>. Pass threshold per quiz: 70%.</p>
+            <p>Read the groups in order (1 → 6). Each group has a short description, code pointers, a <strong>📖 What to read</strong> list (links to the <a href="#" data-repo target="_blank" rel="noopener">hyperscale-rs</a> repo), and a <strong>10-question quiz</strong>. Pass threshold per quiz: 70%.</p>
         </div>
 
         <!-- Group 1 -->
@@ -46,16 +46,16 @@
                 <li><strong>mempool</strong>: Pool per validator, on_submit_transaction_arc, on_transaction_gossip_arc, involves_local_shard gating.</li>
                 <li><strong>types</strong>: RoutableTransaction, declared_reads / declared_writes, topology and shard helpers.</li>
                 <li><strong>core</strong>: Event, Action (e.g. BroadcastToShard, EmitTransactionStatus).</li>
-                <li><strong>messages</strong>: TransactionGossip, OutboundMessage, batching/serialization.</li>
+                <li><strong>messages</strong>: <a href="#" data-file="crates/messages/src/notification/mod.rs" target="_blank" rel="noopener">notification</a> (block_header, block_vote, execution_*), TransactionGossip, OutboundMessage, batching/serialization.</li>
             </ul>
             <p><strong>📖 What to read before the quiz:</strong></p>
             <ul class="reading-list">
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/production" target="_blank" rel="noopener">crates/production</a> — RPC and runner (submit path, gossip)</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">crates/node</a> — NodeStateMachine, event routing</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/mempool" target="_blank" rel="noopener">crates/mempool</a> — <code>on_submit_transaction_arc</code>, <code>on_transaction_gossip_arc</code>, <code>involves_local_shard</code> gating</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" target="_blank" rel="noopener">crates/types</a> — RoutableTransaction, declared_reads / declared_writes, topology</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">crates/core</a> — Event, Action (e.g. BroadcastToShard, EmitTransactionStatus)</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/messages" target="_blank" rel="noopener">crates/messages</a> — TransactionGossip, OutboundMessage</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/production" data-crate="production" target="_blank" rel="noopener">crates/production</a> — RPC and runner (submit path, gossip)</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">crates/node</a> — NodeStateMachine, event routing</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/mempool" data-crate="mempool" target="_blank" rel="noopener">crates/mempool</a> — <code>on_submit_transaction_arc</code>, <code>on_transaction_gossip_arc</code>, <code>involves_local_shard</code> gating</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">crates/types</a> — RoutableTransaction, declared_reads / declared_writes, topology</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">crates/core</a> — Event, Action (e.g. BroadcastToShard, EmitTransactionStatus)</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/messages" data-crate="messages" target="_blank" rel="noopener">crates/messages</a> — <a href="#" data-file="crates/messages/src/notification/mod.rs" target="_blank" rel="noopener">notification</a> (block/vote/execution types), TransactionGossip, OutboundMessage</li>
             </ul>
             <h3>Quiz: Group 1 (10 questions)</h3>
             <div id="quiz-group-1" class="quiz-container"></div>
@@ -73,9 +73,9 @@
             </ul>
             <p><strong>📖 What to read before the quiz:</strong></p>
             <ul class="reading-list">
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" target="_blank" rel="noopener">crates/types</a> — <code>shard_for_node</code>, Topology, consensus_shards / provisioning_shards / all_shards_for_transaction, RoutableTransaction</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">crates/core</a> — shard-aware actions (e.g. BroadcastToShard)</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">crates/node</a> — routing by involves_local_shard, sub-state machines</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">crates/types</a> — <code>shard_for_node</code>, Topology, consensus_shards / provisioning_shards / all_shards_for_transaction, RoutableTransaction</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">crates/core</a> — shard-aware actions (e.g. BroadcastToShard)</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">crates/node</a> — routing by involves_local_shard, sub-state machines</li>
             </ul>
             <h3>Quiz: Group 2 (10 questions)</h3>
             <div id="quiz-group-2" class="quiz-container"></div>
@@ -87,17 +87,17 @@
             <p><strong>Crates:</strong> bft, mempool, types, core</p>
             <p><strong>One-liner:</strong> How one validator becomes the proposer and assembles the next block from the mempool.</p>
             <ul>
-                <li><strong>bft</strong>: Proposer selection (height + round) % committee.len(), ProposalTimer, requesting ready_txs from mempool, BuildProposal action with parent state root and certificates.</li>
-                <li><strong>mempool</strong>: ready_transactions(max_count, pending_commit_tx_count, pending_commit_cert_count), retries / priority / others, in-flight limits.</li>
+                <li><strong>bft</strong>: Proposer selection (height + round) % committee.len(), ProposalTimer, requesting ready_txs from mempool, BuildProposal action with parent <span data-glossary="state root">state root</span> and certificates.</li>
+                <li><strong>mempool</strong>: ready_transactions(max_count, pending_commit_tx_count, pending_commit_cert_count), retries / priority / others, <span data-glossary="in-flight">in-flight</span> limits.</li>
                 <li><strong>types</strong>: Block, BlockHeader, RoutableTransaction, certificate and deferral types.</li>
                 <li><strong>core</strong>: Action::BuildProposal, SetTimer / CancelTimer.</li>
             </ul>
             <p><strong>📖 What to read before the quiz:</strong></p>
             <ul class="reading-list">
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">crates/bft</a> — proposer selection, ProposalTimer, BuildProposal, ready_txs from mempool</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/mempool" target="_blank" rel="noopener">crates/mempool</a> — <code>ready_transactions</code>, retries / priority / others, in-flight limits</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" target="_blank" rel="noopener">crates/types</a> — Block, BlockHeader, certificate and deferral types</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">crates/core</a> — BuildProposal, SetTimer / CancelTimer</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" data-crate="bft" target="_blank" rel="noopener">crates/bft</a> — proposer selection, ProposalTimer, BuildProposal, ready_txs from mempool</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/mempool" data-crate="mempool" target="_blank" rel="noopener">crates/mempool</a> — <code>ready_transactions</code>, retries / priority / others, <span data-glossary="in-flight">in-flight</span> limits</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">crates/types</a> — Block, BlockHeader, certificate and deferral types</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">crates/core</a> — BuildProposal, SetTimer / CancelTimer</li>
             </ul>
             <h3>Quiz: Group 3 (10 questions)</h3>
             <div id="quiz-group-3" class="quiz-container"></div>
@@ -109,16 +109,16 @@
             <p><strong>Crates:</strong> bft, types, core</p>
             <p><strong>One-liner:</strong> How validators agree on a block and when it is finally committed (votes and QCs).</p>
             <ul>
-                <li><strong>bft</strong>: Block verification (state root, tx root, parent QC), BlockVote, collection and VerifyAndBuildQuorumCertificate, 2-chain commit rule, BlockCommitted and chain advancement.</li>
+                <li><strong>bft</strong>: Block verification (<span data-glossary="state root">state root</span>, tx root, parent QC), BlockVote, collection and VerifyAndBuildQuorumCertificate, 2-chain commit rule, BlockCommitted and chain advancement.</li>
                 <li><strong>types</strong>: QuorumCertificate, BlockVote, signing message format, BlockHeader.</li>
                 <li><strong>core</strong>: Action::VerifyQcSignature, VerifyAndBuildQuorumCertificate, PersistAndBroadcastVote, Event::BlockCommitted.</li>
             </ul>
             <p><strong>📖 What to read before the quiz:</strong></p>
             <ul class="reading-list">
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" target="_blank" rel="noopener">crates/bft</a> — block verification, BlockVote, VerifyAndBuildQuorumCertificate, 2-chain commit rule, BlockCommitted</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" target="_blank" rel="noopener">crates/types</a> — QuorumCertificate, BlockVote, BlockHeader, signing message format</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">crates/core</a> — VerifyQcSignature, VerifyAndBuildQuorumCertificate, PersistAndBroadcastVote, BlockCommitted</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/04-consensus-protocol.md" target="_blank" rel="noopener">guides/04-consensus-protocol.md</a> — consensus protocol (votes, QC, commit)</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" data-crate="bft" target="_blank" rel="noopener">crates/bft</a> — block verification, BlockVote, VerifyAndBuildQuorumCertificate, 2-chain commit rule, BlockCommitted</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">crates/types</a> — QuorumCertificate, BlockVote, BlockHeader, signing message format</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">crates/core</a> — VerifyQcSignature, VerifyAndBuildQuorumCertificate, PersistAndBroadcastVote, BlockCommitted</li>
+                <li><a href="#" data-file="guides/04-consensus-protocol.md" target="_blank" rel="noopener">guides/04-consensus-protocol.md</a> — consensus protocol (votes, QC, commit)</li>
             </ul>
             <h3>Quiz: Group 4 (10 questions)</h3>
             <div id="quiz-group-4" class="quiz-container"></div>
@@ -138,11 +138,11 @@
             </ul>
             <p><strong>📖 What to read before the quiz:</strong></p>
             <ul class="reading-list">
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" target="_blank" rel="noopener">crates/execution</a> — <code>on_block_committed</code>, single-shard vs cross-shard split, StateVoteBlock, 2PC registration</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/engine" target="_blank" rel="noopener">crates/engine</a> — Radix Engine, execute_single_shard, state writes</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" target="_blank" rel="noopener">crates/node</a> — BlockCommitted → execution, TransactionExecuted, certificate feedback</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" target="_blank" rel="noopener">crates/types</a> — StateVoteBlock, StateCertificate, TransactionCertificate, TransactionDecision</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">crates/core</a> — ExecuteTransactions, BroadcastStateVote, AggregateStateCertificate</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" data-crate="execution" target="_blank" rel="noopener">crates/execution</a> — <code>on_block_committed</code>, single-shard vs cross-shard split, StateVoteBlock, 2PC registration</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/engine" data-crate="engine" target="_blank" rel="noopener">crates/engine</a> — Radix Engine, execute_single_shard, state writes</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">crates/node</a> — BlockCommitted → execution, TransactionExecuted, certificate feedback</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">crates/types</a> — StateVoteBlock, StateCertificate, TransactionCertificate, TransactionDecision</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">crates/core</a> — ExecuteTransactions, BroadcastStateVote, AggregateStateCertificate</li>
             </ul>
             <h3>Quiz: Group 5 (10 questions)</h3>
             <div id="quiz-group-5" class="quiz-container"></div>
@@ -150,23 +150,23 @@
 
         <!-- Group 6 -->
         <div class="section">
-            <h2>Group 6: Cross-shard (provisions and livelock)</h2>
+            <h2>Group 6: Cross-shard (provisions and <span data-glossary="livelock">livelock</span>)</h2>
             <p><strong>Crates:</strong> provisions, execution, livelock, types, core</p>
-            <p><strong>One-liner:</strong> How state moves between shards for cross-shard transactions and how Hyperscale avoids deadlock.</p>
+            <p><strong>One-liner:</strong> How state moves between shards for cross-shard transactions and how Hyperscale avoids dependency cycles (the <span data-glossary="livelock">livelock</span> crate: cycle detection, deferral, retry).</p>
             <ul>
                 <li><strong>provisions</strong>: ProvisionCoordinator, receiving and buffering StateProvision, quorum per source shard, VerifyAndAggregateProvisions, CommitmentProof.</li>
                 <li><strong>execution</strong>: Cross-shard 2PC phases (provision broadcast, reception, execution, vote aggregation, certificate collection), registration with provisions coordinator.</li>
-                <li><strong>livelock</strong>: Cycle detection, deferral, retry, TransactionDefer, TransactionAbort, integration with block proposal and execution.</li>
+                <li><strong>livelock</strong>: Cycle detection (e.g. A needs C’s state, C needs A’s state), deferral of one tx by a deterministic rule, retry, TransactionDefer, TransactionAbort, integration with block proposal and execution. Simulator: <code>--analyze-livelocks</code>.</li>
                 <li><strong>types</strong>: StateProvision, StateCertificate, CommitmentProof, CycleProof, defer/abort types.</li>
                 <li><strong>core</strong>: BroadcastStateProvision, BroadcastStateCertificate, VerifyAndAggregateProvisions, VerifyCycleProof.</li>
             </ul>
             <p><strong>📖 What to read before the quiz:</strong></p>
             <ul class="reading-list">
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/provisions" target="_blank" rel="noopener">crates/provisions</a> — ProvisionCoordinator, StateProvision buffering, quorum, VerifyAndAggregateProvisions, CommitmentProof</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" target="_blank" rel="noopener">crates/execution</a> — cross-shard 2PC phases, provision coordinator registration</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/livelock" target="_blank" rel="noopener">crates/livelock</a> — cycle detection, TransactionDefer, TransactionAbort, retry</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" target="_blank" rel="noopener">crates/types</a> — StateProvision, StateCertificate, CommitmentProof, CycleProof, defer/abort types</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" target="_blank" rel="noopener">crates/core</a> — BroadcastStateProvision, VerifyAndAggregateProvisions, VerifyCycleProof</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/provisions" data-crate="provisions" target="_blank" rel="noopener">crates/provisions</a> — ProvisionCoordinator, StateProvision buffering, quorum, VerifyAndAggregateProvisions, CommitmentProof</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" data-crate="execution" target="_blank" rel="noopener">crates/execution</a> — cross-shard 2PC phases, provision coordinator registration</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/livelock" data-crate="livelock" target="_blank" rel="noopener">crates/livelock</a> — cycle detection, TransactionDefer, TransactionAbort, retry</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">crates/types</a> — StateProvision, StateCertificate, CommitmentProof, CycleProof, defer/abort types</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">crates/core</a> — BroadcastStateProvision, VerifyAndAggregateProvisions, VerifyCycleProof</li>
             </ul>
             <h3>Quiz: Group 6 (10 questions)</h3>
             <div id="quiz-group-6" class="quiz-container"></div>
@@ -188,6 +188,8 @@
     </div>
 
     <script src="../shared/course-data.js"></script>
+    <script src="../shared/hyperscale-flow-data.js"></script>
+    <script src="../shared/hyperscale-links.js"></script>
     <script src="../shared/navigation.js"></script>
     <script src="../shared/glossary.js"></script>
     <script src="../shared/module-init.js" data-module-id="intermediate-hs-crate-groups"></script>

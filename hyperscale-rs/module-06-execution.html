@@ -32,14 +32,14 @@
 
         <div class="section">
             <h2>Where Execution Fits</h2>
-            <p>In the <a href="module-01b-tx-flow.html" target="_blank" rel="noopener noreferrer">Transaction Flow</a>, execution happens <em>after</em> a block is committed by BFT. The node has an ordered sequence of transactions (in committed blocks); the execution layer applies each transaction to the current state and produces state updates. For cross-shard transactions, execution is coordinated with the provisions and 2PC steps (see <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>).</p>
+            <p>In the <a href="module-01b-tx-flow.html" target="_blank" rel="noopener noreferrer">Transaction Flow</a>, execution happens <em>after</em> a block is committed by BFT. The node has an ordered sequence of transactions (in committed blocks); the execution layer applies each transaction to the current state and produces state updates. For cross-shard transactions, execution is coordinated with the <strong>provision-based protocol</strong> (StateProvision, ProvisionCoordinator, five-phase flow)—there is no 2PC coordinator (see <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>).</p>
         </div>
 
         <div class="section">
             <h2>Hyperscale-rs vs Radix Engine (relative roles)</h2>
-            <p><strong>Hyperscale-rs</strong> is the consensus and coordination layer: it orders transactions (via BFT), handles cross-shard 2PC and provisions, and drives when execution runs. It does <em>not</em> interpret the content of Radix manifests or execute Radix Engine instructions itself.</p>
+            <p><strong>Hyperscale-rs</strong> is the consensus and coordination layer: it orders transactions (via BFT), handles cross-shard coordination via provisions (ProvisionCoordinator + five-phase execution protocol), and drives when execution runs. It does <em>not</em> interpret the content of Radix manifests or execute Radix Engine instructions itself.</p>
             <p><strong>Radix Engine</strong> (external to this repo) is the execution engine: it takes a transaction (e.g. a Radix manifest), interprets instructions (CallMethod, TakeFromWorktop, etc.), and applies state changes to a Radix-style world state (components, resources, vaults). Hyperscale-rs typically receives a transaction that has already been built for the engine (e.g. a <strong>UserTransaction</strong> or similar); it may <strong>analyze</strong> it (e.g. extract <code>declared_reads</code> / <code>declared_writes</code> for shard routing) and then order and coordinate it; the actual execution of the manifest is done by the engine, often in a separate process or library that hyperscale-rs calls.</p>
-            <p><strong>Paths:</strong> From the course repo, hyperscale-rs content lives under <code>hyperscale-rs/</code>; Radix Engine is a separate project (e.g. <code>radix-engine</code> or the Radix node). So when we say “execution” in hyperscale-rs we mean: (1) the <code>execution</code> crate that manages lifecycle, 2PC, and calling out to the engine, and (2) the engine (external) that does the actual state transitions.</p>
+            <p><strong>Paths:</strong> From the course repo, hyperscale-rs content lives under <code>hyperscale-rs/</code>; Radix Engine is a separate project (e.g. <code>radix-engine</code> or the Radix node). So when we say “execution” in hyperscale-rs we mean: (1) the <code>execution</code> crate that manages lifecycle, provision-based cross-shard flow, and calling out to the engine, and (2) the engine (external) that does the actual state transitions.</p>
         </div>
 
         <div class="section">
@@ -48,7 +48,7 @@
             <ul>
                 <li><strong>Receiving committed blocks</strong> – Events or actions from BFT indicate a block is committed; execution takes the transactions in that block and runs them (or hands them to the engine).</li>
                 <li><strong>Single-shard execution</strong> – For transactions that touch only one shard, execution is straightforward: apply in order, update state.</li>
-                <li><strong>Cross-shard execution</strong> – Start cross-shard flow (e.g. <code>start_cross_shard_execution</code>), wait for provisions from other shards, participate in 2PC (prepare → commit/abort), then apply state updates in agreed order. Refs: <code>crates/execution/src/state.rs</code>, provisions crate.</li>
+                <li><strong>Cross-shard execution</strong> – Start cross-shard flow (e.g. <code>start_cross_shard_execution</code>), register with ProvisionCoordinator; when ProvisioningComplete (quorum of StateProvisions from each required shard), execute and then vote aggregation → certificates. No 2PC coordinator. Refs: <code>crates/execution/src/state.rs</code>, <code>crates/provisions</code>.</li>
             </ul>
         </div>
 

@@ -15,6 +15,7 @@ const AVAILABLE_MODULES = [
     'intermediate-03', // Cross-Shard Transactions in Hyperscale-rs
     'intermediate-04', // Transaction Execution & Radix Engine
     'intermediate-08', // Cryptography in Hyperscale-rs
+    'intermediate-timing', // Timing: Rounds, Heights, Timeouts & Timers
     'basic-07', // libp2p basic
     'intermediate-libp2p', // libp2p intermediate
     'advanced-libp2p', // libp2p advanced
@@ -105,12 +106,21 @@ function renderModuleCard(module, status) {
     const href = isAvailable ? module.path : '#';
     const onClick = isAvailable ? '' : 'onclick="event.preventDefault(); return false;"';
     
+    const timeEstimateHtml = module.duration
+        ? `<div class="module-time-estimate" title="Rough time to read, understand and complete">
+             <span class="module-time-icon" aria-hidden="true">⏱</span>
+             <span class="module-time-value">${module.duration}</span>
+             <span class="module-time-label">Read, understand & complete</span>
+           </div>`
+        : '';
+
     return `
         <a href="${href}" ${onClick} class="${cardClass}">
             <h3 class="module-title-with-badges">${module.title}${badge}${availableBadge}</h3>
             <p>${module.description}</p>
+            ${timeEstimateHtml}
             <div class="module-meta">
-                <span>${module.duration} • ${module.difficulty}</span>
+                <span>${module.difficulty}</span>
                 <span class="module-status ${statusClassBadge}">${statusText}</span>
             </div>
         </a>

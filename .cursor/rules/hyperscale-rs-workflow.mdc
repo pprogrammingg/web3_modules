@@ -1,0 +1,13 @@
+---
+description: Hyperscale-rs modules: use flow data for links, run check script after repo updates
+globs: hyperscale-rs/**/*.html, shared/hyperscale-flow-data.js, shared/hyperscale-links.js, scripts/check-hyperscale-changes.js, scripts/hyperscale-repo.config.js
+alwaysApply: false
+---
+
+# Hyperscale-rs workflow
+
+- **Links:** From `shared/hyperscale-flow-data.js` only. Use `data-crate`, `data-file`, `data-repo`; load `hyperscale-flow-data.js` + `hyperscale-links.js`. No hardcoded repo URLs in HTML.
+- **After hyperscale-rs changes:** Run `node scripts/check-hyperscale-changes.js` (path in `scripts/hyperscale-repo.config.js`); re-check the modules it lists.
+- **Tables:** Use `<div class="table-wrap">` and `<table class="flow-steps">`. Step column is narrow by default; if the first column has long text (e.g. stage names), add class `flow-steps-wide-first` to the table. See `shared/styles.css` for `.flow-steps` and `.content-table`.
+
+Full workflow: **`shared/HYPERSCALE_FLOW_README.md`**.

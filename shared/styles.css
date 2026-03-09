@@ -80,6 +80,40 @@ h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.2rem; }
 .badge-hyperscale { background: #fef3c7; color: #92400e; }
 .badge-available { background: #10b981; color: white; font-weight: bold; }
 .badge-coming { background: #9ca3af; color: white; }
+/* Time estimate: read, understand & complete */
+.module-time-estimate {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.6rem;
+    margin-top: 0.75rem;
+    padding: 0.4rem 0.65rem;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+.module-time-icon {
+    font-size: 1rem;
+    line-height: 1;
+    opacity: 0.9;
+}
+.module-time-value {
+    font-weight: 600;
+    color: var(--primary);
+    letter-spacing: 0.02em;
+}
+.module-time-label {
+    width: 100%;
+    font-size: 0.75rem;
+    color: var(--text2);
+    font-style: italic;
+}
+.module-card.completed .module-time-estimate { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-color: rgba(16, 185, 129, 0.25); }
+.module-card.completed .module-time-value { color: var(--secondary); }
+.module-card.in-progress .module-time-estimate { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-color: rgba(245, 158, 11, 0.25); }
+.module-card.in-progress .module-time-value { color: var(--warning); }
+
 .module-meta { display: flex; justify-content: space-between; margin-top: 1rem; font-size: 0.9rem; color: var(--text2); }
 .module-status { padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
 .status-pending { background: var(--bg2); color: var(--text2); }
@@ -322,12 +356,51 @@ h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.2rem; }
 ul, ol { margin: 1rem 0; padding-left: 2rem; }
 li { margin: 0.5rem 0; }
 p { margin: 1rem 0; }
-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; min-width: 0; }
 th, td { padding: 0.5rem; border: 1px solid var(--border); }
 th { background: var(--bg2); }
-.flow-steps { font-size: 0.9rem; }
-.flow-steps td { vertical-align: top; word-break: break-word; }
+/* Table wrapper: horizontal scroll on narrow viewports so columns keep readable width */
+.table-wrap { overflow-x: auto; margin: 1rem 0; }
+.table-wrap table { margin: 0; min-width: 640px; }
+
+/* Table wrapper: horizontal scroll on narrow viewports so columns keep readable width */
+.table-wrap { overflow-x: auto; margin: 1rem 0; }
+.table-wrap table { margin: 0; min-width: 640px; }
+
+/* Flow-steps: narrow Step column, room for content so text doesn't squeeze or break badly */
+.flow-steps { font-size: 0.9rem; table-layout: auto; }
+.flow-steps th,
+.flow-steps td { padding: 0.6rem 0.75rem; vertical-align: top; }
+/* Step column: minimal width so "1" doesn't steal space; content columns get room */
+.flow-steps th:first-child,
+.flow-steps td:first-child { width: 1%; min-width: 2.5em; white-space: nowrap; }
+.flow-steps th:nth-child(2),
+.flow-steps td:nth-child(2) { min-width: 10em; }
+.flow-steps th:nth-child(3),
+.flow-steps td:nth-child(3) { min-width: 14em; }
+.flow-steps th:nth-child(4),
+.flow-steps td:nth-child(4) { min-width: 16em; }
+.flow-steps td { word-break: break-word; overflow-wrap: break-word; }
 .flow-steps td code { font-size: 0.85em; white-space: normal; }
+/* When first column has long labels (e.g. "Initialized genesis block"), add class flow-steps-wide-first */
+.flow-steps-wide-first th:first-child,
+.flow-steps-wide-first td:first-child { width: auto; min-width: 11em; white-space: normal; }
+
+.content-table { table-layout: auto; }
+.content-table th:first-child,
+.content-table td:first-child { min-width: 10em; }
+.content-table th:nth-child(2),
+.content-table td:nth-child(2) { min-width: 10em; }
+.content-table th:nth-child(3),
+.content-table td:nth-child(3) { min-width: 12em; }
+.content-table th:nth-child(4),
+.content-table td:nth-child(4) { min-width: 12em; }
+.content-table td { vertical-align: top; word-break: break-word; overflow-wrap: break-word; }
+
+/* Crate groups / numbered first column (e.g. "1. First contact") */
+.table-crate-groups th:first-child,
+.table-crate-groups td:first-child { min-width: 12em; }
+.table-crate-groups td { vertical-align: top; word-break: break-word; overflow-wrap: break-word; }
 
 /* Transaction flow diagram (shared across modules) */
 .tx-flow { --hyperscale-bg: #eff6ff; --hyperscale-border: var(--primary); --outside-bg: #f8fafc; --outside-border: #94a3b8; }
@@ -357,6 +430,46 @@ th { background: var(--bg2); }
 .flow-step-popup .outside-note { font-style: italic; color: var(--text2); margin-top: 0.5rem; }
 @media (max-width: 640px) {
     .flow-step-popup { left: 0; right: 0; margin-left: 0; margin-right: 0; top: 100%; transform: none; margin-top: 6px; }
+}
+
+/* BFT step-by-step: JSON + formula blocks (module-04 dry flow) */
+.bft-dry { margin-top: 2rem; }
+.bft-dry-intro { padding: 1rem 1.25rem; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid rgba(37, 99, 235, 0.3); border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.95rem; }
+.bft-dry-intro strong { color: var(--primary); }
+.bft-step-card { margin-bottom: 2rem; padding: 1.25rem; background: var(--bg); border: 2px solid var(--border); border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.bft-step-card:nth-child(even) { border-color: rgba(37, 99, 235, 0.25); background: #fafbff; }
+.bft-step-num { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--primary); color: white; font-weight: 800; font-size: 1rem; margin-right: 0.5rem; }
+.bft-step-title { font-size: 1.15rem; font-weight: 700; color: var(--primary); margin-bottom: 0.5rem; display: flex; align-items: center; }
+.bft-step-desc { font-size: 0.9rem; color: var(--text2); margin-bottom: 1rem; line-height: 1.5; }
+.bft-json-block { margin: 1rem 0; padding: 1rem 1.25rem; background: #1e293b; color: #e2e8f0; border-radius: 8px; overflow-x: auto; font-family: ui-monospace, monospace; font-size: 0.8rem; line-height: 1.5; }
+.bft-json-block code { background: transparent; color: #e2e8f0; padding: 0; }
+.bft-json-block .json-key { color: #7dd3fc; }
+.bft-json-block .json-str { color: #86efac; }
+.bft-json-block .json-num { color: #fcd34d; }
+.bft-formula-table { width: 100%; margin: 1rem 0; font-size: 0.9rem; border-collapse: collapse; }
+.bft-formula-table th, .bft-formula-table td { padding: 0.5rem 0.75rem; border: 1px solid var(--border); text-align: left; }
+.bft-formula-table th { background: #eff6ff; color: var(--primary); font-weight: 600; }
+.bft-formula-table td:first-child { font-weight: 500; min-width: 10em; }
+.bft-formula-table code { font-size: 0.85em; }
+.bft-formula-list { margin: 0.5rem 0; padding-left: 1.25rem; }
+.bft-summary-box { margin-top: 2rem; padding: 1.25rem; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid rgba(16, 185, 129, 0.35); border-radius: 10px; }
+.bft-summary-box h3 { margin: 0 0 0.75rem; font-size: 1.1rem; color: var(--secondary); }
+.bft-summary-box .bft-formula-table { margin: 0.5rem 0; }
+
+/* BFT design note / callout: why block-vote first, why cert chain */
+.bft-design-callout { margin: 1.5rem 0; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%); border: 2px solid rgba(180, 83, 9, 0.4); border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.bft-design-callout .callout-label { display: inline-block; margin-bottom: 0.75rem; padding: 0.25rem 0.6rem; background: rgba(180, 83, 9, 0.2); color: #92400e; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; border-radius: 4px; }
+.bft-design-callout h3 { margin: 0 0 0.5rem; font-size: 1.1rem; color: #78350f; }
+.bft-design-callout h4 { margin: 1rem 0 0.35rem; font-size: 1rem; color: #92400e; }
+.bft-design-callout p { margin: 0 0 0.75rem; font-size: 0.95rem; line-height: 1.55; color: var(--text2); }
+.bft-design-callout p:last-child { margin-bottom: 0; }
+.bft-design-callout ul { margin: 0.35rem 0 0.75rem 1.25rem; padding: 0; font-size: 0.95rem; line-height: 1.55; color: var(--text2); }
+.bft-design-callout li { margin-bottom: 0.25rem; }
+.bft-design-callout .cert-chain { margin: 0.75rem 0; padding: 0.75rem 1rem; background: rgba(255,255,255,0.7); border-radius: 6px; font-family: ui-monospace, monospace; font-size: 0.85rem; }
+.bft-design-callout .cert-chain strong { color: var(--primary); }
+
+@media (max-width: 640px) {
+    .bft-json-block { font-size: 0.75rem; padding: 0.75rem; }
 }
 
 /* Test runner page (test-modules.html) */

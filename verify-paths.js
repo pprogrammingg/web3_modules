@@ -18,6 +18,8 @@ const SHARED_FILES = [
     'navigation.js',
     'glossary.js',
     'module-init.js',
+    'hyperscale-flow-data.js',
+    'hyperscale-links.js',
 ];
 
 // Derive module list from course-data.js so we don't duplicate it
@@ -41,7 +43,7 @@ function expectedCssPathFor(moduleFile) {
     return '../'.repeat(depth) + 'shared/styles.css';
 }
 
-const VALID_JS_PATHS = ['../shared/course-data.js', '../shared/navigation.js', '../shared/glossary.js', '../shared/module-init.js'];
+const VALID_JS_PATHS = ['../shared/course-data.js', '../shared/navigation.js', '../shared/glossary.js', '../shared/module-init.js', '../shared/hyperscale-flow-data.js', '../shared/hyperscale-links.js'];
 
 let errors = [];
 let warnings = [];

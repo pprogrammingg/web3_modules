@@ -41,9 +41,9 @@
 
             <p><strong>Key links:</strong></p>
             <ul>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">Repository</a> — code and protocol docs</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/README.md" target="_blank" rel="noopener">README.md</a> — setup and “What’s different”</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/core/src/traits.rs" target="_blank" rel="noopener">StateMachine trait</a>, <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/node/src/state.rs" target="_blank" rel="noopener">node state</a> — core types to skim early</li>
+                <li><a href="#" data-repo target="_blank" rel="noopener">Repository</a> — code and protocol docs</li>
+                <li><a href="#" data-file="README.md" target="_blank" rel="noopener">README.md</a> — setup and “What’s different”</li>
+                <li><a href="#" data-file="crates/core/src/traits.rs" target="_blank" rel="noopener">StateMachine trait</a>, <a href="#" data-file="crates/node/src/state.rs" target="_blank" rel="noopener">node state</a> — core types to skim early</li>
             </ul>
 
             <p>Design: <strong>pure consensus</strong> (no I/O in core), <strong>state machine</strong> model, <strong>event-driven</strong> (events in → actions out), <strong>deterministic</strong> so the same code runs in simulation and production.</p>
@@ -61,9 +61,10 @@
             <p><strong>Tracing:</strong> Use <code>tracing::debug!</code> (or <code>debug!</code> with <code>use tracing::debug</code>). Run the sim with <code>RUST_LOG=debug</code> so these logs show up. Remove or comment out the lines before committing.</p>
 
             <h3>Flow 1: Transaction submit (workload → sim runner → node → mempool)</h3>
-            <p><strong>Overview:</strong> The simulator workload submits a transaction; the simulation runner receives <code>Event::SubmitTransaction</code> and gossips it; the node loop intercepts it and queues validation; the state machine gets <code>TransactionGossipReceived</code> and the mempool adds the tx. You see the path from submit to tx in mempool.</p>
+            <p><strong>Overview:</strong> The simulator workload submits a transaction; the simulation runner receives <code>Event::SubmitTransaction</code> and gossips it; the protocol layer intercepts it and queues validation; the state machine gets <code>TransactionGossipReceived</code> and the mempool adds the tx. You see the path from submit to tx in mempool.</p>
 
             <p><strong>1. Where to add <code>debug!</code></strong></p>
+            <div class="table-wrap">
             <table class="flow-steps">
                 <thead>
                     <tr><th>Step</th><th>File</th><th>Place</th><th>Add</th></tr>
@@ -83,9 +84,9 @@
                     </tr>
                     <tr>
                         <td>3</td>
-                        <td><code>crates/node/src/node_loop.rs</code></td>
-                        <td>At the start of <code>if let Event::SubmitTransaction { ref tx } = event</code> (around 481).</td>
-                        <td><code>tracing::debug!(tx_hash = ?tx_hash, "node_loop: SubmitTransaction intercepted, gossip + queue validation");</code></td>
+                        <td><code>crates/node/src/protocol/mod.rs</code></td>
+                        <td>Where <code>Event::SubmitTransaction</code> is handled (protocol layer).</td>
+                        <td><code>tracing::debug!(tx_hash = ?tx_hash, "protocol: SubmitTransaction intercepted, gossip + queue validation");</code></td>
                     </tr>
                     <tr>
                         <td>4</td>
@@ -101,6 +102,7 @@
                     </tr>
                 </tbody>
             </table>
+            </div>
 
             <p><strong>2. Command to run (tx submit in simulation)</strong></p>
             <div class="code-block"><pre><code>RUST_LOG=debug cargo run --release --bin hyperscale-sim -- --seed 42 -s 1 -v 4 -d 5 --tps 20</code></pre></div>
@@ -115,6 +117,7 @@
             <p><strong>3. Optional shorter run</strong></p>
             <p>To see just a few submissions: <code>RUST_LOG=debug cargo run --release --bin hyperscale-sim -- --seed 42 -s 1 -v 4 -d 2 --tps 5</code> (2 seconds, 5 TPS).</p>
             <p><strong>4. Summary — log order for each tx</strong></p>
+            <div class="table-wrap">
             <table class="flow-steps">
                 <thead>
                     <tr><th>Step</th><th>File</th><th>What you see</th></tr>
@@ -122,16 +125,18 @@
                 <tbody>
                     <tr><td>1</td><td><code>crates/simulator/src/runner.rs</code></td><td>Workload submits tx to shard nodes</td></tr>
                     <tr><td>2</td><td><code>crates/simulation/src/runner.rs</code></td><td>Runner receives SubmitTransaction and gossips</td></tr>
-                    <tr><td>3</td><td><code>crates/node/src/node_loop.rs</code></td><td>NodeLoop intercepts and queues validation</td></tr>
+                    <tr><td>3</td><td><code>crates/node/src/protocol/mod.rs</code></td><td>Protocol layer intercepts and queues validation</td></tr>
                     <tr><td>4</td><td><code>crates/node/src/state.rs</code></td><td>TransactionGossipReceived handed to mempool</td></tr>
                     <tr><td>5</td><td><code>crates/mempool/src/state.rs</code></td><td>Tx added to pool (existing or your debug)</td></tr>
                 </tbody>
             </table>
+            </div>
 
             <h3>Flow 2: Block vote (message in → BFT → vote out)</h3>
             <p><strong>Overview:</strong> A vote for a block arrives from the network (or the node produces its own vote). The simulation runner decodes it and feeds an event into the node; the BFT layer processes it and may emit <code>Action::SendMessage</code> (vote); the runner sends it over the simulated network. You see the consensus vote round-trip.</p>
 
             <p><strong>1. Where to add <code>debug!</code></strong></p>
+            <div class="table-wrap">
             <table class="flow-steps">
                 <thead>
                     <tr><th>Step</th><th>File</th><th>Place</th><th>Add</th></tr>
@@ -163,10 +168,12 @@
                     </tr>
                 </tbody>
             </table>
+            </div>
 
             <p><strong>2. Command to run</strong></p>
             <p>Same as Flow 1 so that proposals and votes happen: <code>RUST_LOG=debug cargo run --release --bin hyperscale-sim -- --seed 42 -s 1 -v 4 -d 5 --tps 20</code>. Votes occur as the sim runs; watch for your four log lines in order.</p>
             <p><strong>3. Summary</strong></p>
+            <div class="table-wrap">
             <table class="flow-steps">
                 <thead>
                     <tr><th>Step</th><th>File</th><th>What you see</th></tr>
@@ -178,11 +185,13 @@
                     <tr><td>4</td><td><code>crates/simulation/src/runner.rs</code></td><td>SendMessage executed (vote on wire)</td></tr>
                 </tbody>
             </table>
+            </div>
 
             <h3>Flow 3: Block commit (commit → execution)</h3>
             <p><strong>Overview:</strong> BFT agrees on a block and commits it. The node receives a "block committed" event; the state machine hands off to the execution layer, which runs the transactions in that block. You see consensus output becoming execution input.</p>
 
             <p><strong>1. Where to add <code>debug!</code></strong></p>
+            <div class="table-wrap">
             <table class="flow-steps">
                 <thead>
                     <tr><th>Step</th><th>File</th><th>Place</th><th>Add</th></tr>
@@ -202,10 +211,12 @@
                     </tr>
                 </tbody>
             </table>
+            </div>
 
             <p><strong>2. Command to run</strong></p>
             <p>Same as Flow 1: <code>RUST_LOG=debug cargo run --release --bin hyperscale-sim -- --seed 42 -s 1 -v 4 -d 5 --tps 20</code>. Blocks commit as the sim runs; you should see "BlockCommitted, entering execution" then "execution: applying committed block" when a block commits.</p>
             <p><strong>3. Summary</strong></p>
+            <div class="table-wrap">
             <table class="flow-steps">
                 <thead>
                     <tr><th>Step</th><th>File</th><th>What you see</th></tr>
@@ -215,6 +226,25 @@
                     <tr><td>2</td><td><code>crates/execution</code> or node</td><td>Applying committed block</td></tr>
                 </tbody>
             </table>
+            </div>
 
-                        <p><strong>Full picture:</strong> The complete end-to-end flow — from user signing a transaction to finality — is covered in a dedicated Basic module: <a href="module-01b-tx-flow.html">Transaction Flow: User to Finality</a>. Use that module for the full diagram and to map every step to crates.</p>
+            <h3>Understanding simulator output</h3>
+            <p>When you run the sim, you may see metrics like these. Hover the terms for definitions:</p>
+            <ul>
+                <li><strong>Lock contention (peak) / Locked nodes</strong> — <span data-glossary="locked nodes">Locked nodes (peak)</span> is the maximum number of distinct state nodes (accounts, components) held by in-flight transactions at any moment. Higher = more contention.</li>
+                <li><strong>In-flight</strong> — <span data-glossary="in-flight">In-flight</span> transactions are submitted but not yet in a final state (completed, rejected, retried) at the time the run stopped. “In-flight: X (at cutoff)” = X txs were still in progress when the sim ended.</li>
+                <li><strong>Account usage – Skew ratio</strong> — <span data-glossary="skew ratio">Skew ratio</span> = max_selections / avg_selections across accounts used by the workload. 1.0 = perfectly even; higher (e.g. 2.50 or 12.50) means a few accounts were used much more than others.</li>
+            </ul>
+
+            <p><strong>Full picture:</strong> The complete end-to-end flow — from user signing a transaction to finality — is covered in a dedicated Basic module: <a href="module-01b-tx-flow.html">Transaction Flow: User to Finality</a>. Use that module for the full diagram and to map every step to crates.</p>
         </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/hyperscale-flow-data.js"></script>
+    <script src="../shared/hyperscale-links.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
+    <script src="../shared/module-init.js" data-module-id="intermediate-hs-overview"></script>
+</body>
+</html>

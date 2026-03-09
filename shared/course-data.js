@@ -150,16 +150,15 @@ const COURSE_DATA = {
                 },
                 {
                     id: 'intermediate-01',
-                    title: 'BFT Consensus Implementation Deep Dive',
+                    title: 'BFT Implementation: Block Flow and Rust',
                     duration: '1.5-2 hours',
                     difficulty: 'Intermediate',
                     path: 'hyperscale-rs/module-04-bft-implementation.html',
-                    description: 'Understand how BFT consensus is implemented in hyperscale-rs',
+                    description: 'BFT and node state in Rust; block lifecycle and vote order. End-to-end flow is in Transaction Flow (module-01b).',
                     objectives: [
-                        'Understand block proposal flow',
-                        'Learn vote collection and QC formation',
-                        'Understand commit rules',
-                        'Trace through actual code'
+                        'Understand block lifecycle (proposed → certified → committed) and vote order (BlockVote before StateVoteBlock)',
+                        'Follow single-shard and multi-shard block flow (provisions, no 2PC coordinator)',
+                        'Map flow to BftState, NodeStateMachine, voting rules, and Rust routines'
                     ],
                     hyperscaleSpecific: true
                 },
@@ -172,8 +171,7 @@ const COURSE_DATA = {
                     description: 'Understand sharding concepts and cross-shard transaction protocols',
                     objectives: [
                         'Understand sharding concepts',
-                        'Learn 2PC protocol',
-                        'Understand provision coordination',
+                        'Understand provision coordination (proofs across shards)',
                         'Learn livelock prevention'
                     ],
                     hyperscaleSpecific: false
@@ -186,8 +184,8 @@ const COURSE_DATA = {
                     path: 'hyperscale-rs/module-05-cross-shard.html',
                     description: 'Understand how hyperscale-rs handles cross-shard transactions',
                     objectives: [
-                        'Understand 2PC in hyperscale-rs',
-                        'Learn provision coordination',
+                        'Understand provision-based cross-shard coordination in hyperscale-rs (no 2PC coordinator)',
+                        'Learn ProvisionCoordinator and five-phase execution',
                         'Understand livelock prevention',
                         'Trace cross-shard flow'
                     ],
@@ -265,6 +263,22 @@ const COURSE_DATA = {
                         'Compare signature schemes (table: pros/cons)',
                         'Find QC and StateCertificate types in the repo',
                         'Understand Ed25519 vs BLS roles (fast signing vs aggregation)'
+                    ],
+                    hyperscaleSpecific: true
+                },
+                {
+                    id: 'intermediate-timing',
+                    title: 'Timing: Rounds, Heights, Timeouts & Timers',
+                    duration: '1–1.5 hours',
+                    difficulty: 'Intermediate',
+                    path: 'hyperscale-rs/module-09-timing.html',
+                    description: 'How height and round (view) work, timeouts and view change, Proposal and Cleanup timers, and where to look in the code',
+                    objectives: [
+                        'Understand height vs round (view) and how they drive BFT progress',
+                        'Know how timeouts trigger round advancement (view change)',
+                        'See how timers (Proposal, Cleanup) are set and fired',
+                        'Map timing config and state to the codebase',
+                        'Relate timing to liveness'
                     ],
                     hyperscaleSpecific: true
                 },
