@@ -16,6 +16,7 @@ const AVAILABLE_MODULES = [
     'intermediate-04', // Transaction Execution & Radix Engine
     'intermediate-08', // Cryptography in Hyperscale-rs
     'intermediate-timing', // Timing: Rounds, Heights, Timeouts & Timers
+    'intermediate-performance', // Performance Measurement
     'basic-07', // libp2p basic
     'intermediate-libp2p', // libp2p intermediate
     'advanced-libp2p', // libp2p advanced

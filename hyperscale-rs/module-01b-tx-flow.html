@@ -155,7 +155,7 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">6. (Cross-shard) Tx travels to each involved shard</div>
-                            <div class="flow-step-desc">For cross-shard txs, the receiving node (or the routing layer) <strong>sends</strong> the tx (or sub-transactions) to the nodes of every other involved <span data-glossary="sharding">shard</span>. Those nodes enqueue it in <strong>their</strong> shard’s mempool. A <strong>coordinator</strong> (one of these shards or a designated role) is chosen so that later (step 13) it can drive prepare/commit/abort in a fixed order. Each shard then runs steps 7–12 for its part.</div>
+                            <div class="flow-step-desc">For cross-shard txs, the receiving node (or the routing layer) <strong>sends</strong> the tx (or sub-transactions) to the nodes of every other involved <span data-glossary="sharding">shard</span>. Those nodes enqueue it in <strong>their</strong> shard’s mempool. Each shard then runs steps 7–12 for its part. Cross-shard atomicity is <strong>provision-based</strong> (StateProvision, <span data-glossary="provisioncoordinator">ProvisionCoordinator</span>, step 13)—there is no 2PC coordinator or prepare/commit/abort.</div>
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
@@ -270,7 +270,7 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" data-crate="execution" target="_blank" rel="noopener">execution</a> — execution state machine; cross-shard 2PC coordination</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" data-crate="execution" target="_blank" rel="noopener">execution</a> — execution state machine; provision-based cross-shard (no 2PC coordinator)</li>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/engine" data-crate="engine" target="_blank" rel="noopener">engine</a> — Radix Engine integration for smart contract execution</li>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">node</a> — composes execution</li>
                                 </ul>
@@ -285,16 +285,16 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">13. (Cross-shard) Coordination &amp; composition</div>
-                            <div class="flow-step-desc">For <strong>cross-shard</strong> txs, <strong>atomic composability</strong> works like this. <strong>Communication &amp; order:</strong> Shards talk in a fixed protocol order (e.g. one <strong>coordinator <span data-glossary="sharding">shard</span></strong> drives <span data-glossary="two-phase commit">2PC</span>). It sends <strong>prepare</strong> to each involved shard; each shard runs its part (<span data-glossary="prepare phase">lock/reserve</span>, no visible state change yet) and replies yes/no. If <strong>all</strong> vote yes, coordinator sends <strong>commit</strong>; otherwise <strong>abort</strong>. <strong>State updates:</strong> Only after the decision, each shard applies updates in an <strong>agreed order</strong> (e.g. by shard ID or coordinator order) — commit = apply state; abort = release locks. That way every node sees the same composed outcome and no shard commits while another aborts. Single-shard txs skip this.</div>
+                            <div class="flow-step-desc">For <strong>cross-shard</strong> txs, <strong>atomic composability</strong> is achieved by a <strong>provision-based protocol</strong> (no 2PC). After a shard commits its block, validators produce <strong>StateProvisions</strong> (signed proofs) and send them to other shards. <strong>ProvisionCoordinator</strong> on each node tracks quorum of provisions from each required shard; when it has provisions from every required shard it emits <strong>ProvisioningComplete</strong>. Execution then runs in a fixed protocol order (e.g. by shard ID); vote aggregation and <strong>TransactionCertificate</strong> follow. There is no prepare/commit/abort—only StateProvision → ProvisionCoordinator checklist → execution and certificate aggregation. Single-shard txs skip this.</div>
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/provisions" data-crate="provisions" target="_blank" rel="noopener">provisions</a> — centralized provision coordination for cross-shard txs</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" data-crate="execution" target="_blank" rel="noopener">execution</a> — transaction execution with cross-shard <span data-glossary="two-phase commit">2PC</span> coordination</li>
+                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" data-crate="execution" target="_blank" rel="noopener">execution</a> — transaction execution with provision-based cross-shard coordination (no 2PC)</li>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">node</a> — composes provisions, execution, core</li>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">core</a> — Event/Action for coordination</li>
                                 </ul>
-                                <p class="outside-note">See module “Cross-Shard Transactions” for 2PC and provision coordination details.</p>
+                                <p class="outside-note">See module “Cross-Shard Transactions” for provision coordination and the five-phase protocol.</p>
                             </div>
                         </div>
                     </div>
@@ -328,7 +328,7 @@
                     <li><strong>Tx does not “broadcast until it lands on the proposer.”</strong> Once the tx is in the mempools (as above), each shard’s proposer pulls from <em>that shard’s</em> mempool when its ProposalTimer fires and builds a block. The proposer broadcasts the <strong>block (header)</strong> to <strong>validators in that shard only</strong>, not to other shards.</li>
                     <li><strong>Proposer sends a block to its shard, not “the block” to all shards.</strong> The proposer for <strong>shard S</strong> builds <strong>one block</strong> (header with <code>parent_qc</code> = QC for previous block in S’s chain, plus txs from S’s mempool). It broadcasts that block (or header; full block is assembled via gossip) to <strong>validators in shard S only</strong>. So: one block per shard, broadcast inside that shard. Other shards have their own proposers and their own blocks at the same “logical” time.</li>
                     <li><strong>Voting and execution order.</strong> Validators in <strong>that shard</strong> vote on the <strong>block</strong> (BFT: do we agree on this block?). That yields a QC for that shard’s block. Then the block is committed (step 11). <strong>After</strong> commit, execution runs (step 12): the transactions in the block are run (e.g. via Radix Engine). So: BFT agrees on block → commit → then execute. There is no “each shard votes on validity and reports to the proposer” in the sense of one global proposer; each shard votes on its own block and gets its own QC.</li>
-                    <li><strong>Cross-shard: no single “proposer finalizes with all shards’ QCs.”</strong> Each shard has its <strong>own</strong> chain and its <strong>own</strong> QC. For a cross-shard tx, the tx (or sub-tx) is in each involved shard’s mempool; each shard may include it in its block; each shard runs BFT (propose → vote → QC → commit) and then execution. <strong>Atomicity across shards</strong> is achieved by <strong>2PC</strong> (step 13): a coordinator drives prepare → all shards prepare (lock/reserve) and reply yes/no → commit or abort → each shard applies state in an agreed order. So “all report success” is the 2PC prepare phase; then commit/abort and apply. There is no single block that “includes the votes (QC) of each shard” — each shard’s block has its own QC in the <em>next</em> block’s header (the normal two-chain rule per shard).</li>
+                    <li><strong>Cross-shard: no single “proposer finalizes with all shards’ QCs.”</strong> Each shard has its <strong>own</strong> chain and its <strong>own</strong> QC. For a cross-shard tx, the tx (or sub-tx) is in each involved shard’s mempool; each shard may include it in its block; each shard runs BFT (propose → vote → QC → commit) and then execution. <strong>Atomicity across shards</strong> is achieved by the <strong>provision-based protocol</strong> (step 13): StateProvisions from source shards, ProvisionCoordinator checklist (quorum per required shard), then deterministic execution and certificate aggregation in a fixed order. There is <strong>no 2PC</strong>—no prepare/commit/abort coordinator. There is no single block that “includes the votes (QC) of each shard” — each shard’s block has its own QC in the <em>next</em> block’s header (the normal two-chain rule per shard).</li>
                     <li><strong>What is the coordinator?</strong> In hyperscale-rs there is no 2PC coordinator; cross-shard flow uses <strong>ProvisionCoordinator</strong> only (provision-based protocol). For the full picture (protocol order, five phases, livelock), see the <strong>Intermediate</strong> module <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>.</li>
                 </ul>
             </div>
@@ -432,7 +432,7 @@
                     "Only to the shard that owns the first NodeID in the tx",
                     "To the mempools of every shard that owns a touched NodeID",
                     "To a single global mempool that then forwards to shards at commit time",
-                    "Only to the coordinator shard until step 13"
+                    "Only to the shard that received the RPC request until step 13"
                 ],
                 correct: 1,
                 explanation: "Single-shard: one mempool. Cross-shard: the tx or sub-transactions are enqueued in the mempools of every involved shard (step 5), and in step 6 they travel to each involved shard so each can order and process its part."
@@ -471,37 +471,37 @@
                 explanation: "Once a block has a quorum certificate (2f+1 votes from that shard's validators), it is final. BFT gives one-round finality; no reorg under normal BFT assumptions. Execution and persistence follow."
             },
             {
-                question: "In step 13 (cross-shard coordination), when do shards make their state updates visible?",
+                question: "In step 13 (cross-shard coordination), when does execution run for a cross-shard tx?",
                 options: [
-                    "During the prepare phase (lock/reserve and apply in the same round)",
-                    "Only after the coordinator's decision (commit or abort), in an agreed order; prepare phase does not make state visible",
-                    "Each shard applies as soon as it has voted yes, before the coordinator decides",
-                    "Only the coordinator shard applies; others send results to it"
+                    "As soon as one shard has committed its block",
+                    "Only after ProvisionCoordinator has quorum of StateProvisions from every required shard (ProvisioningComplete); then execution runs in a fixed protocol order",
+                    "After a central coordinator sends commit to all shards",
+                    "Each shard executes independently and then merges results"
                 ],
                 correct: 1,
-                explanation: "Prepare = lock/reserve, no visible state change yet. State updates happen only after the decision (commit or abort), in an agreed order (e.g. by shard ID or coordinator order), so every node sees the same composed outcome."
+                explanation: "Execution runs only after ProvisioningComplete: ProvisionCoordinator has collected a quorum of StateProvisions from each required shard. Then the five-phase protocol runs (including deterministic execution in a fixed order). There is no 2PC commit message."
             },
             {
-                question: "What happens in the prepare phase of cross-shard 2PC?",
+                question: "What does ProvisionCoordinator do when it has quorum of StateProvisions from every required shard?",
                 options: [
-                    "Each shard commits its state change and then notifies the coordinator",
-                    "Each shard runs its part (e.g. reserve/lock), does not make the state update visible yet, and replies yes or no to the coordinator",
-                    "The coordinator locks all shards' state and then executes the tx itself",
-                    "Validators on each shard vote on the block again"
+                    "It sends a prepare message to each shard, then commit or abort",
+                    "It emits ProvisioningComplete; execution then runs in a fixed protocol order (e.g. by shard ID), followed by vote aggregation and TransactionCertificate",
+                    "It locks all shards' state and executes the tx on a single node",
+                    "It asks each shard to vote again on the block"
                 ],
                 correct: 1,
-                explanation: "Coordinator sends prepare to each involved shard. Each shard prepares (reserve/lock), does not make state visible, and replies yes or no. Only after all vote yes does the coordinator send commit; otherwise abort."
+                explanation: "ProvisionCoordinator is provision-based, not 2PC. When it has quorum from every required shard it emits ProvisioningComplete. Execution runs deterministically in a fixed order; then vote aggregation and finalization. No prepare/commit/abort."
             },
             {
-                question: "Why must state updates (commit or release) be applied in an 'agreed order' across shards in step 13?",
+                question: "Why is cross-shard execution applied in a fixed protocol order (e.g. by shard ID) in step 13?",
                 options: [
                     "To minimize network messages",
-                    "So every node sees the same composed outcome and no shard commits while another aborts; the protocol order ensures a single logical result",
-                    "Because the coordinator can only send one message at a time",
+                    "So every node sees the same composed outcome; deterministic order ensures a single logical result and makes the cross-shard tx atomic",
+                    "Because ProvisionCoordinator can only signal one shard at a time",
                     "To allow rollback if a validator crashes"
                 ],
                 correct: 1,
-                explanation: "Applying in an agreed order (e.g. by shard ID or coordinator order) ensures a single composed outcome everywhere and prevents one shard committing while another aborts — that is what makes the cross-shard tx atomic and composable."
+                explanation: "A fixed protocol order (e.g. by shard ID) ensures all nodes execute in the same order and see the same composed outcome. That determinism is what makes the cross-shard tx atomic and composable in the provision-based protocol."
             }
         ];
         initializeQuiz('quiz-tx-flow', quizQuestions, 70);

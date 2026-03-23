@@ -43,7 +43,7 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">1. State provisioning</div>
-                            <div class="flow-step-desc">When a block commits with cross-shard txs, the block proposer broadcasts <strong>StateProvision</strong> (with merkle inclusion proofs) to target shards.</div>
+                            <div class="flow-step-desc">When a block commits with cross-shard txs, each validator in the source shard produces and sends a <strong>StateProvision</strong> (signed proof with merkle inclusion proofs) to target shards—effectively a vote; the target aggregates 2f+1 to form a CommitmentProof.</div>
                         </div>
                     </div>
                     <div class="flow-step-arrow">↓</div>
@@ -87,14 +87,14 @@
             <h2>ProvisionCoordinator (the only coordinator in cross-shard flow)</h2>
             <p>In hyperscale-rs, cross-shard flow has <strong>one</strong> coordinator concept: <strong>ProvisionCoordinator</strong> (provisions crate). There is no 2PC coordinator; the code uses the five-phase provision-based protocol above.</p>
             <ul>
-                <li><strong>ProvisionCoordinator (provisions crate).</strong> A <strong>sub-state machine on every node</strong>, not a single elected node. After a shard commits its block (with part of a cross-shard tx), it produces a signed proof (<strong>StateProvision</strong>) and sends it to other shards. ProvisionCoordinator on each node keeps a checklist: "For this tx, do we have quorum of provisions from shard 1? From shard 2? …" (<code>required_shards</code> = all other participating shards). When it has enough from every required shard, it emits <strong>ProvisioningComplete</strong> so the execution crate can proceed (Phase 3–5). So it answers "can this shard complete its part?" — we have the proofs we need from prerequisite shards.</li>
+                <li><strong>ProvisionCoordinator (provisions crate).</strong> A <strong>sub-state machine on every node</strong>, not a single elected node. After a shard commits its block (with part of a cross-shard tx), each validator in that shard produces a signed proof (<strong>StateProvision</strong>) and sends it to other shards. ProvisionCoordinator on each node keeps a checklist: "For this tx, do we have quorum of provisions from shard 1? From shard 2? …" (<code>required_shards</code> = all other participating shards). When it has enough from every required shard, it emits <strong>ProvisioningComplete</strong> so the execution crate can proceed (Phase 3–5). So it answers "can this shard complete its part?" — we have the proofs we need from prerequisite shards.</li>
             </ul>
             <div class="info section-tight">
                 <p><strong>Nuance: Why "centralized" ProvisionCoordinator?</strong> The provisions crate doc calls it <em>centralized</em> in the sense that <strong>on each node</strong>, one sub-state machine (<code>ProvisionCoordinator</code>) owns all provision tracking and verification for that node—instead of scattering that logic across execution, BFT, and mempool. There is <strong>no</strong> single network-wide coordinator; each validator runs its own ProvisionCoordinator. <strong>Pros:</strong> Single place to join provisions with remote headers, verify QC + merkle proofs, and emit ProvisioningComplete; consistent with execution crate (which registers and waits on it); livelock can query <code>txs_with_provisions_from</code> in one place. <strong>Cons:</strong> All provision state and verification complexity lives in one component per node; backpressure for cross-shard txs is handled by mempool (which calls <code>has_any_verified_provisions</code>), not inside the coordinator—so the design splits "have we got provisions?" (provisions crate) from "should we relax limits?" (mempool).</p>
             </div>
-            <p><strong>State Provision flow (same style as <a href="module-01b-tx-flow.html">Transaction Flow</a>):</strong> After a shard commits its block, it produces a signed proof (StateProvision) and sends it to other shards. ProvisionCoordinator on each node tracks whether it has quorum of provisions from each required shard; when complete, it emits ProvisioningComplete so execution can proceed.</p>
+            <p><strong>State Provision flow (same style as <a href="module-01b-tx-flow.html">Transaction Flow</a>):</strong> After a shard commits its block, each validator in that shard produces a signed proof (StateProvision) and sends it to other shards. ProvisionCoordinator on each node tracks whether it has quorum of provisions from each required shard; when complete, it emits ProvisioningComplete so execution can proceed.</p>
             <div class="info section-tight">
-                <p><strong>Multi-shard finality in rounds:</strong> Yes — a multi-shard tx is effectively finalized in <strong>multiple rounds</strong>, one per shard that holds a part of it. Shard 0 finalizes its block (and thus its part of the tx and the outgoing receipt); it then sends the receipt (via StateProvision) to Shard 1. Shard 1 can only complete its part after it has those provisions; when Shard 1’s block that applies the receipt is finalized, that part is final too. So each “round” is a block finalized on one shard. The <strong>transaction as a whole</strong> is finalized only when <strong>every</strong> such block (on every involved shard) is finalized.</p>
+                <p><strong>Multi-shard finality in rounds:</strong> Yes — a multi-shard tx is effectively finalized in <strong>multiple rounds</strong>, one per shard that holds a part of it. Shard 0 finalizes its block (and thus its part of the tx and the outgoing receipt); each validator in Shard 0 then sends a StateProvision (attesting to that receipt/state) to Shard 1. Shard 1 can only complete its part after it has those provisions; when Shard 1’s block that applies the receipt is finalized, that part is final too. So each “round” is a block finalized on one shard. The <strong>transaction as a whole</strong> is finalized only when <strong>every</strong> such block (on every involved shard) is finalized.</p>
             </div>
             <div class="tx-flow">
                 <div class="tx-flow-legend">
@@ -113,7 +113,7 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">2. Produce StateProvision</div>
-                            <div class="flow-step-desc">The shard produces a <strong>StateProvision</strong> (signed proof of the state it wrote) and sends it to the other involved shards.</div>
+                            <div class="flow-step-desc">Each validator in the source shard produces a <strong>StateProvision</strong> (signed proof of the state it wrote) and sends it to the target shards.</div>
                         </div>
                     </div>
                     <div class="flow-step-arrow">↓</div>

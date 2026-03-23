@@ -26,6 +26,7 @@
             <ul>
                 <li>Know what hyperscale-rs is and where to find the repo and docs</li>
                 <li>Understand the best ways to trace transaction flow end to end (run, debugger, logs)</li>
+                <li>Know what it takes to run real nodes (requirements, local cluster, Docker, or distributed) and how that differs from simulation</li>
                 <li>Know the next step: complete the Crate Groups module and its quizzes</li>
             </ul>
         </div>
@@ -61,7 +62,7 @@
             <p><strong>Tracing:</strong> Use <code>tracing::debug!</code> (or <code>debug!</code> with <code>use tracing::debug</code>). Run the sim with <code>RUST_LOG=debug</code> so these logs show up. Remove or comment out the lines before committing.</p>
 
             <h3>Flow 1: Transaction submit (workload → sim runner → node → mempool)</h3>
-            <p><strong>Overview:</strong> The simulator workload submits a transaction; the simulation runner receives <code>Event::SubmitTransaction</code> and gossips it; the protocol layer intercepts it and queues validation; the state machine gets <code>TransactionGossipReceived</code> and the mempool adds the tx. You see the path from submit to tx in mempool.</p>
+            <p><strong>Overview:</strong> The simulator workload submits a transaction via <code>schedule_initial_event(..., NodeInput::SubmitTransaction { tx })</code>; the node's io_loop receives it and gossips to shards; the protocol layer delivers <code>TransactionGossipReceived</code> to the state machine and the mempool adds the tx. You see the path from submit to tx in mempool.</p>
 
             <p><strong>1. Where to add <code>debug!</code></strong></p>
             <div class="table-wrap">
@@ -73,14 +74,14 @@
                     <tr>
                         <td>1</td>
                         <td><code>crates/simulator/src/runner.rs</code></td>
-                        <td>Right before the loop that calls <code>schedule_initial_event</code> for each node (around line 176), inside the <code>for tx in batch</code> loop, after you have <code>tx</code> and <code>target_shard</code> (e.g. after <code>let tx = std::sync::Arc::new(tx);</code>).</td>
+                        <td>Inside the <code>for tx in batch</code> loop, right before the loop that calls <code>schedule_initial_event</code> for each node (around line 179), after you have <code>tx</code> and <code>target_shard</code> (e.g. after <code>let tx = std::sync::Arc::new(tx);</code>).</td>
                         <td><code>tracing::debug!(tx_hash = ?hash, target_shard = target_shard.0, nodes = ?shard_nodes, "sim: workload submitting tx to shard nodes");</code></td>
                     </tr>
                     <tr>
                         <td>2</td>
-                        <td><code>crates/simulation/src/runner.rs</code></td>
-                        <td>Inside the <code>if let Event::SubmitTransaction { ref tx } = event</code> block (around 602), at the top of the block.</td>
-                        <td><code>tracing::debug!(node = node_index, tx_hash = ?tx.hash(), shards = ?shards, "sim runner: SubmitTransaction received, gossiping to peers");</code></td>
+                        <td><code>crates/node/src/io_loop/mod.rs</code></td>
+                        <td>In <code>crates/node/src/io_loop/mod.rs</code>, inside the <code>NodeInput::SubmitTransaction { tx }</code> arm (around line 492), at the top of the block (where shards are computed and gossip is broadcast).</td>
+                        <td><code>tracing::debug!(tx_hash = ?tx_hash, shards = ?shards, "io_loop: SubmitTransaction received, gossiping to shards");</code></td>
                     </tr>
                     <tr>
                         <td>3</td>
@@ -91,13 +92,13 @@
                     <tr>
                         <td>4</td>
                         <td><code>crates/node/src/state.rs</code></td>
-                        <td>At the start of the <code>Event::TransactionGossipReceived { tx, submitted_locally }</code> arm (around 832), before the <code>if !self.topology.involves_local_shard(tx)</code> check.</td>
+                        <td>At the start of the <code>ProtocolEvent::TransactionGossipReceived { tx, submitted_locally }</code> arm in the state machine match (around line 1035), before <code>on_transaction_gossip_received</code> is called.</td>
                         <td><code>tracing::debug!(tx_hash = ?tx.hash(), submitted_locally = submitted_locally, "node state: TransactionGossipReceived -> mempool");</code></td>
                     </tr>
                     <tr>
                         <td>5</td>
                         <td><code>crates/mempool/src/state.rs</code></td>
-                        <td>In <code>on_transaction_gossip_arc</code>, right after <code>let hash = tx.hash();</code> (e.g. around 374). (There may already be a <code>tracing::debug!</code> a bit lower; ensure <code>RUST_LOG=debug</code> shows it, or add this.)</td>
+                        <td>In <code>on_transaction_gossip_arc</code>, right after <code>let hash = tx.hash();</code> (around line 398). (There may already be a <code>tracing::debug!</code> a bit lower; ensure <code>RUST_LOG=debug</code> shows it, or add this.)</td>
                         <td><code>tracing::debug!(tx_hash = ?hash, submitted_locally, "mempool: adding tx via gossip");</code></td>
                     </tr>
                 </tbody>
@@ -238,6 +239,74 @@
 
             <p><strong>Full picture:</strong> The complete end-to-end flow — from user signing a transaction to finality — is covered in a dedicated Basic module: <a href="module-01b-tx-flow.html">Transaction Flow: User to Finality</a>. Use that module for the full diagram and to map every step to crates.</p>
         </div>
+
+        <div class="section">
+            <h2>3. Running real nodes (production) vs simulation</h2>
+            <p>The rest of this module uses the <strong>simulator</strong> (<code>hyperscale-sim</code>): one process, simulated time, in-memory network. To run <strong>real validator nodes</strong> (separate processes, real libp2p, real RocksDB, real RPC), you use the production runner and launch scripts. Below: what it takes and how to do it.</p>
+
+            <h3>Requirements</h3>
+            <ul>
+                <li><strong>Build:</strong> <code>cargo build --release</code> (same as for sim). This builds the <code>hyperscale-validator</code> (or equivalent production binary) and the launch scripts use it.</li>
+                <li><strong>Topology:</strong> Number of shards and validators per shard. The launch scripts generate validator keys and configs for you.</li>
+                <li><strong>Network:</strong> Each node needs a libp2p listen address and (for distributed) reachable IPs/ports. Ports (e.g. 9000 UDP/TCP for P2P, 8080 for RPC) must be open on the host or between machines.</li>
+                <li><strong>Storage:</strong> Each validator writes RocksDB data to a directory; the scripts create these or use <code>--clean</code> to start fresh.</li>
+                <li><strong>Genesis:</strong> The cluster needs a shared genesis (validator set, etc.). The launch scripts generate this when they generate configs.</li>
+                <li><strong>Docker (optional):</strong> If you use the Docker-based cluster, Docker (and Docker Compose) must be installed. Allocate at least <strong>8–10 GB RAM</strong> to the Docker VM/Desktop so validators have enough memory.</li>
+            </ul>
+
+            <h3>How to run a local cluster (one machine)</h3>
+            <p><strong>Process-based (fastest for iteration):</strong></p>
+            <div class="code-block"><pre><code>./scripts/launch-cluster.sh</code></pre></div>
+            <p>This starts a cluster of validator nodes as background processes on your host. Options:</p>
+            <ul>
+                <li><code>--shards &lt;N&gt;</code> — Number of shards (default: 2).</li>
+                <li><code>--validators-per-shard &lt;M&gt;</code> — Validators per shard (default: 4).</li>
+                <li><code>--clean</code> — Wipe data directories before starting.</li>
+                <li><code>--monitoring</code> — Start Prometheus and Grafana for metrics.</li>
+            </ul>
+            <p>At the end, the script prints the <strong>RPC ports</strong> for each node (e.g. 8080, 8081, …). You need these for the spammer or for submitting transactions.</p>
+
+            <p><strong>Docker-based (closer to production):</strong></p>
+            <div class="code-block"><pre><code>./scripts/launch-docker-compose.sh</code></pre></div>
+            <p>Runs the cluster inside Docker containers. Ensure Docker has at least <strong>8–10 GB RAM</strong>. Options include <code>--shards</code>, <code>--validators-per-shard</code>, <code>--memory</code>, <code>--cpus</code>, <code>--latency</code>. Stop with:</p>
+            <div class="code-block"><pre><code>./scripts/stop-docker-compose.sh</code></pre></div>
+
+            <h3>How to run a distributed cluster (multiple machines)</h3>
+            <p>To run validators across several physical hosts or VMs, use the distributed workflow (see the repo’s <strong>README_DISTRIBUTED.md</strong>):</p>
+            <ol>
+                <li><strong>Generate configs</strong> on one machine: <code>./scripts/generate-distributed-config.sh --hosts "IP1,IP2,..." --nodes-per-host N</code>. This creates keys and <code>config.toml</code> per node under <code>distributed-cluster-data/</code>.</li>
+                <li><strong>Copy</strong> the <code>hyperscale-validator</code> binary and each host’s config directory to the corresponding machine.</li>
+                <li><strong>Start each validator</strong> on its host: <code>./hyperscale-validator --config /path/to/node-X/config.toml</code>.</li>
+            </ol>
+            <p>Prerequisites: Rust (for building and generating configs), SSH to all hosts, and <strong>ports 9000 (UDP/TCP)</strong> and <strong>8080 (TCP)</strong> open as needed for P2P and RPC.</p>
+
+            <h3>Load testing real nodes</h3>
+            <p>After the cluster is up, use the <strong>hyperscale-spammer</strong> to send traffic to the RPC endpoints. Use the ports printed by the launch script (they depend on shards and validators):</p>
+            <div class="code-block"><pre><code>./target/release/hyperscale-spammer run \
+  --endpoints "http://localhost:8080,http://localhost:8081" \
+  --num-shards 2 \
+  --validators-per-shard 4 \
+  --tps 100 \
+  --duration 30s</code></pre></div>
+
+            <p><strong>Summary:</strong> Simulation = one binary (<code>hyperscale-sim</code>), no real network or disk. Real nodes = launch script or Docker/distributed + <code>hyperscale-validator</code> per node, real libp2p and RocksDB; then use the spammer or your own RPC client to drive load. For exact flags and troubleshooting, see the repo <a href="#" data-file="README.md" target="_blank" rel="noopener">README.md</a> and <strong>README_DISTRIBUTED.md</strong>.</p>
+        </div>
+
+        <div class="section">
+            <h2>Important crates for overall flows</h2>
+            <p>When studying single-shard and multi-shard flows, these crates are the main ones to focus on:</p>
+            <ul>
+                <li><strong>Single-shard:</strong> <code>node</code> (state machine, protocol, event→action), <code>mempool</code> (tx pool, admission), <code>bft</code> (proposal, voting, QC, commit rule), <code>execution</code> (run committed block, StateVoteBlock → StateCertificate), <code>types</code> (Block, BlockHeader, QC, TransactionCertificate).</li>
+                <li><strong>Multi-shard:</strong> Same as above, plus <code>provisions</code> (ProvisionCoordinator, StateProvision quorum, ProvisioningComplete), <code>livelock</code> (cycle detection, defer/retry), and execution’s cross-shard phases (provision verification, then execute, then certificate aggregation).</li>
+            </ul>
+            <p>Simulation and tracing: <code>simulator</code> (workload, submit), <code>simulation</code> (runner, network, action dispatch). See <a href="module-01b-tx-flow.html">Transaction Flow</a> and <a href="module-01c-crate-groups.html">Crate Groups</a> for crate-by-crate quizzes and flow maps.</p>
+        </div>
+
+        <div class="navigation">
+            <a href="../basic/module-04-state-machines.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="module-01b-tx-flow.html" class="btn btn-primary">Next Module →</a>
+        </div>
     </div>
 
     <script src="../shared/course-data.js"></script>
@@ -245,6 +314,7 @@
     <script src="../shared/hyperscale-links.js"></script>
     <script src="../shared/navigation.js"></script>
     <script src="../shared/glossary.js"></script>
+    <script src="../shared/navigation.js"></script>
     <script src="../shared/module-init.js" data-module-id="intermediate-hs-overview"></script>
 </body>
 </html>

@@ -283,6 +283,20 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    id: 'intermediate-performance',
+                    title: 'Performance Measurement',
+                    duration: '1–1.5 hours',
+                    difficulty: 'Intermediate',
+                    path: 'hyperscale-rs/module-10-performance-measurement.html',
+                    description: 'How performance is measured in simulation and production, what sim can miss vs real life, and recommendations for additional measures',
+                    objectives: [
+                        'Understand how performance is measured today (simulation and production)',
+                        'Know what simulation metrics can miss compared to real deployment',
+                        'Identify gaps and apply recommendations for additional performance measures'
+                    ],
+                    hyperscaleSpecific: true
+                },
+                {
                     id: 'intermediate-libp2p',
                     title: 'libp2p: Transports, Identity, Security & Discovery',
                     duration: '2–2.5 hours',

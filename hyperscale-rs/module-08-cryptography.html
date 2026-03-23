@@ -25,10 +25,154 @@
             <ul>
                 <li>Understand why BLS is used for quorum and state certificates</li>
                 <li>Compare signature schemes used in blockchain (table)</li>
-                <li>Understand why libp2p keypair is derived from BLS public key</li>
+                <li>Understand how libp2p identity and validator bind (BLS over PeerId) work</li>
                 <li>See where BLS and Ed25519 appear in the repo</li>
                 <li>Understand QC and StateCertificate aggregation</li>
             </ul>
+        </div>
+
+        <div class="section">
+            <h2>Cryptographic Topics Around Merkle Trees, State Roots, and QC Certificates</h2>
+            <p>Reference table: where each concept fits and what you need to know for blockchain and Hyperscale-rs.</p>
+            <table class="content-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Concept</th>
+                        <th>What It Is</th>
+                        <th>Where It Appears</th>
+                        <th>What You Need to Know</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Cryptographic Hashing</td>
+                        <td><span data-glossary="hash functions">Hash Functions</span></td>
+                        <td>Deterministic one-way functions producing fixed-size outputs</td>
+                        <td>Everything in blockchains</td>
+                        <td>SHA-256, Keccak, collision resistance, preimage resistance</td>
+                    </tr>
+                    <tr>
+                        <td>Authenticated Data Structures</td>
+                        <td><span data-glossary="merkle root">Merkle Trees</span></td>
+                        <td>Binary tree where leaves hash data and parents hash children</td>
+                        <td>Bitcoin blocks, Ethereum state, rollups</td>
+                        <td>Building trees, generating proofs, verifying proofs</td>
+                    </tr>
+                    <tr>
+                        <td>Authenticated Data Structures</td>
+                        <td><span data-glossary="merkle proof">Merkle Proofs</span></td>
+                        <td>Minimal set of hashes proving a leaf belongs to a tree</td>
+                        <td>SPV clients, rollups, state sync</td>
+                        <td>Proof construction, proof verification</td>
+                    </tr>
+                    <tr>
+                        <td>Authenticated Data Structures</td>
+                        <td><span data-glossary="merkle patricia tree">Merkle Patricia Trees</span></td>
+                        <td>Trie structure optimized for key-value state</td>
+                        <td>Ethereum state root</td>
+                        <td>Tries, path compression, key hashing</td>
+                    </tr>
+                    <tr>
+                        <td>Authenticated Data Structures</td>
+                        <td><span data-glossary="sparse merkle tree">Sparse Merkle Trees</span></td>
+                        <td>Efficient tree for huge key spaces</td>
+                        <td>zk rollups, stateless blockchains</td>
+                        <td>Bit paths, default nodes, proof compression</td>
+                    </tr>
+                    <tr>
+                        <td>Authenticated Data Structures</td>
+                        <td><span data-glossary="verkle tree">Verkle Trees</span></td>
+                        <td>Vector commitment trees replacing Merkle trees</td>
+                        <td>Ethereum future roadmap</td>
+                        <td>Polynomial commitments, vector commitments</td>
+                    </tr>
+                    <tr>
+                        <td>Blockchain State</td>
+                        <td><span data-glossary="state root">State Root</span></td>
+                        <td>Hash of the entire world state</td>
+                        <td>Ethereum block header</td>
+                        <td>State transitions, trie updates</td>
+                    </tr>
+                    <tr>
+                        <td>Blockchain State</td>
+                        <td><span data-glossary="transaction root">Transaction Root</span></td>
+                        <td>Merkle root of transactions in a block</td>
+                        <td>Bitcoin, Ethereum</td>
+                        <td>Transaction ordering, proof generation</td>
+                    </tr>
+                    <tr>
+                        <td>Blockchain State</td>
+                        <td><span data-glossary="receipt root">Receipt Root</span></td>
+                        <td>Merkle root of execution receipts</td>
+                        <td>Ethereum</td>
+                        <td>Log proofs</td>
+                    </tr>
+                    <tr>
+                        <td>Distributed Consensus</td>
+                        <td><span data-glossary="quorum certificate">Quorum Certificate (QC)</span></td>
+                        <td>Aggregated signatures proving consensus majority</td>
+                        <td>HotStuff, Aptos, Sui, Diem</td>
+                        <td>BFT consensus, quorum intersection</td>
+                    </tr>
+                    <tr>
+                        <td>Distributed Consensus</td>
+                        <td><span data-glossary="block commit proof">Block Commit Proof</span></td>
+                        <td>Evidence a block was agreed upon</td>
+                        <td>Tendermint, HotStuff</td>
+                        <td>Finality proofs</td>
+                    </tr>
+                    <tr>
+                        <td>Digital Signatures</td>
+                        <td><span data-glossary="signature schemes">Signature Schemes</span></td>
+                        <td>Cryptographic proof of identity</td>
+                        <td>Validators sign blocks and votes</td>
+                        <td>ECDSA, EdDSA, BLS</td>
+                    </tr>
+                    <tr>
+                        <td>Signature Aggregation</td>
+                        <td><span data-glossary="bls aggregation">BLS Aggregation</span></td>
+                        <td>Combine many validator signatures into one</td>
+                        <td>Ethereum 2, some BFT chains</td>
+                        <td>Pairing cryptography</td>
+                    </tr>
+                    <tr>
+                        <td>Distributed Systems</td>
+                        <td><span data-glossary="bft">Byzantine Fault Tolerance</span></td>
+                        <td>Consensus despite malicious nodes</td>
+                        <td>HotStuff, PBFT</td>
+                        <td>Quorum math, liveness vs safety</td>
+                    </tr>
+                    <tr>
+                        <td>Distributed Systems</td>
+                        <td><span data-glossary="state machine replication">State Machine Replication</span></td>
+                        <td>Deterministic execution replicated across nodes</td>
+                        <td>All blockchains</td>
+                        <td>Deterministic execution</td>
+                    </tr>
+                    <tr>
+                        <td>Zero Knowledge</td>
+                        <td><span data-glossary="commitment schemes">Commitment Schemes</span></td>
+                        <td>Hide data but allow verification later</td>
+                        <td>ZK rollups</td>
+                        <td>Pedersen commitments</td>
+                    </tr>
+                    <tr>
+                        <td>Zero Knowledge</td>
+                        <td><span data-glossary="polynomial commitment">Polynomial Commitments</span></td>
+                        <td>Commit to polynomial evaluations</td>
+                        <td>Verkle trees, SNARKs</td>
+                        <td>KZG commitments</td>
+                    </tr>
+                    <tr>
+                        <td>Zero Knowledge</td>
+                        <td><span data-glossary="snark">SNARK/STARK Proofs</span></td>
+                        <td>Succinct proofs verifying computation</td>
+                        <td>zkSync, Starknet</td>
+                        <td>Constraint systems</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
         <div class="section">
@@ -90,11 +234,10 @@
         </div>
 
         <div class="section">
-            <h2>Why we derive libp2p keypair from BLS public key</h2>
-            <p><strong>One identity, two roles.</strong> Consensus identity is the BLS public key (votes, QCs, validator set). libp2p needs an Ed25519-style keypair for TLS and <code>PeerId</code>, not BLS. Instead of two unrelated keys, the libp2p keypair is <strong>derived</strong> from the BLS public key — one logical identity, with the p2p key as a deterministic view for transport.</p>
-            <p><strong>Derivation uses the public key only</strong> (no secret): hash the BLS public key bytes with a <strong>domain separator</strong>, use the hash as seed for an Ed25519 keypair (see <a href="#" data-file="crates/production/src/adapter.rs" target="_blank" rel="noopener">adapter.rs</a>). In the code this separator is <code>LIBP2P_IDENTITY_DOMAIN</code> = <code>b"hyperscale-libp2p-identity-v1:"</code>: it is prepended (or otherwise combined) with the pubkey before hashing so that the derived key is bound to this specific use. That way the same BLS pubkey hashed with a different domain would yield a different PeerId, avoiding collisions and tying the derivation to “Hyperscale libp2p identity” only. So anyone who knows a validator’s BLS public key can compute that validator’s <code>PeerId</code> (e.g. <code>compute_peer_id_for_validator(public_key)</code>). The topology already has every validator’s BLS public key, so at startup the runner can fill <code>validator_peers</code> and <code>peer_validators</code> without out-of-band PeerId exchange.</p>
-            <p><strong>In production:</strong> the validator binary builds the libp2p identity from the same BLS key it uses for consensus (<code>derive_libp2p_keypair(&signing_keypair.public_key())</code> in <a href="#" data-file="crates/production/src/validator.rs" target="_blank" rel="noopener">validator.rs</a>). The runner registers <code>validator_id → peer_id</code>; the network layer uses that mapping for peer validation (only known validators in <code>peer_validators</code>).</p>
-            <p><strong>Why not BLS for libp2p?</strong> libp2p’s identity and TLS are built for key types like Ed25519. So: BLS = consensus identity; Ed25519 = derived only for transport. The stack works without changing libp2p, and every validator has a deterministic, derivable <code>PeerId</code> from their public key.</p>
+            <h2>Libp2p identity and validator bind</h2>
+            <p><strong>Two keys, one binding.</strong> Consensus identity is the BLS public key (votes, QCs, validator set). libp2p uses an Ed25519 keypair for TLS and <code>PeerId</code>. In the current design the libp2p keypair is <strong>generated at random</strong> (<code>generate_random_keypair()</code> in <a href="#" data-file="crates/network-libp2p/src/adapter/identity.rs" target="_blank" rel="noopener">network-libp2p/src/adapter/identity.rs</a>). The runner then signs a <strong>validator bind message</strong> (the PeerId bytes) with the BLS key, so the network layer can verify that this peer owns the claimed validator identity.</p>
+            <p><strong>In production:</strong> <a href="#" data-file="crates/production/src/runner.rs" target="_blank" rel="noopener">runner.rs</a> creates the libp2p adapter with <code>ed25519_keypair</code> (from <code>generate_random_keypair()</code>) and <code>local_bind_signature</code> (BLS signature over <code>validator_bind_message(peer_id)</code>). The <strong>validator-bind protocol</strong> (<a href="#" data-file="crates/network-libp2p/src/validator_bind.rs" target="_blank" rel="noopener">validator_bind.rs</a>) proves the peer controls the BLS key for the given ValidatorId. Topology holds every validator's BLS public key; the runner passes <code>initial_validator_keys</code> so the network can verify bind signatures. (Legacy note: an older design used <code>LIBP2P_IDENTITY_DOMAIN</code> = <code>b"hyperscale-libp2p-identity-v1:"</code>: it is prepended (or otherwise combined) with the pubkey before hashing so that the derived key is bound to this specific use. That way the same BLS pubkey hashed with a different domain would yield a different PeerId, avoiding collisions and tying the derivation to “Hyperscale libp2p identity” only. So anyone who knows a validator’s BLS public key can compute that validator’s <code>PeerId</code> (e.g. <code>compute_peer_id_for_validator(public_key)</code>). The topology already has every validator’s BLS public key, so at startup the runner can fill <code>validator_peers</code> and <code>peer_validators</code> without out-of-band PeerId exchange.</p>
+            <p><strong>Why not BLS for libp2p?</strong> libp2p’s identity and TLS are built for key types like Ed25519. So: BLS = consensus identity; Ed25519 = Ed25519 = transport key. PeerId is no longer derivable from BLS alone; identity is tied by the BLS signature over PeerId.</p>
         </div>
 
         <div class="section">
@@ -102,8 +245,9 @@
             <ul>
                 <li><a href="#" data-file="crates/types/src/quorum_certificate.rs" target="_blank" rel="noopener">crates/types/src/quorum_certificate.rs</a> — QC type and BLS aggregated signature.</li>
                 <li><a href="#" data-file="crates/types/src/state.rs" target="_blank" rel="noopener">crates/types/src/state.rs</a> — StateCertificate and aggregated BLS.</li>
-                <li><a href="#" data-file="crates/production/src/adapter.rs" target="_blank" rel="noopener">crates/production/src/adapter.rs</a> — <code>derive_libp2p_keypair</code>, <code>LIBP2P_IDENTITY_DOMAIN</code> (domain separator), PeerId from BLS pubkey.</li>
-                <li><a href="#" data-file="crates/production/src/validator.rs" target="_blank" rel="noopener">crates/production/src/validator.rs</a> — validator builds p2p identity from BLS key.</li>
+                <li><a href="#" data-file="crates/production/src/runner.rs" target="_blank" rel="noopener">crates/production/src/runner.rs</a> — Libp2pAdapter creation, <code>ed25519_keypair</code>, <code>local_bind_signature</code> (BLS over PeerId).</li>
+                <li><a href="#" data-file="crates/network-libp2p/src/adapter/identity.rs" target="_blank" rel="noopener">crates/network-libp2p/src/adapter/identity.rs</a> — <code>generate_random_keypair()</code> for libp2p.</li>
+                <li><a href="#" data-file="crates/network-libp2p/src/validator_bind.rs" target="_blank" rel="noopener">crates/network-libp2p/src/validator_bind.rs</a> — validator-bind protocol (BLS proof of PeerId ↔ ValidatorId).</li>
                 <li>Keygen / crypto crate — validator BLS key generation (32-byte hex seed or random).</li>
             </ul>
         </div>

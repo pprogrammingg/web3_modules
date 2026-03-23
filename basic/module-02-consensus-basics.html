@@ -22,12 +22,39 @@
         <div class="section">
             <h2>Learning Objectives</h2>
             <ul>
+                <li>Recognize the 7 core components every blockchain consensus system contains (ingestion, mempool, gossip, proposal, voting, QC, commit rule)</li>
                 <li>Understand the consensus problem in distributed systems</li>
                 <li>Learn about Byzantine Fault Tolerance (BFT)</li>
                 <li>Understand quorum certificates and voting</li>
                 <li>Learn the basics of HotStuff-2 protocol</li>
                 <li>Compare BFT with <span data-glossary="proof of stake">Proof-of-Stake (PoS)</span></li>
             </ul>
+        </div>
+
+        <div class="section">
+            <h2>The 7 core components every consensus system contains</h2>
+            <p>Once you see this structure, every consensus paper—whether PBFT, HotStuff, DAG protocols, or others—becomes easier to understand. Almost every modern blockchain is a variation of this pipeline.</p>
+
+            <ol class="content-list" style="counter-reset: list-counter 0;">
+                <li><strong>Transaction Ingestion (Client → Network)</strong> — Where transactions enter: RPC or P2P, then signature verification, fee validation, basic stateless checks. Result: transaction accepted into <span data-glossary="mempool">mempool</span>.</li>
+                <li><strong>Mempool / Transaction Pool</strong> — Pending transactions waiting to be ordered. Responsibilities: deduplication, prioritization (e.g. fees), eviction, dependency handling. Many systems treat mempool as separate from consensus.</li>
+                <li><strong>Peer-to-Peer Network (Gossip Layer)</strong> — Propagates data across validators (blocks, transactions, votes). Often libp2p-style. Key concerns: latency, bandwidth, peer scoring, eclipse resistance. The gossip network is often the real throughput bottleneck.</li>
+                <li><strong>Block Proposal / Leader Selection</strong> — Who proposes the next block: round-robin, stake-weighted rotation, or VRF-based randomness. Leader selects transactions from the mempool and proposes a block.</li>
+                <li><strong>Voting &amp; Quorum Formation</strong> — Validators vote on the proposed block (e.g. <code>vote = sign(block_hash)</code>). Votes propagate until a quorum is reached. Classic BFT: <strong>2f+1</strong> votes out of <strong>3f+1</strong> validators.</li>
+                <li><strong>Quorum Certificates (QC)</strong> — Votes are compressed into a quorum certificate: <code>QC = aggregated signatures proving quorum</code>. Often BLS aggregation. Once a QC exists, the block is considered validated. Protocols like HotStuff chain QCs in block headers.</li>
+                <li><strong>Commit Rule / Finality</strong> — When does a block become irreversible? HotStuff-style: block A → block B (justifies A) → block C (justifies B) → commit A. The protocol’s commit rule ensures safety even with network delays.</li>
+            </ol>
+
+            <p><strong>The pipeline together:</strong></p>
+            <div class="block-diagram">
+                <div class="diagram-label">User transaction → Transaction validation → Mempool → Leader selects txs → Block proposal → Validators vote → Quorum certificate forms → Commit rule satisfied → Block finalized</div>
+            </div>
+
+            <div class="info" style="margin-top: 1rem;">
+                <strong>Why this mental model helps:</strong> When you read a new consensus paper, ask: How are transactions stored? How does gossip work? How is the leader chosen? How are votes aggregated? What defines a quorum? What is the commit rule? How does the system recover from leader failure? Answer those seven questions and you understand most of the protocol.
+            </div>
+
+            <p><strong>One insight:</strong> Consensus itself is not the hardest part of a blockchain. The hardest parts are usually <em>networking</em>, <em>mempool design</em>, and <em>state execution performance</em>. Consensus is one layer on top of them.</p>
         </div>
 
         <div class="section">

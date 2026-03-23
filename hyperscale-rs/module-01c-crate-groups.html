@@ -130,7 +130,7 @@
             <p><strong>Crates:</strong> execution, engine, node, types, core</p>
             <p><strong>One-liner:</strong> Once a block is committed, who runs the transactions and how single-shard vs cross-shard paths diverge.</p>
             <ul>
-                <li><strong>execution</strong>: on_block_committed, split single-shard vs cross-shard, single-shard execution and StateVoteBlock, cross-shard registration and 2PC phases.</li>
+                <li><strong>execution</strong>: on_block_committed, split single-shard vs cross-shard, single-shard execution and StateVoteBlock, cross-shard registration and provision-based (five-phase) coordination.</li>
                 <li><strong>engine</strong>: Radix Engine integration, execute_single_shard, execution output and state writes.</li>
                 <li><strong>node</strong>: Dispatches BlockCommitted to execution, handles TransactionExecuted and certificate feedback to BFT/mempool.</li>
                 <li><strong>types</strong>: StateVoteBlock, StateCertificate, TransactionCertificate, TransactionDecision.</li>
@@ -138,7 +138,7 @@
             </ul>
             <p><strong>📖 What to read before the quiz:</strong></p>
             <ul class="reading-list">
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" data-crate="execution" target="_blank" rel="noopener">crates/execution</a> — <code>on_block_committed</code>, single-shard vs cross-shard split, StateVoteBlock, 2PC registration</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" data-crate="execution" target="_blank" rel="noopener">crates/execution</a> — <code>on_block_committed</code>, single-shard vs cross-shard split, StateVoteBlock, provision registration</li>
                 <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/engine" data-crate="engine" target="_blank" rel="noopener">crates/engine</a> — Radix Engine, execute_single_shard, state writes</li>
                 <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">crates/node</a> — BlockCommitted → execution, TransactionExecuted, certificate feedback</li>
                 <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">crates/types</a> — StateVoteBlock, StateCertificate, TransactionCertificate, TransactionDecision</li>
@@ -155,7 +155,7 @@
             <p><strong>One-liner:</strong> How state moves between shards for cross-shard transactions and how Hyperscale avoids dependency cycles (the <span data-glossary="livelock">livelock</span> crate: cycle detection, deferral, retry).</p>
             <ul>
                 <li><strong>provisions</strong>: ProvisionCoordinator, receiving and buffering StateProvision, quorum per source shard, VerifyAndAggregateProvisions, CommitmentProof.</li>
-                <li><strong>execution</strong>: Cross-shard 2PC phases (provision broadcast, reception, execution, vote aggregation, certificate collection), registration with provisions coordinator.</li>
+                <li><strong>execution</strong>: Cross-shard provision-based phases (provision broadcast, reception, execution, vote aggregation, certificate collection), registration with provisions coordinator.</li>
                 <li><strong>livelock</strong>: Cycle detection (e.g. A needs C’s state, C needs A’s state), deferral of one tx by a deterministic rule, retry, TransactionDefer, TransactionAbort, integration with block proposal and execution. Simulator: <code>--analyze-livelocks</code>.</li>
                 <li><strong>types</strong>: StateProvision, StateCertificate, CommitmentProof, CycleProof, defer/abort types.</li>
                 <li><strong>core</strong>: BroadcastStateProvision, BroadcastStateCertificate, VerifyAndAggregateProvisions, VerifyCycleProof.</li>
@@ -163,7 +163,7 @@
             <p><strong>📖 What to read before the quiz:</strong></p>
             <ul class="reading-list">
                 <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/provisions" data-crate="provisions" target="_blank" rel="noopener">crates/provisions</a> — ProvisionCoordinator, StateProvision buffering, quorum, VerifyAndAggregateProvisions, CommitmentProof</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" data-crate="execution" target="_blank" rel="noopener">crates/execution</a> — cross-shard 2PC phases, provision coordinator registration</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/execution" data-crate="execution" target="_blank" rel="noopener">crates/execution</a> — provision-based cross-shard phases, ProvisionCoordinator registration</li>
                 <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/livelock" data-crate="livelock" target="_blank" rel="noopener">crates/livelock</a> — cycle detection, TransactionDefer, TransactionAbort, retry</li>
                 <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">crates/types</a> — StateProvision, StateCertificate, CommitmentProof, CycleProof, defer/abort types</li>
                 <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">crates/core</a> — BroadcastStateProvision, VerifyAndAggregateProvisions, VerifyCycleProof</li>
