@@ -181,7 +181,7 @@
                             <tr><td>proposer</td><td><code>committee[(height + round) % len]</code> (round-robin)</td></tr>
                             <tr><td>timestamp</td><td><code>now.as_millis()</code> (proposer wall clock)</td></tr>
                             <tr><td>round</td><td>Current BFT view</td></tr>
-                            <tr><td>state_root</td><td><code>storage.prepare_block_commit(parent_state_root, block.certificates, local_shard)</code> → first element. <code>parent_state_root = get_block_by_hash(parent_hash).header.state_root</code>; then apply certificates in this block (from N−1’s txs) to get new JMT root.</td></tr>
+                            <tr><td>state_root</td><td><code>storage.prepare_block_commit(parent_state_root, block.certificates, local_shard)</code> → first element. <code>parent_state_root = get_block_by_hash(parent_hash).header.state_root</code>; then apply certificates in this block (from N−1’s txs) to get new JVT root.</td></tr>
                             <tr><td>state_version</td><td><code>parent_state_version + count(certificates in this block with state writes)</code></td></tr>
                             <tr><td>transaction_root</td><td><code>compute_transaction_root(retry_txs, priority_txs, normal_txs)</code> — see below.</td></tr>
                         </tbody>
@@ -330,7 +330,7 @@
 
                 <div class="bft-step-card">
                     <div class="bft-step-title"><span class="bft-step-num">8</span> Block N committed and stored — block stage: <strong>committed</strong></div>
-                    <p class="bft-step-desc">When BFT has a QC for block N and the <span data-glossary="two-chain rule">two-chain rule</span> is satisfied: <strong>Commit:</strong> <code>set_committed_state(height, block_hash, qc)</code>; then <code>put_block(height, block, qc)</code> (RocksDB: blocks, transactions, certificates column families). <strong>State:</strong> Block N's state root = parent state root (block N−1) + apply(certificates in block N). Those certificates are the TransactionCertificates from block N−1's execution (block N carries them). Apply them to the parent JMT to get the new root (already in <code>header.state_root</code>); commit those writes to JMT.</p>
+                    <p class="bft-step-desc">When BFT has a QC for block N and the <span data-glossary="two-chain rule">two-chain rule</span> is satisfied: <strong>Commit:</strong> <code>set_committed_state(height, block_hash, qc)</code>; then <code>put_block(height, block, qc)</code> (RocksDB: blocks, transactions, certificates column families). <strong>State:</strong> Block N's state root = parent state root (block N−1) + apply(certificates in block N). Those certificates are the TransactionCertificates from block N−1's execution (block N carries them). Apply them to the parent JVT to get the new root (already in <code>header.state_root</code>); commit those writes to JVT.</p>
                 </div>
 
                 <div class="bft-step-card">
@@ -345,8 +345,8 @@
                         <tbody>
                             <tr><td>Block header hash</td><td><code>basic_encode(header)</code> then <code>Hash::from_bytes(...)</code></td></tr>
                             <tr><td>Transaction root</td><td><code>compute_merkle_root([hash(TAG || tx_hash) for each section in order])</code></td></tr>
-                            <tr><td>State root (block)</td><td><code>prepare_block_commit(parent_state_root, certificates, local_shard)</code> → JMT root. Certificates in this block = execution outcomes of the <em>parent</em> block’s txs.</td></tr>
-                            <tr><td>Block vote message</td><td><code>block_vote_message(shard, height, round, block_hash)</code> → sign with BLS (types in <a href="#" data-file="crates/messages/src/notification/mod.rs" target="_blank" rel="noopener">crates/messages/src/notification/mod.rs</a>)</td></tr>
+                            <tr><td>State root (block)</td><td><code>prepare_block_commit(parent_state_root, certificates, local_shard)</code> → JVT root. Certificates in this block = execution outcomes of the <em>parent</em> block’s txs.</td></tr>
+                            <tr><td>Block vote message</td><td><code>block_vote_message(shard, height, round, block_hash)</code> → sign with BLS (notification types — see <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a>)</td></tr>
                             <tr><td>Outputs merkle root (per tx)</td><td><code>compute_writes_commitment(state_writes)</code> = hash chain over sorted writes</td></tr>
                             <tr><td>Execution vote message</td><td><code>exec_vote_message(tx_hash, state_root, shard, success)</code> → sign with BLS</td></tr>
                             <tr><td>QC</td><td>BLS aggregate of 2f+1 block votes over same message</td></tr>
@@ -510,12 +510,12 @@
 
         <div class="section">
             <h2>BFT as a Rust entity</h2>
-            <p><strong>Main object:</strong> <code>BftState</code> in <code>crates/bft/src/state.rs</code>.</p>
+            <p><strong>Main object:</strong> <code>BftState</code> in the <strong>bft</strong> crate (see study table for the exact file).</p>
             <ul>
-                <li>There is <strong>one <code>BftState</code> per node</strong>; it is held by the node’s state machine as <code>self.bft</code> in <code>NodeStateMachine</code> (<code>crates/node/src/state.rs</code>).</li>
+                <li>There is <strong>one <code>BftState</code> per node</strong>; it is held by the node’s state machine as <code>self.bft</code> in <code>NodeStateMachine</code>.</li>
                 <li>Events are routed in <code>NodeStateMachine::handle()</code> to the appropriate <code>self.bft.on_*(...)</code> method.</li>
             </ul>
-            <p>So at the stages we care about, <strong>“BFT”</strong> = the <code>BftState</code> instance plus the <strong>BFT handlers</strong> that run outside it (e.g. <code>build_proposal</code>, <code>verify_and_build_qc</code> in <code>crates/bft/src/handlers.rs</code>). The handlers are pure functions invoked by the <strong>runner</strong> when it executes BFT-related <code>Action</code>s; <code>BftState</code> does not build blocks or QCs itself—it emits actions, and the runner calls the handlers.</p>
+            <p>So at the stages we care about, <strong>“BFT”</strong> = the <code>BftState</code> instance plus the <strong>BFT handlers</strong> that run outside it (e.g. <code>build_proposal</code>, <code>verify_and_build_qc</code>). The handlers are pure functions invoked by the <strong>runner</strong> when it executes BFT-related <code>Action</code>s; <code>BftState</code> does not build blocks or QCs itself—it emits actions, and the runner calls the handlers.</p>
         </div>
 
         <div class="section">
@@ -560,7 +560,7 @@
             <h2>Core BFT data structures</h2>
 
             <h3><code>BftState</code> (the main state machine)</h3>
-            <p><strong>Location:</strong> <code>crates/bft/src/state.rs</code> — <code>pub struct BftState { ... }</code></p>
+            <p><strong>Location:</strong> <code>BftState</code> struct in the <strong>bft</strong> crate — see study table.</p>
 
             <p><strong>Identity / config</strong></p>
             <ul>
@@ -599,8 +599,8 @@
 
             <h3>Supporting types</h3>
             <ul>
-                <li><strong>PendingBlock</strong> (<code>crates/bft/src/pending.rs</code>) — header + hashes + received txs/certs; builds full <code>Block</code> when complete.</li>
-                <li><strong>VoteSet</strong> (<code>crates/bft/src/vote_set.rs</code>) — collects votes for one block; verified vs unverified; used to decide when to call QC build.</li>
+                <li><strong>PendingBlock</strong> — header + hashes + received txs/certs; builds full <code>Block</code> when complete (<strong>bft</strong> crate, <code>pending</code> module).</li>
+                <li><strong>VoteSet</strong> — collects votes for one block; verified vs unverified; used to decide when to call QC build (<strong>bft</strong> crate, <code>vote_set</code> module).</li>
                 <li><strong>PendingProposal</strong> — <code>{ height, round }</code> used to match <code>Event::ProposalBuilt</code> to the proposal we requested.</li>
                 <li><strong>RecoveredState</strong> — used when initializing from storage (voted_heights, committed_height, latest_qc, jmt_state).</li>
                 <li><strong>BftConfig</strong> — e.g. <code>proposal_interval</code>, <code>max_transactions_per_block</code>, <code>min_block_interval</code>.</li>
@@ -628,10 +628,10 @@
             <p>So the <strong>object</strong> that does “Requesting block build for proposal” is <code>BftState</code>; the <strong>routine</strong> is <code>BftState::on_proposal_timer</code>. It does <strong>not</strong> build the block itself; it <strong>emits</strong> <code>Action::BuildProposal</code>, which the <strong>runner</strong> (action handler) executes.</p>
 
             <h3>Who actually builds the block and emits “Broadcasting proposal”</h3>
-            <p><strong>Building the block:</strong> Not <code>BftState</code>. The runner handles <code>Action::BuildProposal</code> in the action handler (<code>crates/node/src/action_handler.rs</code>): it calls <strong><code>hyperscale_bft::handlers::build_proposal(storage, ...)</code></strong> (<code>crates/bft/src/handlers.rs</code>).</p>
+            <p><strong>Building the block:</strong> Not <code>BftState</code>. The runner handles <code>Action::BuildProposal</code> in the node’s action handler: it calls <strong><code>hyperscale_bft::handlers::build_proposal(storage, ...)</code></strong> (see study table for files).</p>
             <ul>
                 <li><strong>Routine:</strong> <code>handlers::build_proposal&lt;S&gt;(storage, proposer, height, round, parent_hash, parent_qc, timestamp, is_fallback, parent_state_root, parent_state_version, retry_transactions, priority_transactions, transactions, certificates, commitment_proofs, deferred, aborted, local_shard) -&gt; ProposalResult&lt;S::PreparedCommit&gt;</code>.</li>
-                <li>It uses storage (JMT) to compute <span data-glossary="state root">state root</span> and optional prepared commit, builds <code>BlockHeader</code> and <code>Block</code>, returns <code>ProposalResult { block, block_hash, prepared_commit }</code>.</li>
+                <li>It uses storage (JVT) to compute <span data-glossary="state root">state root</span> and optional prepared commit, builds <code>BlockHeader</code> and <code>Block</code>, returns <code>ProposalResult { block, block_hash, prepared_commit }</code>.</li>
             </ul>
             <p>The action handler then produces <strong><code>Event::ProposalBuilt { height, round, block, block_hash }</code></strong> and enqueues it.</p>
             <p><strong>“Broadcasting proposal”:</strong> When that event is handled, the node state machine calls <strong><code>self.bft.on_proposal_built(height, round, block, block_hash)</code></strong>.</p>
@@ -723,6 +723,47 @@
             <div id="quiz-bft" class="quiz-container"></div>
         </div>
 
+        <div class="section hs-suggested-study-section" id="suggested-crates-files-to-study">
+            <h2>Suggested crates / files to study</h2>
+            <p class="hs-suggested-study-lead">Paths relative to the <a href="#" data-repo target="_blank" rel="noopener">hyperscale-rs</a> repo root.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="hs-suggested-study-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Focus</th>
+                            <th scope="col">Path</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>BftState</code></td>
+                            <td><a href="#" data-file="crates/bft/src/state.rs" target="_blank" rel="noopener">crates/bft/src/state.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>BFT handlers</td>
+                            <td><a href="#" data-file="crates/bft/src/handlers.rs" target="_blank" rel="noopener">crates/bft/src/handlers.rs</a> — <code>build_proposal</code>, <code>verify_and_build_qc</code></td>
+                        </tr>
+                        <tr>
+                            <td>Pending block / votes</td>
+                            <td><a href="#" data-file="crates/bft/src/pending.rs" target="_blank" rel="noopener">crates/bft/src/pending.rs</a>, <a href="#" data-file="crates/bft/src/vote_set.rs" target="_blank" rel="noopener">crates/bft/src/vote_set.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>Node routing</td>
+                            <td><a href="#" data-file="crates/node/src/state.rs" target="_blank" rel="noopener">crates/node/src/state.rs</a> — <code>NodeStateMachine</code>, <code>self.bft</code></td>
+                        </tr>
+                        <tr>
+                            <td>Build proposal action</td>
+                            <td><a href="#" data-file="crates/node/src/action_handler.rs" target="_blank" rel="noopener">crates/node/src/action_handler.rs</a> — <code>Action::BuildProposal</code></td>
+                        </tr>
+                        <tr>
+                            <td>Block / vote messages</td>
+                            <td><a href="#" data-file="crates/messages/src/notification/mod.rs" target="_blank" rel="noopener">crates/messages/src/notification/mod.rs</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <div class="navigation">
             <a href="module-01c-crate-groups.html" class="btn btn-secondary">← Previous Module</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
@@ -731,6 +772,8 @@
     </div>
 
     <script src="../shared/course-data.js"></script>
+    <script src="../shared/hyperscale-flow-data.js"></script>
+    <script src="../shared/hyperscale-links.js"></script>
     <script src="../shared/navigation.js"></script>
     <script src="../shared/glossary.js"></script>
     <script src="../shared/module-init.js" data-module-id="intermediate-01"></script>

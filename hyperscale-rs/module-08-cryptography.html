@@ -179,9 +179,10 @@
             <h2>Why BLS is chosen</h2>
             <p>The repo doesn’t spell out “we chose BLS because …” in one place, but the usage makes the reason clear: <strong>aggregatable signatures for consensus</strong>.</p>
             <ul>
-                <li><strong>QuorumCertificate</strong> (e.g. in <a href="#" data-file="crates/types/src/quorum_certificate.rs" target="_blank" rel="noopener">crates/types/src/quorum_certificate.rs</a>) holds a single <code>Bls12381G2Signature</code> that is an <strong>aggregated signature</strong> from 2f+1 validators for the same message (block hash, etc.).</li>
-                <li><strong>StateCertificate</strong> (in <a href="#" data-file="crates/types/src/state.rs" target="_blank" rel="noopener">crates/types/src/state.rs</a>) also uses an aggregated BLS signature from many <code>StateVoteBlock</code>s.</li>
+                <li><strong>QuorumCertificate</strong> holds a single <code>Bls12381G2Signature</code> that is an <strong>aggregated signature</strong> from 2f+1 validators for the same message (block hash, etc.).</li>
+                <li><strong>StateCertificate</strong> also uses an aggregated BLS signature from many <code>StateVoteBlock</code>s.</li>
             </ul>
+            <p>Type definitions: see <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a>.</p>
             <p>Flow:</p>
             <ol>
                 <li>Many validators sign the <strong>same message</strong> (e.g. block hash).</li>
@@ -235,27 +236,56 @@
 
         <div class="section">
             <h2>Libp2p identity and validator bind</h2>
-            <p><strong>Two keys, one binding.</strong> Consensus identity is the BLS public key (votes, QCs, validator set). libp2p uses an Ed25519 keypair for TLS and <code>PeerId</code>. In the current design the libp2p keypair is <strong>generated at random</strong> (<code>generate_random_keypair()</code> in <a href="#" data-file="crates/network-libp2p/src/adapter/identity.rs" target="_blank" rel="noopener">network-libp2p/src/adapter/identity.rs</a>). The runner then signs a <strong>validator bind message</strong> (the PeerId bytes) with the BLS key, so the network layer can verify that this peer owns the claimed validator identity.</p>
-            <p><strong>In production:</strong> <a href="#" data-file="crates/production/src/runner.rs" target="_blank" rel="noopener">runner.rs</a> creates the libp2p adapter with <code>ed25519_keypair</code> (from <code>generate_random_keypair()</code>) and <code>local_bind_signature</code> (BLS signature over <code>validator_bind_message(peer_id)</code>). The <strong>validator-bind protocol</strong> (<a href="#" data-file="crates/network-libp2p/src/validator_bind.rs" target="_blank" rel="noopener">validator_bind.rs</a>) proves the peer controls the BLS key for the given ValidatorId. Topology holds every validator's BLS public key; the runner passes <code>initial_validator_keys</code> so the network can verify bind signatures. (Legacy note: an older design used <code>LIBP2P_IDENTITY_DOMAIN</code> = <code>b"hyperscale-libp2p-identity-v1:"</code>: it is prepended (or otherwise combined) with the pubkey before hashing so that the derived key is bound to this specific use. That way the same BLS pubkey hashed with a different domain would yield a different PeerId, avoiding collisions and tying the derivation to “Hyperscale libp2p identity” only. So anyone who knows a validator’s BLS public key can compute that validator’s <code>PeerId</code> (e.g. <code>compute_peer_id_for_validator(public_key)</code>). The topology already has every validator’s BLS public key, so at startup the runner can fill <code>validator_peers</code> and <code>peer_validators</code> without out-of-band PeerId exchange.</p>
+            <p><strong>Two keys, one binding.</strong> Consensus identity is the BLS public key (votes, QCs, validator set). libp2p uses an Ed25519 keypair for TLS and <code>PeerId</code>. In the current design the libp2p keypair is <strong>generated at random</strong> (<code>generate_random_keypair()</code> in the network adapter identity module). The runner then signs a <strong>validator bind message</strong> (the PeerId bytes) with the BLS key, so the network layer can verify that this peer owns the claimed validator identity.</p>
+            <p><strong>In production:</strong> the production runner creates the libp2p adapter with <code>ed25519_keypair</code> (from <code>generate_random_keypair()</code>) and <code>local_bind_signature</code> (BLS signature over <code>validator_bind_message(peer_id)</code>). The <strong>validator-bind protocol</strong> proves the peer controls the BLS key for the given ValidatorId. Topology holds every validator's BLS public key; the runner passes <code>initial_validator_keys</code> so the network can verify bind signatures. (Legacy note: an older design used <code>LIBP2P_IDENTITY_DOMAIN</code> = <code>b"hyperscale-libp2p-identity-v1:"</code>: it is prepended (or otherwise combined) with the pubkey before hashing so that the derived key is bound to this specific use. That way the same BLS pubkey hashed with a different domain would yield a different PeerId, avoiding collisions and tying the derivation to “Hyperscale libp2p identity” only. So anyone who knows a validator’s BLS public key can compute that validator’s <code>PeerId</code> (e.g. <code>compute_peer_id_for_validator(public_key)</code>). The topology already has every validator’s BLS public key, so at startup the runner can fill <code>validator_peers</code> and <code>peer_validators</code> without out-of-band PeerId exchange.) File paths: <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a>.</p>
             <p><strong>Why not BLS for libp2p?</strong> libp2p’s identity and TLS are built for key types like Ed25519. So: BLS = consensus identity; Ed25519 = Ed25519 = transport key. PeerId is no longer derivable from BLS alone; identity is tied by the BLS signature over PeerId.</p>
-        </div>
-
-        <div class="section">
-            <h2>Where to look in the repo</h2>
-            <ul>
-                <li><a href="#" data-file="crates/types/src/quorum_certificate.rs" target="_blank" rel="noopener">crates/types/src/quorum_certificate.rs</a> — QC type and BLS aggregated signature.</li>
-                <li><a href="#" data-file="crates/types/src/state.rs" target="_blank" rel="noopener">crates/types/src/state.rs</a> — StateCertificate and aggregated BLS.</li>
-                <li><a href="#" data-file="crates/production/src/runner.rs" target="_blank" rel="noopener">crates/production/src/runner.rs</a> — Libp2pAdapter creation, <code>ed25519_keypair</code>, <code>local_bind_signature</code> (BLS over PeerId).</li>
-                <li><a href="#" data-file="crates/network-libp2p/src/adapter/identity.rs" target="_blank" rel="noopener">crates/network-libp2p/src/adapter/identity.rs</a> — <code>generate_random_keypair()</code> for libp2p.</li>
-                <li><a href="#" data-file="crates/network-libp2p/src/validator_bind.rs" target="_blank" rel="noopener">crates/network-libp2p/src/validator_bind.rs</a> — validator-bind protocol (BLS proof of PeerId ↔ ValidatorId).</li>
-                <li>Keygen / crypto crate — validator BLS key generation (32-byte hex seed or random).</li>
-            </ul>
         </div>
 
         <div class="section">
             <h2>Quiz: Cryptography and identity</h2>
             <p>These questions are designed to be challenging: answers are not obvious and some distractors are plausible. Use the module text and repo links to decide. Pass threshold: 70%.</p>
             <div id="quiz-cryptography" class="quiz-container"></div>
+        </div>
+
+        <div class="section hs-suggested-study-section" id="suggested-crates-files-to-study">
+            <h2>Suggested crates / files to study</h2>
+            <p class="hs-suggested-study-lead">Paths relative to the <a href="#" data-repo target="_blank" rel="noopener">hyperscale-rs</a> repo root.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="hs-suggested-study-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Focus</th>
+                            <th scope="col">Path</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>QC (BLS aggregate)</td>
+                            <td><a href="#" data-file="crates/types/src/quorum_certificate.rs" target="_blank" rel="noopener">crates/types/src/quorum_certificate.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>StateCertificate</td>
+                            <td><a href="#" data-file="crates/types/src/state.rs" target="_blank" rel="noopener">crates/types/src/state.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>Production runner (libp2p + bind sig)</td>
+                            <td><a href="#" data-file="crates/production/src/runner.rs" target="_blank" rel="noopener">crates/production/src/runner.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>libp2p key generation</td>
+                            <td><a href="#" data-file="crates/network-libp2p/src/adapter/identity.rs" target="_blank" rel="noopener">crates/network-libp2p/src/adapter/identity.rs</a> — <code>generate_random_keypair()</code></td>
+                        </tr>
+                        <tr>
+                            <td>Validator-bind protocol</td>
+                            <td><a href="#" data-file="crates/network-libp2p/src/validator_bind.rs" target="_blank" rel="noopener">crates/network-libp2p/src/validator_bind.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>Validator BLS keygen</td>
+                            <td><code>crates/keygen</code> / crypto tooling (32-byte hex seed or random) — browse workspace for the keygen binary crate name</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="navigation">

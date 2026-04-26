@@ -364,7 +364,7 @@
             <h2>Practical next steps: run the code and debug</h2>
             <p>Use these steps to run Hyperscale and follow a transaction with a debugger. They assume you have the repo cloned and <code>cargo build</code> works.</p>
             <ol>
-                <li><strong>Read <code>Event</code> and <code>Action</code> first.</strong> The flow is “event in → state machine → actions out; runner performs actions and feeds back events.” Skim <code>core::event</code> and <code>core::action</code> (e.g. <code>action.rs</code> / <code>event.rs</code>) so you know what to break on.</li>
+                <li><strong>Read <code>Event</code> and <code>Action</code> first.</strong> The flow is “event in → state machine → actions out; runner performs actions and feeds back events.” Skim the core event and action modules (see <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a>) so you know what to break on.</li>
                 <li><strong>Run a node or the simulator.</strong> Follow the repo README to run a single node or the sim (e.g. <code>cargo run</code> for the production runner or sim binary). Submit one transaction and note its hash (from logs or RPC).</li>
                 <li><strong>Follow one tx with a debugger.</strong> In your IDE, set breakpoints on: <code>SubmitTransaction</code> / <code>TransactionGossipReceived</code> (first contact), then <code>BlockCommitted</code> (BFT), then <code>TransactionExecuted</code> (execution), then where the certificate is included in a block and status becomes <code>Completed</code>. Step through to see which crates handle each step.</li>
                 <li><strong>Use the crate table.</strong> The production runner is large. Use the table above to jump to “first contact” (RPC handler, submit path, gossip) and “actions to network” (e.g. <code>BroadcastToShard</code> handling) instead of reading the production crate top to bottom.</li>
@@ -376,6 +376,39 @@
             <h2>Quiz: Transaction Flow (big picture)</h2>
             <p>Answer based on the diagram and concepts above. Pass threshold: 70%.</p>
             <div id="quiz-tx-flow" class="quiz-container"></div>
+        </div>
+
+        <div class="section hs-suggested-study-section" id="suggested-crates-files-to-study">
+            <h2>Suggested crates / files to study</h2>
+            <p class="hs-suggested-study-lead">Use alongside the diagram popups above. Paths are relative to the <a href="#" data-repo target="_blank" rel="noopener">hyperscale-rs</a> repo root.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="hs-suggested-study-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Focus</th>
+                            <th scope="col">Path</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Event / Action enums</td>
+                            <td><a href="#" data-file="crates/core/src/event.rs" target="_blank" rel="noopener">crates/core/src/event.rs</a>, <a href="#" data-file="crates/core/src/action.rs" target="_blank" rel="noopener">crates/core/src/action.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>Submit + gossip ingress</td>
+                            <td><a href="#" data-file="crates/node/src/io_loop/mod.rs" target="_blank" rel="noopener">crates/node/src/io_loop/mod.rs</a> — <code>SubmitTransaction</code>, validation pipeline</td>
+                        </tr>
+                        <tr>
+                            <td>Node state machine</td>
+                            <td><a href="#" data-file="crates/node/src/state.rs" target="_blank" rel="noopener">crates/node/src/state.rs</a> — <code>TransactionGossipReceived</code>, <code>BlockCommitted</code>, execution hooks</td>
+                        </tr>
+                        <tr>
+                            <td>Production RPC / runner</td>
+                            <td><a href="#" data-crate="production" target="_blank" rel="noopener">crates/production</a> — submit path, runner</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="navigation">

@@ -40,12 +40,7 @@
             <h3>Hyperscale-rs (the implementation)</h3>
             <p><strong><span data-glossary="hyperscale-rs">Hyperscale-rs</span></strong> is the Rust implementation: a <span data-glossary="bft">Byzantine Fault Tolerant (BFT)</span> consensus system for high-throughput, sharded networks. It is <strong>not</strong> a full blockchain platform — it is the consensus layer that decides which transactions get included and in what order. Execution, storage, and user-facing apps are separate.</p>
 
-            <p><strong>Key links:</strong></p>
-            <ul>
-                <li><a href="#" data-repo target="_blank" rel="noopener">Repository</a> — code and protocol docs</li>
-                <li><a href="#" data-file="README.md" target="_blank" rel="noopener">README.md</a> — setup and “What’s different”</li>
-                <li><a href="#" data-file="crates/core/src/traits.rs" target="_blank" rel="noopener">StateMachine trait</a>, <a href="#" data-file="crates/node/src/state.rs" target="_blank" rel="noopener">node state</a> — core types to skim early</li>
-            </ul>
+            <p><strong>Key links:</strong> Open the <a href="#" data-repo target="_blank" rel="noopener">repository</a> for code and protocol docs. README, trait, and node-state paths are listed in <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a> at the end of this module.</p>
 
             <p>Design: <strong>pure consensus</strong> (no I/O in core), <strong>state machine</strong> model, <strong>event-driven</strong> (events in → actions out), <strong>deterministic</strong> so the same code runs in simulation and production.</p>
         </div>
@@ -62,47 +57,43 @@
             <p><strong>Tracing:</strong> Use <code>tracing::debug!</code> (or <code>debug!</code> with <code>use tracing::debug</code>). Run the sim with <code>RUST_LOG=debug</code> so these logs show up. Remove or comment out the lines before committing.</p>
 
             <h3>Flow 1: Transaction submit (workload → sim runner → node → mempool)</h3>
-            <p><strong>Overview:</strong> The simulator workload submits a transaction via <code>schedule_initial_event(..., NodeInput::SubmitTransaction { tx })</code>; the node's io_loop receives it and gossips to shards; the protocol layer delivers <code>TransactionGossipReceived</code> to the state machine and the mempool adds the tx. You see the path from submit to tx in mempool.</p>
+            <p><strong>Overview:</strong> The simulator workload submits a transaction via <code>schedule_initial_event(..., NodeInput::SubmitTransaction { tx })</code>; the node's <code>IoLoop</code> receives it, gossips to shards, and runs the validation batch pipeline. Valid txs re-enter as <code>NodeInput::TransactionValidated</code>, which becomes <code>ProtocolEvent::TransactionGossipReceived</code> for the state machine; the mempool adds the tx in <code>on_transaction_gossip</code>. You see the path from submit to tx in mempool.</p>
 
             <p><strong>1. Where to add <code>debug!</code></strong></p>
             <div class="table-wrap">
             <table class="flow-steps">
                 <thead>
-                    <tr><th>Step</th><th>File</th><th>Place</th><th>Add</th></tr>
+                    <tr><th>Step</th><th>Where to add logging</th><th>Example <code>debug!</code></th></tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>1</td>
-                        <td><code>crates/simulator/src/runner.rs</code></td>
-                        <td>Inside the <code>for tx in batch</code> loop, right before the loop that calls <code>schedule_initial_event</code> for each node (around line 179), after you have <code>tx</code> and <code>target_shard</code> (e.g. after <code>let tx = std::sync::Arc::new(tx);</code>).</td>
+                        <td>Simulator workload: inside <code>for tx in batch</code>, just before per-node <code>schedule_initial_event</code>, after <code>tx</code> and <code>target_shard</code> exist.</td>
                         <td><code>tracing::debug!(tx_hash = ?hash, target_shard = target_shard.0, nodes = ?shard_nodes, "sim: workload submitting tx to shard nodes");</code></td>
                     </tr>
                     <tr>
                         <td>2</td>
-                        <td><code>crates/node/src/io_loop/mod.rs</code></td>
-                        <td>In <code>crates/node/src/io_loop/mod.rs</code>, inside the <code>NodeInput::SubmitTransaction { tx }</code> arm (around line 492), at the top of the block (where shards are computed and gossip is broadcast).</td>
+                        <td>Node I/O loop: <code>NodeInput::SubmitTransaction</code> arm, top of block (shard set + gossip).</td>
                         <td><code>tracing::debug!(tx_hash = ?tx_hash, shards = ?shards, "io_loop: SubmitTransaction received, gossiping to shards");</code></td>
                     </tr>
                     <tr>
                         <td>3</td>
-                        <td><code>crates/node/src/protocol/mod.rs</code></td>
-                        <td>Where <code>Event::SubmitTransaction</code> is handled (protocol layer).</td>
-                        <td><code>tracing::debug!(tx_hash = ?tx_hash, "protocol: SubmitTransaction intercepted, gossip + queue validation");</code></td>
+                        <td><code>IoLoop::step</code>: <code>NodeInput::Protocol(ProtocolEvent::TransactionGossipReceived { .. })</code> arm — intercepts <strong>inbound</strong> gossip and calls <code>queue_validation</code> (same file as step 2). The node that got <code>SubmitTransaction</code> from RPC/sim already queued validation in step 2’s arm instead.</td>
+                        <td><code>tracing::debug!(tx_hash = ?tx_hash, "io_loop: gossip tx received, queued for validation");</code></td>
                     </tr>
                     <tr>
                         <td>4</td>
-                        <td><code>crates/node/src/state.rs</code></td>
-                        <td>At the start of the <code>ProtocolEvent::TransactionGossipReceived { tx, submitted_locally }</code> arm in the state machine match (around line 1035), before <code>on_transaction_gossip_received</code> is called.</td>
+                        <td>Node state: start of <code>ProtocolEvent::TransactionGossipReceived</code> arm, before mempool.</td>
                         <td><code>tracing::debug!(tx_hash = ?tx.hash(), submitted_locally = submitted_locally, "node state: TransactionGossipReceived -> mempool");</code></td>
                     </tr>
                     <tr>
                         <td>5</td>
-                        <td><code>crates/mempool/src/state.rs</code></td>
-                        <td>In <code>on_transaction_gossip_arc</code>, right after <code>let hash = tx.hash();</code> (around line 398). (There may already be a <code>tracing::debug!</code> a bit lower; ensure <code>RUST_LOG=debug</code> shows it, or add this.)</td>
+                        <td>Mempool <code>on_transaction_gossip</code>, right after <code>let hash = tx.hash();</code> (codebase already has <code>trace!</code> there; add <code>debug!</code> if you want it visible at <code>RUST_LOG=debug</code>).</td>
                         <td><code>tracing::debug!(tx_hash = ?hash, submitted_locally, "mempool: adding tx via gossip");</code></td>
                     </tr>
                 </tbody>
             </table>
+            <p class="hs-suggested-study-lead" style="margin-top:0.5rem;font-size:0.88rem;color:var(--text2);">File paths for each step → <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a> (Flow 1).</p>
             </div>
 
             <p><strong>2. Command to run (tx submit in simulation)</strong></p>
@@ -121,14 +112,14 @@
             <div class="table-wrap">
             <table class="flow-steps">
                 <thead>
-                    <tr><th>Step</th><th>File</th><th>What you see</th></tr>
+                    <tr><th>Step</th><th>What you see</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td>1</td><td><code>crates/simulator/src/runner.rs</code></td><td>Workload submits tx to shard nodes</td></tr>
-                    <tr><td>2</td><td><code>crates/simulation/src/runner.rs</code></td><td>Runner receives SubmitTransaction and gossips</td></tr>
-                    <tr><td>3</td><td><code>crates/node/src/protocol/mod.rs</code></td><td>Protocol layer intercepts and queues validation</td></tr>
-                    <tr><td>4</td><td><code>crates/node/src/state.rs</code></td><td>TransactionGossipReceived handed to mempool</td></tr>
-                    <tr><td>5</td><td><code>crates/mempool/src/state.rs</code></td><td>Tx added to pool (existing or your debug)</td></tr>
+                    <tr><td>1</td><td>Workload submits tx to shard nodes</td></tr>
+                    <tr><td>2</td><td>Simulation runner receives SubmitTransaction and gossips</td></tr>
+                    <tr><td>3</td><td>Inbound gossip tx queued for validation (<code>IoLoop</code>)</td></tr>
+                    <tr><td>4</td><td>TransactionGossipReceived handed to mempool</td></tr>
+                    <tr><td>5</td><td>Tx added to pool (existing or your debug)</td></tr>
                 </tbody>
             </table>
             </div>
@@ -140,35 +131,32 @@
             <div class="table-wrap">
             <table class="flow-steps">
                 <thead>
-                    <tr><th>Step</th><th>File</th><th>Place</th><th>Add</th></tr>
+                    <tr><th>Step</th><th>Where to add logging</th><th>Example <code>debug!</code></th></tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>1</td>
-                        <td><code>crates/simulation/src/runner.rs</code></td>
-                        <td>Where incoming BFT messages are decoded and turned into an event for the node (search for the BFT message handler / event injection). At the start of that block.</td>
+                        <td>Simulation runner: where BFT messages become node events (handler / injection).</td>
                         <td><code>tracing::debug!(node = node_index, "sim runner: BFT message received, forwarding to node");</code></td>
                     </tr>
                     <tr>
                         <td>2</td>
-                        <td><code>crates/node/src/state.rs</code></td>
-                        <td>At the start of the <code>match</code> arm that handles the BFT event (e.g. <code>Event::Bft(...)</code> or similar — the arm that processes votes).</td>
+                        <td>Node state: BFT / vote <code>match</code> arm entry.</td>
                         <td><code>tracing::debug!("node state: BFT event handled (vote in/out)");</code></td>
                     </tr>
                     <tr>
                         <td>3</td>
-                        <td><code>crates/bft</code> or <code>crates/node</code></td>
-                        <td>Where the node emits <code>Action::SendMessage</code> for a vote (e.g. in the BFT state machine or in the node's BFT handler when it decides to send a vote).</td>
+                        <td>Where <code>Action::SendMessage</code> is produced for a vote (BFT or node).</td>
                         <td><code>tracing::debug!("bft: emitting SendMessage (vote)");</code></td>
                     </tr>
                     <tr>
                         <td>4</td>
-                        <td><code>crates/simulation/src/runner.rs</code></td>
-                        <td>Where <code>Action::SendMessage</code> is executed (action dispatch / send to network). At the start of that branch.</td>
+                        <td>Simulation runner: <code>Action::SendMessage</code> dispatch to network.</td>
                         <td><code>tracing::debug!(node = node_index, "sim runner: SendMessage executed (vote on wire)");</code></td>
                     </tr>
                 </tbody>
             </table>
+            <p class="hs-suggested-study-lead" style="margin-top:0.5rem;font-size:0.88rem;color:var(--text2);">Paths → study table (Flow 2).</p>
             </div>
 
             <p><strong>2. Command to run</strong></p>
@@ -177,13 +165,13 @@
             <div class="table-wrap">
             <table class="flow-steps">
                 <thead>
-                    <tr><th>Step</th><th>File</th><th>What you see</th></tr>
+                    <tr><th>Step</th><th>What you see</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td>1</td><td><code>crates/simulation/src/runner.rs</code></td><td>BFT message received, forwarded to node</td></tr>
-                    <tr><td>2</td><td><code>crates/node/src/state.rs</code></td><td>BFT event handled (vote in/out)</td></tr>
-                    <tr><td>3</td><td>BFT / node</td><td>SendMessage (vote) emitted</td></tr>
-                    <tr><td>4</td><td><code>crates/simulation/src/runner.rs</code></td><td>SendMessage executed (vote on wire)</td></tr>
+                    <tr><td>1</td><td>BFT message received, forwarded to node</td></tr>
+                    <tr><td>2</td><td>BFT event handled (vote in/out)</td></tr>
+                    <tr><td>3</td><td>SendMessage (vote) emitted</td></tr>
+                    <tr><td>4</td><td>SendMessage executed (vote on wire)</td></tr>
                 </tbody>
             </table>
             </div>
@@ -195,23 +183,22 @@
             <div class="table-wrap">
             <table class="flow-steps">
                 <thead>
-                    <tr><th>Step</th><th>File</th><th>Place</th><th>Add</th></tr>
+                    <tr><th>Step</th><th>Where to add logging</th><th>Example <code>debug!</code></th></tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>1</td>
-                        <td><code>crates/node/src/state.rs</code></td>
-                        <td>At the start of the <code>match</code> arm that handles the block-committed event (e.g. <code>Event::BlockCommitted</code> or similar — search for "BlockCommitted" or "block committed" in this file).</td>
-                        <td><code>tracing::debug!(height = ?height, "node state: BlockCommitted, entering execution");</code> (use the height/block id variable that exists there if available, else drop the field.)</td>
+                        <td>Node state: <code>BlockCommitted</code> (or equivalent) <code>match</code> arm.</td>
+                        <td><code>tracing::debug!(height = ?height, "node state: BlockCommitted, entering execution");</code> (adjust fields to what exists locally.)</td>
                     </tr>
                     <tr>
                         <td>2</td>
-                        <td><code>crates/execution</code> or <code>crates/node</code></td>
-                        <td>Where execution is invoked for a committed block (e.g. "execute block" or "apply block" entry point). At the start of that path.</td>
+                        <td>Execution entry for committed block (“apply block” path).</td>
                         <td><code>tracing::debug!("execution: applying committed block");</code></td>
                     </tr>
                 </tbody>
             </table>
+            <p class="hs-suggested-study-lead" style="margin-top:0.5rem;font-size:0.88rem;color:var(--text2);">Paths → study table (Flow 3).</p>
             </div>
 
             <p><strong>2. Command to run</strong></p>
@@ -220,11 +207,11 @@
             <div class="table-wrap">
             <table class="flow-steps">
                 <thead>
-                    <tr><th>Step</th><th>File</th><th>What you see</th></tr>
+                    <tr><th>Step</th><th>What you see</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td>1</td><td><code>crates/node/src/state.rs</code></td><td>BlockCommitted, entering execution</td></tr>
-                    <tr><td>2</td><td><code>crates/execution</code> or node</td><td>Applying committed block</td></tr>
+                    <tr><td>1</td><td>BlockCommitted, entering execution</td></tr>
+                    <tr><td>2</td><td>Applying committed block</td></tr>
                 </tbody>
             </table>
             </div>
@@ -243,6 +230,9 @@
         <div class="section">
             <h2>3. Running real nodes (production) vs simulation</h2>
             <p>The rest of this module uses the <strong>simulator</strong> (<code>hyperscale-sim</code>): one process, simulated time, in-memory network. To run <strong>real validator nodes</strong> (separate processes, real libp2p, real RocksDB, real RPC), you use the production runner and launch scripts. Below: what it takes and how to do it.</p>
+
+            <h3>Production threading (brief)</h3>
+            <p>Validators use the same <code>IoLoop</code> / state machine as simulation, but in production that loop runs on a <strong>dedicated <code>std::thread</code></strong> (the <code>io-loop</code> thread), optionally <strong>pinned to a <span data-glossary="cpu core affinity">CPU core</span></strong> for steadier scheduling, while <strong>Tokio</strong> runs libp2p, timers, and related async work; heavy work is often <strong>offloaded to thread pools</strong> and results return via <strong>channels</strong>. This is not a special “test-only” loop—it is how live nodes advance consensus. For a full explanation (<code>run_pinned_loop</code>, <code>core_affinity::set_for_current</code>, simulation vs production), see <a href="module-11-e2e-tests.html">End-to-end tests: tracing code to flow</a>. A compact “threading ladder” of terms lives in <a href="../basic/module-04-state-machines.html">State Machines &amp; Event-Driven Architecture</a>.</p>
 
             <h3>Requirements</h3>
             <ul>
@@ -294,12 +284,61 @@
 
         <div class="section">
             <h2>Important crates for overall flows</h2>
-            <p>When studying single-shard and multi-shard flows, these crates are the main ones to focus on:</p>
-            <ul>
-                <li><strong>Single-shard:</strong> <code>node</code> (state machine, protocol, event→action), <code>mempool</code> (tx pool, admission), <code>bft</code> (proposal, voting, QC, commit rule), <code>execution</code> (run committed block, StateVoteBlock → StateCertificate), <code>types</code> (Block, BlockHeader, QC, TransactionCertificate).</li>
-                <li><strong>Multi-shard:</strong> Same as above, plus <code>provisions</code> (ProvisionCoordinator, StateProvision quorum, ProvisioningComplete), <code>livelock</code> (cycle detection, defer/retry), and execution’s cross-shard phases (provision verification, then execute, then certificate aggregation).</li>
-            </ul>
-            <p>Simulation and tracing: <code>simulator</code> (workload, submit), <code>simulation</code> (runner, network, action dispatch). See <a href="module-01b-tx-flow.html">Transaction Flow</a> and <a href="module-01c-crate-groups.html">Crate Groups</a> for crate-by-crate quizzes and flow maps.</p>
+            <p>When studying single-shard and multi-shard flows, focus on the <strong>node</strong>, <strong>mempool</strong>, <strong>bft</strong>, <strong>execution</strong>, and <strong>types</strong> crates; multi-shard adds <strong>provisions</strong>, <strong>livelock</strong>, and execution’s cross-shard phases. For simulation tracing, use the <strong>simulator</strong> (workload, submit) and <strong>simulation</strong> (runner, network, action dispatch) crates — paths in the study table.</p>
+            <p>See <a href="module-01b-tx-flow.html">Transaction Flow</a> and <a href="module-01c-crate-groups.html">Crate Groups</a> for diagrams and quizzes.</p>
+        </div>
+
+        <div class="section hs-suggested-study-section" id="suggested-crates-files-to-study">
+            <h2>Suggested crates / files to study</h2>
+            <p class="hs-suggested-study-lead">Paths relative to the <a href="#" data-repo target="_blank" rel="noopener">hyperscale-rs</a> repo root. Use with the trace flows in section 2.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="hs-suggested-study-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Flow / topic</th>
+                            <th scope="col">Path</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>README</td>
+                            <td><a href="#" data-file="README.md" target="_blank" rel="noopener">README.md</a></td>
+                        </tr>
+                        <tr>
+                            <td>Core skim</td>
+                            <td><a href="#" data-file="crates/core/src/traits.rs" target="_blank" rel="noopener">crates/core/src/traits.rs</a>, <a href="#" data-file="crates/node/src/state.rs" target="_blank" rel="noopener">crates/node/src/state.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>Flow 1 — step 1</td>
+                            <td><a href="#" data-file="crates/simulator/src/runner.rs" target="_blank" rel="noopener">crates/simulator/src/runner.rs</a> — workload <code>schedule_initial_event</code></td>
+                        </tr>
+                        <tr>
+                            <td>Flow 1 — steps 2–4</td>
+                            <td><a href="#" data-file="crates/node/src/io_loop/mod.rs" target="_blank" rel="noopener">crates/node/src/io_loop/mod.rs</a> (<code>SubmitTransaction</code>, validation pipeline, <code>TransactionValidated</code>), <a href="#" data-file="crates/node/src/io_loop/handlers.rs" target="_blank" rel="noopener">crates/node/src/io_loop/handlers.rs</a> (gossip handler registration), <a href="#" data-file="crates/node/src/state.rs" target="_blank" rel="noopener">crates/node/src/state.rs</a> (<code>TransactionGossipReceived</code> → mempool)</td>
+                        </tr>
+                        <tr>
+                            <td>Flow 1 — step 5</td>
+                            <td><a href="#" data-file="crates/mempool/src/state.rs" target="_blank" rel="noopener">crates/mempool/src/state.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>Flow 1 summary step 2</td>
+                            <td><a href="#" data-file="crates/simulation/src/runner.rs" target="_blank" rel="noopener">crates/simulation/src/runner.rs</a> — SubmitTransaction path</td>
+                        </tr>
+                        <tr>
+                            <td>Flow 2</td>
+                            <td><a href="#" data-file="crates/simulation/src/runner.rs" target="_blank" rel="noopener">crates/simulation/src/runner.rs</a>, <a href="#" data-file="crates/node/src/state.rs" target="_blank" rel="noopener">crates/node/src/state.rs</a>, <a href="#" data-crate="bft" target="_blank" rel="noopener">crates/bft</a></td>
+                        </tr>
+                        <tr>
+                            <td>Flow 3</td>
+                            <td><a href="#" data-file="crates/node/src/state.rs" target="_blank" rel="noopener">crates/node/src/state.rs</a>, <a href="#" data-crate="execution" target="_blank" rel="noopener">crates/execution</a></td>
+                        </tr>
+                        <tr>
+                            <td>Conceptual crates</td>
+                            <td><a href="#" data-crate="node" target="_blank" rel="noopener">node</a>, <a href="#" data-crate="mempool" target="_blank" rel="noopener">mempool</a>, <a href="#" data-crate="bft" target="_blank" rel="noopener">bft</a>, <a href="#" data-crate="execution" target="_blank" rel="noopener">execution</a>, <a href="#" data-crate="types" target="_blank" rel="noopener">types</a>, <a href="#" data-crate="provisions" target="_blank" rel="noopener">provisions</a>, <a href="#" data-crate="livelock" target="_blank" rel="noopener">livelock</a>, <a href="#" data-crate="simulator" target="_blank" rel="noopener">simulator</a>, <a href="#" data-crate="simulation" target="_blank" rel="noopener">simulation</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="navigation">

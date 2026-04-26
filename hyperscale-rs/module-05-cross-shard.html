@@ -136,7 +136,7 @@
             </div>
             <p><strong>Multiple source shards:</strong> A target shard can have <strong>multiple</strong> source shards. Example: tx touches shards 0, 1, 2; shard 2’s step depends on both shard 0 and shard 1. Then <code>required_shards</code> for shard 2 = {0, 1}. ProvisionCoordinator on shard 2 waits until it has <strong>quorum of provisions from shard 0</strong> <em>and</em> <strong>quorum from shard 1</strong>. Those provisions can arrive <strong>in parallel</strong> (in any order); it is not “first shard 0, then shard 1.” As soon as the checklist is complete (every required shard has delivered quorum), ProvisioningComplete fires.</p>
             <p><strong>How is the order fixed?</strong> Order is determined by a <strong>deterministic rule</strong> (e.g. by <strong>ShardGroupId</strong>): consensus_shards, required_shards, and certificate collection all use the same ordering so every node agrees. There is no separate coordinator that "drives" prepare/commit—atomicity is achieved by the provision-based protocol (phases 1–5 above).</p>
-            <p><strong>How is order determined for composite (cross-shard) transactions?</strong> In the <strong>Radix manifest</strong>, instructions are in a fixed order (e.g. withdraw from A → split → put in staking vault → put in LP → return IOUs). The <strong>Radix Engine</strong> runs those instructions sequentially when executing; data dependencies are implicit (instruction 2 sees the result of instruction 1). For <strong>Hyperscale (consensus)</strong>, the transaction is turned into a <strong>RoutableTransaction</strong> by <strong>instruction analysis</strong> (<code>crates/types/src/transaction.rs</code>): the manifest is walked and every NodeId read or written is collected into <code>declared_reads</code> and <code>declared_writes</code>. Those are <strong>sets</strong> (deduplicated); <strong>instruction order is not preserved</strong> at the consensus layer. Shard sets are then derived: <strong>consensus_shards</strong> = unique shards of <code>declared_writes</code>; <strong>provisioning_shards</strong> = shards of <code>declared_reads</code> that are not write shards. Both are stored in <strong>BTreeSet</strong>s, so the <strong>protocol order is by ShardGroupId</strong> (numeric). So: we do <em>not</em> derive "Account_A shard first, then Staking_VAULT shard, then LP shard" from the manifest order—we get a deterministic order by <strong>shard ID</strong>. Prerequisites are enforced by <strong>provisions</strong>: a shard that needs remote state (reads from another shard) must receive quorum of provisions from that shard before it can complete; which shards are "required" is the set of all other participating shards. Parallelism: each shard runs BFT and execution independently; cross-shard atomicity is achieved by provisioning (quorum of StateProvisions from each required shard via ProvisionCoordinator) and then execution and certificate aggregation—no 2PC coordinator in hyperscale-rs. Refs: <code>crates/types/src/topology.rs</code> (<code>consensus_shards</code>, <code>provisioning_shards</code>, <code>all_shards_for_transaction</code>), <code>crates/types/src/transaction.rs</code> (<code>analyze_instructions_v1</code> / <code>analyze_instructions_v2</code>).</p>
+            <p><strong>How is order determined for composite (cross-shard) transactions?</strong> In the <strong>Radix manifest</strong>, instructions are in a fixed order (e.g. withdraw from A → split → put in staking vault → put in LP → return IOUs). The <strong>Radix Engine</strong> runs those instructions sequentially when executing; data dependencies are implicit (instruction 2 sees the result of instruction 1). For <strong>Hyperscale (consensus)</strong>, the transaction is turned into a <strong>RoutableTransaction</strong> by <strong>instruction analysis</strong>: the manifest is walked and every NodeId read or written is collected into <code>declared_reads</code> and <code>declared_writes</code>. Those are <strong>sets</strong> (deduplicated); <strong>instruction order is not preserved</strong> at the consensus layer. Shard sets are then derived: <strong>consensus_shards</strong> = unique shards of <code>declared_writes</code>; <strong>provisioning_shards</strong> = shards of <code>declared_reads</code> that are not write shards. Both are stored in <strong>BTreeSet</strong>s, so the <strong>protocol order is by ShardGroupId</strong> (numeric). So: we do <em>not</em> derive "Account_A shard first, then Staking_VAULT shard, then LP shard" from the manifest order—we get a deterministic order by <strong>shard ID</strong>. Prerequisites are enforced by <strong>provisions</strong>: a shard that needs remote state (reads from another shard) must receive quorum of provisions from that shard before it can complete; which shards are "required" is the set of all other participating shards. Parallelism: each shard runs BFT and execution independently; cross-shard atomicity is achieved by provisioning (quorum of StateProvisions from each required shard via ProvisionCoordinator) and then execution and certificate aggregation—no 2PC coordinator in hyperscale-rs. Code entry points are listed in <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a> below.</p>
             <p>See the <a href="module-01b-tx-flow.html" target="_blank" rel="noopener noreferrer">Transaction Flow</a> diagram for the full step-by-step from user to finality.</p>
         </div>
 
@@ -152,12 +152,12 @@
 6. CallMethod(Account_A, "deposit", staking_IOU)        # → NodeID_Account_A
 7. CallMethod(Account_A, "deposit", lp_IOU)             # → NodeID_Account_A</code></pre>
             <p><strong>Radix Engine:</strong> Runs these instructions <strong>in order</strong>. Data flow is implicit (e.g. step 4 uses the bucket from step 3; step 6–7 deposit what step 4–5 returned).</p>
-            <p><strong>Instruction analysis (Hyperscale):</strong> The manifest is walked and every NodeId read or written is collected into <code>declared_reads</code> and <code>declared_writes</code> (<code>crates/types/src/transaction.rs</code>: <code>analyze_instructions_v1</code> / <code>analyze_instructions_v2</code>). The result is <strong>sets</strong> (no duplicate NodeIds—each node appears at most once); <strong>instruction order is not preserved</strong> at the consensus layer. Assume:</p>
+            <p><strong>Instruction analysis (Hyperscale):</strong> The manifest is walked and every NodeId read or written is collected into <code>declared_reads</code> and <code>declared_writes</code> (see <code>analyze_instructions_v1</code> / <code>analyze_instructions_v2</code> in the study table). The result is <strong>sets</strong> (no duplicate NodeIds—each node appears at most once); <strong>instruction order is not preserved</strong> at the consensus layer. Assume:</p>
             <ul>
                 <li><code>declared_writes</code>: Account_A, Staking_VAULT, LP_COMPONENT (and possibly resource/vault NodeIds)</li>
                 <li><code>declared_reads</code>: any read-only touched nodes (e.g. package, resource type)</li>
             </ul>
-            <p><strong>Shard mapping (topology):</strong> Each NodeId maps to a shard via <code>shard_for_node(node_id, num_shards)</code> (<code>crates/types/src/topology.rs</code>). Suppose Account_A → shard 1, Staking_VAULT → shard 2, LP_COMPONENT → shard 3. Then:</p>
+            <p><strong>Shard mapping (topology):</strong> Each NodeId maps to a shard via <code>shard_for_node(node_id, num_shards)</code> (topology helpers in the study table). Suppose Account_A → shard 1, Staking_VAULT → shard 2, LP_COMPONENT → shard 3. Then:</p>
             <ul>
                 <li><strong>consensus_shards</strong> = {1, 2, 3} (unique shards of declared_writes), ordered as <strong>1, 2, 3</strong> (BTreeSet by ShardGroupId).</li>
                 <li><strong>provisioning_shards</strong> = read-only shards (if any) not in that set.</li>
@@ -174,7 +174,7 @@
 
         <div class="section">
             <h2>Order: manifest vs protocol</h2>
-            <p>As above: instruction order is not preserved at consensus; protocol order is by <strong>ShardGroupId</strong>. Prerequisites are enforced by provisions; <code>required_shards</code> is the set of all other participating shards (<code>start_cross_shard_execution</code> in <code>crates/execution/src/state.rs</code>).</p>
+            <p>As above: instruction order is not preserved at consensus; protocol order is by <strong>ShardGroupId</strong>. Prerequisites are enforced by provisions; <code>required_shards</code> is the set of all other participating shards (see <code>start_cross_shard_execution</code> in the study table).</p>
         </div>
 
         <div class="section">
@@ -207,6 +207,39 @@
             <div id="quiz-cross-shard" class="quiz-container"></div>
         </div>
 
+        <div class="section hs-suggested-study-section" id="suggested-crates-files-to-study">
+            <h2>Suggested crates / files to study</h2>
+            <p class="hs-suggested-study-lead">Paths are relative to the <a href="#" data-repo target="_blank" rel="noopener">hyperscale-rs</a> repo root.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="hs-suggested-study-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Focus</th>
+                            <th scope="col">Path</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Instruction analysis</td>
+                            <td><a href="#" data-file="crates/types/src/transaction.rs" target="_blank" rel="noopener">crates/types/src/transaction.rs</a> — <code>analyze_instructions_v1</code> / <code>analyze_instructions_v2</code>, <code>declared_reads</code> / <code>declared_writes</code></td>
+                        </tr>
+                        <tr>
+                            <td>Topology / shard sets</td>
+                            <td><a href="#" data-file="crates/types/src/topology.rs" target="_blank" rel="noopener">crates/types/src/topology.rs</a> — <code>shard_for_node</code>, <code>consensus_shards</code>, <code>provisioning_shards</code>, <code>all_shards_for_transaction</code></td>
+                        </tr>
+                        <tr>
+                            <td>Cross-shard registration</td>
+                            <td><a href="#" data-file="crates/execution/src/state.rs" target="_blank" rel="noopener">crates/execution/src/state.rs</a> — <code>start_cross_shard_execution</code>, <code>required_shards</code></td>
+                        </tr>
+                        <tr>
+                            <td>Execution receipts (tiers)</td>
+                            <td><a href="#" data-file="crates/types/src/receipt.rs" target="_blank" rel="noopener">crates/types/src/receipt.rs</a> — <code>GlobalReceipt</code>, <code>LocalReceipt</code>, <code>ExecutionMetadata</code> (cross-shard agreement signs over the global receipt hash)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <div class="navigation">
             <a href="../intermediate/module-01-sharding.html" class="btn btn-secondary">← Previous Module</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
@@ -215,6 +248,8 @@
     </div>
 
     <script src="../shared/course-data.js"></script>
+    <script src="../shared/hyperscale-flow-data.js"></script>
+    <script src="../shared/hyperscale-links.js"></script>
     <script src="../shared/navigation.js"></script>
     <script src="../shared/glossary.js"></script>
     <script src="../shared/module-init.js" data-module-id="intermediate-03"></script>

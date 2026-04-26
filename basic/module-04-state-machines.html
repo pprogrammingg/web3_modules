@@ -27,6 +27,7 @@
                 <li>Explore Event and Action types in hyperscale-rs</li>
                 <li>Understand determinism and why it matters</li>
                 <li>See how state machines compose in hyperscale-rs</li>
+                <li>Map general threading and concurrency ideas to how hyperscale-rs runs the state machine in production vs simulation</li>
             </ul>
         </div>
 
@@ -323,6 +324,25 @@
                     <li>✅ You have a diagram showing the flow</li>
                 </ul>
             </div>
+        </div>
+
+        <div class="section">
+            <h2>Threading &amp; concurrency ladder (Hyperscale-rs context)</h2>
+            <p>Your <code>StateMachine::handle</code> is synchronous and pure; a real node still runs in an OS full of threads and async runtimes. Below: <strong>one sentence each</strong>, from foundations toward details that show up in hyperscale-rs (especially production). For a code-level walkthrough of the production <code>io-loop</code> thread and <code>run_pinned_loop</code>, see <a href="../hyperscale-rs/module-11-e2e-tests.html">End-to-end tests: tracing code to flow</a>.</p>
+            <ol class="hyperscale-threading-ladder">
+                <li><strong>Process vs thread</strong> — A process is an isolated program; threads share memory—hyperscale uses a <strong>dedicated thread</strong> for the hot <code>IoLoop</code> path and <strong>separate</strong> Tokio/async work for network and timers.</li>
+                <li><strong>Multitasking / time-sharing</strong> — The OS preempts threads; long synchronous work inside <code>IoLoop::step</code> still <strong>blocks every consensus event</strong> on that thread until <code>step</code> returns.</li>
+                <li><strong>Concurrency vs parallelism</strong> — Concurrency interleaves many tasks (events + channels); parallelism is simultaneous CPUs—hyperscale runs the state machine <strong>sequentially</strong> on one thread while <strong>pools</strong> (<code>PooledDispatch</code>) parallelize crypto, validation, and execution where offloaded.</li>
+                <li><strong>Cooperative vs preemptive</strong> — The OS preempts threads preemptively; between iterations the pinned loop yields to the scheduler, but a single heavy <code>step</code> is still one uninterrupted chunk of work on that thread unless work is split or offloaded.</li>
+                <li><strong>Async (Tokio) vs blocking</strong> — Tokio runs async tasks on a pool and awaits I/O; hyperscale’s <code>IoLoop</code> uses <strong>synchronous</strong> <code>step</code> on the pinned thread while libp2p/RPC/timer code runs <strong>async</strong> and <strong>sends</strong> <code>NodeInput</code> in via channels.</li>
+                <li><strong>Message passing (channels)</strong> — Threads communicate by sending <code>NodeInput</code> instead of ad-hoc shared mutable state; the pinned loop is the <strong>single writer</strong> for the hot state machine progression path.</li>
+                <li><strong>Locking / data races</strong> — Locks serialize shared data; hyperscale reduces races by isolating hot state on one thread and using <code>Arc</code> + channels for handoff (storage bridges like <code>SharedStorage</code> still require careful design).</li>
+                <li><strong><span data-glossary="cpu affinity">CPU affinity</span> (“pinning”)</strong> — Affinity tells the OS which cores may run a thread; production tries to pin the <code>io-loop</code> thread for steadier scheduling, not because the loop is test-only code.</li>
+                <li><strong>Thread pools / work distribution</strong> — Pools run many units of work across workers; hyperscale’s dispatch pools handle heavy work so it need not all run inside <code>step</code>, with results coming back as callback channel events.</li>
+                <li><strong>Deterministic simulation vs production</strong> — Simulation drives the same <code>IoLoop::step</code> from one driver thread with fake time and fake network; production drives it from a pinned thread with wall-clock time and real QUIC—same logic, different harness.</li>
+                <li><strong>Backpressure</strong> — When producers outpace consumers, queues grow or you drop/block; production uses batch deadlines and <code>flush_expired_batches</code> so validation and I/O do not grow without bound.</li>
+                <li><strong>NUMA / cache effects (niche)</strong> — On large servers, which core and which memory node matter for cache and NUMA; pinning the hot thread is a small step toward predictable behavior, not a full NUMA story by itself.</li>
+            </ol>
         </div>
 
         <div class="navigation">

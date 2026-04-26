@@ -17,6 +17,8 @@ const AVAILABLE_MODULES = [
     'intermediate-08', // Cryptography in Hyperscale-rs
     'intermediate-timing', // Timing: Rounds, Heights, Timeouts & Timers
     'intermediate-performance', // Performance Measurement
+    'intermediate-e2e-tests', // End-to-End Tests (sim & production)
+    'intermediate-project-01', // Hands-On Project 1: E2E observability
     'basic-07', // libp2p basic
     'intermediate-libp2p', // libp2p intermediate
     'advanced-libp2p', // libp2p advanced
@@ -31,62 +33,110 @@ function initializeCourseIndex() {
     updateProgress();
 }
 
+function getCourseLevelMetaRow(levelNum) {
+    const rows = COURSE_DATA.courseLevelMeta || [];
+    return rows.find(function (x) {
+        return x.level === levelNum;
+    });
+}
+
+function getMaxCourseLevel() {
+    const rows = COURSE_DATA.courseLevelMeta || [];
+    if (!rows.length) return 11;
+    return Math.max.apply(
+        null,
+        rows.map(function (r) {
+            return r.level;
+        })
+    );
+}
+
+/**
+ * Group modules by global `courseLevel` (1…N). Colors cycle every 5 bands via `course-level-band--1…5`.
+ */
+function renderCourseLevelGroups(modules, minLevel, maxLevel) {
+    var html = '';
+    for (var L = minLevel; L <= maxLevel; L++) {
+        var group = modules.filter(function (m) {
+            return (m.courseLevel != null ? Number(m.courseLevel) : 0) === L;
+        });
+        if (!group.length) continue;
+        var meta = getCourseLevelMetaRow(L);
+        var label = meta && meta.title ? meta.title : '';
+        var colorSlot = ((L - 1) % 5) + 1;
+        html += '<div class="course-level-band course-level-band--' + colorSlot + '" data-course-level="' + L + '">';
+        html += '<div class="course-level-band-header">';
+        html +=
+            '<h3 class="course-level-band-title">Level ' +
+            L +
+            (label ? ' — ' + label : '') +
+            '</h3>';
+        if (meta && meta.description) {
+            html += '<p class="course-level-band-desc">' + meta.description + '</p>';
+        }
+        html += '</div>';
+        html += '<div class="module-grid module-grid--in-phase">';
+        group.forEach(function (module) {
+            html += renderModuleCard(module, getModuleStatus(module.id));
+        });
+        html += '</div></div>';
+    }
+    return html;
+}
+
 function renderModules() {
     const levels = ['basic', 'intermediate', 'advanced'];
-    
+
     levels.forEach(level => {
         const container = document.getElementById(`${level}-modules`);
         if (!container) return;
-        
+
         const levelData = COURSE_DATA.levels[level];
         if (!levelData) return;
-        
+
+        if (level === 'basic') {
+            container.innerHTML = renderCourseLevelGroups(levelData.modules, 1, 1);
+            return;
+        }
+        if (level === 'intermediate') {
+            container.innerHTML = renderCourseLevelGroups(levelData.modules, 2, 6);
+            return;
+        }
+        if (level === 'advanced') {
+            container.innerHTML = renderCourseLevelGroups(levelData.modules, 7, 11);
+            return;
+        }
+
         let html = '';
         levelData.modules.forEach(module => {
             const status = getModuleStatus(module.id);
             html += renderModuleCard(module, status);
         });
-        
+
         container.innerHTML = html;
     });
-    
-    // Render hyperscale-rs specific modules
+
     renderHyperscaleModules();
 }
 
 function renderHyperscaleModules() {
     const container = document.getElementById('hyperscale-modules');
     if (!container) return;
-    
-    const hyperscaleModules = getHyperscaleModules();
+
+    const maxL = getMaxCourseLevel();
     let html = '';
-    
-    // Group by level
-    const byLevel = {
-        basic: [],
-        intermediate: [],
-        advanced: []
-    };
-    
-    hyperscaleModules.forEach(module => {
-        for (const level in COURSE_DATA.levels) {
-            if (COURSE_DATA.levels[level].modules.find(m => m.id === module.id)) {
-                byLevel[level].push(module);
-                break;
-            }
-        }
-    });
-    
-    ['basic', 'intermediate', 'advanced'].forEach(level => {
-        if (byLevel[level].length > 0) {
-            html += `<h3 class="level-heading">${level.charAt(0).toUpperCase() + level.slice(1)} Level</h3>`;
-            byLevel[level].forEach(module => {
-                const status = getModuleStatus(module.id);
-                html += renderModuleCard(module, status);
+    for (let L = 1; L <= maxL; L++) {
+        const mods = [];
+        ['basic', 'intermediate', 'advanced'].forEach(function (tier) {
+            COURSE_DATA.levels[tier].modules.forEach(function (m) {
+                if (m.hyperscaleSpecific && Number(m.courseLevel) === L) {
+                    mods.push(m);
+                }
             });
-        }
-    });
-    
+        });
+        if (mods.length === 0) continue;
+        html += renderCourseLevelGroups(mods, L, L);
+    }
     container.innerHTML = html;
 }
 
@@ -101,9 +151,14 @@ function renderModuleCard(module, status) {
     const statusKey = status in STATUS_CONFIG ? status : 'pending';
     const { class: statusClass, text: statusText, badge: statusClassBadge } = STATUS_CONFIG[statusKey];
 
+    const isProject = module.kind === 'project';
+    const projectBadge = isProject ? '<span class="badge-project">Hands-on project</span>' : '';
     const badge = module.hyperscaleSpecific ? '<span class="badge-hyperscale">Hyperscale-rs</span>' : '';
     const availableBadge = isAvailable ? '<span class="badge-available">✓ Available</span>' : '<span class="badge-coming">Coming Soon</span>';
-    const cardClass = isAvailable ? `module-card available ${statusClass}` : `module-card unavailable ${statusClass}`;
+    const projectCardClass = isProject ? ' module-card--project' : '';
+    const cardClass = isAvailable
+        ? `module-card available ${statusClass}${projectCardClass}`
+        : `module-card unavailable ${statusClass}${projectCardClass}`;
     const href = isAvailable ? module.path : '#';
     const onClick = isAvailable ? '' : 'onclick="event.preventDefault(); return false;"';
     
@@ -117,7 +172,7 @@ function renderModuleCard(module, status) {
 
     return `
         <a href="${href}" ${onClick} class="${cardClass}">
-            <h3 class="module-title-with-badges">${module.title}${badge}${availableBadge}</h3>
+            <h3 class="module-title-with-badges">${module.title}${projectBadge}${badge}${availableBadge}</h3>
             <p>${module.description}</p>
             ${timeEstimateHtml}
             <div class="module-meta">

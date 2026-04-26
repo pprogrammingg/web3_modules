@@ -44,7 +44,7 @@
                 <li><strong>Height</strong> advances only when a block at that height gets a QC and (with the two-chain rule) is committed; then the next height starts.</li>
                 <li><strong>Round</strong> advances on timeout: if no QC is formed before the round timeout, validators move to the next round (view change). The proposer for round <code>r</code> is typically <code>committee[(height + round) % len]</code> (round-robin), so each round has a different leader.</li>
             </ul>
-            <p>In <a href="#" data-file="crates/bft/src/state.rs" target="_blank" rel="noopener">crates/bft/src/state.rs</a>, <code>BftState</code> holds:</p>
+            <p>In <code>BftState</code> (see <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a>), the struct holds:</p>
             <ul>
                 <li><code>view: u64</code> — current round (view)</li>
                 <li><code>view_at_height_start: u64</code> — round when the current height started (used e.g. for backoff or logging)</li>
@@ -88,41 +88,7 @@
                 <li><strong><code>min_block_interval</code></strong> — Minimum time between blocks (can be used to throttle block production or align with real time in simulation).</li>
             </ul>
             <p>These values affect latency and throughput: shorter intervals mean faster rounds but more messages; longer intervals may reduce load but increase time to finality. Round timeout is usually derived or configured so that slow or missing proposals don’t block progress (view change after timeout).</p>
-            <p>In the repo, look for <code>BftConfig</code> and timer-related constants in <a href="#" data-crate="bft" target="_blank" rel="noopener">crates/bft</a> and in the node/simulator that constructs <code>BftState</code>.</p>
-        </div>
-
-        <div class="section">
-            <h2>Where to look in the code</h2>
-            <table class="content-table">
-                <thead>
-                    <tr>
-                        <th>Concept</th>
-                        <th>Where</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Height, round (view)</td>
-                        <td><a href="#" data-file="crates/bft/src/state.rs" target="_blank" rel="noopener">crates/bft/src/state.rs</a> — <code>BftState::view</code>, <code>view_at_height_start</code>, <code>committed_height</code>; block header has <code>height</code>, <code>round</code></td>
-                    </tr>
-                    <tr>
-                        <td>Proposal timer</td>
-                        <td><code>BftState::initialize_genesis</code>, <code>BftState::on_proposal_timer</code> return <code>SetTimer</code>; node turns timer into <code>Event::ProposalTimer</code></td>
-                    </tr>
-                    <tr>
-                        <td>Round timeout check</td>
-                        <td><a href="#" data-file="crates/node/src/state.rs" target="_blank" rel="noopener">crates/node/src/state.rs</a> — <code>NodeStateMachine::handle()</code> checks round timeout before calling <code>self.bft.on_proposal_timer</code></td>
-                    </tr>
-                    <tr>
-                        <td>Cleanup timer</td>
-                        <td><code>BftState::initialize_genesis</code> returns <code>SetTimer</code> for Cleanup; <code>Event::CleanupTimer</code> handled in BFT</td>
-                    </tr>
-                    <tr>
-                        <td>BftConfig</td>
-                        <td><a href="#" data-crate="bft" target="_blank" rel="noopener">crates/bft</a> — <code>proposal_interval</code>, <code>min_block_interval</code>, and related fields</td>
-                    </tr>
-                </tbody>
-            </table>
+            <p>For <code>BftConfig</code> and timer-related constants, use the <strong>bft</strong> crate and the node/simulator that constructs <code>BftState</code> — paths in <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a>.</p>
         </div>
 
         <div class="section">
@@ -139,6 +105,43 @@
             <h2>Quiz: Timing</h2>
             <p>Answer the following to check your understanding. Pass threshold: 70%.</p>
             <div id="quiz-timing" class="quiz-container"></div>
+        </div>
+
+        <div class="section hs-suggested-study-section" id="suggested-crates-files-to-study">
+            <h2>Suggested crates / files to study</h2>
+            <p class="hs-suggested-study-lead">Paths relative to the <a href="#" data-repo target="_blank" rel="noopener">hyperscale-rs</a> repo root.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="hs-suggested-study-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Concept</th>
+                            <th scope="col">Path / notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Height, round (view)</td>
+                            <td><a href="#" data-file="crates/bft/src/state.rs" target="_blank" rel="noopener">crates/bft/src/state.rs</a> — <code>BftState::view</code>, <code>view_at_height_start</code>, <code>committed_height</code>; block header <code>height</code>, <code>round</code></td>
+                        </tr>
+                        <tr>
+                            <td>Proposal timer</td>
+                            <td><code>BftState::initialize_genesis</code>, <code>on_proposal_timer</code> → <code>SetTimer</code>; runner → <code>Event::ProposalTimer</code></td>
+                        </tr>
+                        <tr>
+                            <td>Round timeout</td>
+                            <td><a href="#" data-file="crates/node/src/state.rs" target="_blank" rel="noopener">crates/node/src/state.rs</a> — <code>NodeStateMachine::handle()</code> before <code>self.bft.on_proposal_timer</code></td>
+                        </tr>
+                        <tr>
+                            <td>Cleanup timer</td>
+                            <td><code>BftState::initialize_genesis</code> → <code>SetTimer</code> (Cleanup); <code>Event::CleanupTimer</code> in BFT</td>
+                        </tr>
+                        <tr>
+                            <td><code>BftConfig</code></td>
+                            <td><a href="#" data-crate="bft" target="_blank" rel="noopener">crates/bft</a> — <code>proposal_interval</code>, <code>min_block_interval</code>, related fields</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="navigation">

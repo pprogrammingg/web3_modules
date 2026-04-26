@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hands-On Project 1: E2E Observability &amp; Invariants</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Hands-on project 1: E2E observability &amp; invariants</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 1.5–2 hours</span>
+                <span>📊 Difficulty: Intermediate</span>
+                <span><span class="badge-project">Hands-on project</span> <span class="badge-hyperscale">Hyperscale-rs</span></span>
+            </div>
+        </div>
+
+        <div class="section project-hero">
+            <h2>Why this project</h2>
+            <p style="margin:0;line-height:1.65;">
+                You already traced <code>test_e2e_single_shard_transaction</code> on paper in <a href="module-11-e2e-tests.html">End-to-End Tests</a>.
+                Here you <strong>change the real test</strong> in the repo: add visible trace points, add a <strong>committed-height check</strong> across validators (and learn when strict equality matches what a single <code>run_until</code> snapshot can show), and relate <strong><code>SimulationStats</code></strong> to how much <strong>simulated time</strong> you allow.
+                Everything runs under <code>cargo test</code> with <code>--nocapture</code> so you see effects immediately—no extra harness.
+            </p>
+        </div>
+
+        <div class="section">
+            <h2>Prerequisites</h2>
+            <ul>
+                <li>Local clone of <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a>, <code>cargo</code> and stable Rust working.</li>
+                <li>Comfort reading Rust integration tests and panics.</li>
+                <li>Skim <a href="module-11-e2e-tests.html">module 11</a> so <code>SimulationRunner</code>, <code>run_until</code>, and <code>SubmitTransaction</code> are not new.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Files you will touch</h2>
+            <ul>
+                <li><code>crates/simulation/tests/e2e_tests.rs</code> — function <code>test_e2e_single_shard_transaction</code> (starts near the top of the single-shard tests section).</li>
+                <li>Optional: <code>crates/simulation/src/runner.rs</code> — <code>SimulationStats</code> (<code>Debug</code>) if you want to read field meanings in source.</li>
+            </ul>
+        </div>
+
+        <div class="section project-step" id="step-1">
+            <h3>Step 1 — Baseline run</h3>
+            <p>From the <strong>hyperscale-rs repository root</strong>:</p>
+            <pre style="overflow-x:auto;padding:1rem;background:var(--bg2);border-radius:6px;font-size:0.9rem;">cargo test -p hyperscale-simulation test_e2e_single_shard_transaction -- --nocapture</pre>
+            <p>Confirm the test passes. Scroll the output once: note genesis message, transaction hash, “initial consensus”, mempool status, and the final pass banner. You will align your own prints with this rhythm.</p>
+        </div>
+
+        <div class="section project-step" id="step-2">
+            <h3>Step 2 — Trace markers</h3>
+            <p>In <code>test_e2e_single_shard_transaction</code>, add two clear markers (either <code>println!</code> or <code>tracing::info!</code>):</p>
+            <ol>
+                <li>Immediately after <code>runner.initialize_genesis();</code> — e.g. <code>println!("[lab] genesis done");</code></li>
+                <li>Immediately after the <code>runner.schedule_initial_event(... SubmitTransaction ...)</code> call — e.g. <code>println!("[lab] submit scheduled on node 0");</code></li>
+            </ol>
+            <p>Re-run the same <code>cargo test</code> command. Verify <strong>[lab] genesis done</strong> appears before <strong>[lab] submit scheduled</strong> and before the long simulation output. If you use <code>tracing</code>, set <code>RUST_LOG=info</code> for that crate as needed; <code>println!</code> is enough for this lab.</p>
+        </div>
+
+        <div class="section project-step" id="step-3">
+            <h3>Step 3 — Committed heights across validators</h3>
+            <p>With full connectivity and shared simulated time, validators <strong>eventually</strong> agree on the same committed tip—but a <strong>single</strong> call to <code>run_until</code> gives you a <em>snapshot</em> at a discrete event boundary, not a proof that every node has applied every message by that instant.</p>
+            <div class="bft-design-callout" style="margin-top:1rem;margin-bottom:1rem;">
+                <span class="callout-label">Important caveat</span>
+                <h3>Why you might see <code>[2, 2, 2, 1]</code> (or similar) right after <code>run_until(2s)</code></h3>
+                <p>Commits propagate through the simulated network with <strong>nonzero latency</strong>. When simulated time hits your cutoff, the message that would advance the last validator’s <code>committed_height()</code> may still be <strong>scheduled for delivery after</strong> that cutoff. The runner stops when the next event time would exceed <code>end_time</code> (see <code>run_until</code> in <code>crates/simulation/src/runner.rs</code>)—so one node can legitimately be <strong>one block behind</strong> at that moment. That usually means <strong>eventual sync</strong>, not a fork or a broken chain.</p>
+                <p><strong>Takeaway:</strong> requiring <code>heights.iter().all(|h| h == heights[0])</code> immediately after a fixed <code>Duration::from_secs(2)</code> is <strong>stricter than the harness guarantees</strong>. If your assertion panics with one node one height lower, the lesson is real; adjust the lab so the test stays meaningful and green.</p>
+                <h4>Ways to align the exercise with the simulator</h4>
+                <ul>
+                    <li><strong>Eventual equality:</strong> After the first <code>run_until(2s)</code>, loop with small extra <code>run_until</code> steps (or one longer slice) until all heights match, with a safety cap on iterations so the test cannot hang.</li>
+                    <li><strong>Weaker invariant:</strong> Assert that the highest and lowest <code>committed_height</code> in your vector differ by at most one, and print the vector—then explain in notes why a spread of one can happen at a hard time stop.</li>
+                    <li><strong>Strict equality after more time:</strong> Keep the strict <code>all(|h| h == heights[0])</code> only once you have enough simulated time (or the spin loop above) that all four nodes have caught up.</li>
+                </ul>
+            </div>
+            <p>After the <strong>first</strong></p>
+            <pre style="overflow-x:auto;padding:0.75rem;background:var(--bg2);border-radius:6px;font-size:0.88rem;">runner.run_until(Duration::from_secs(2));</pre>
+            <p>insert code that collects <code>committed_height()</code> for node indices <code>0..4</code> (this test uses four validators on one shard). Use <code>runner.node(i).expect("node").bft().committed_height()</code>.</p>
+            <p><strong>Requirements:</strong></p>
+            <ul>
+                <li>Always <strong>print</strong> the <code>Vec</code> of heights (e.g. <code>println!(&quot;[lab] committed heights … {:?}&quot;, heights)</code>) so you can see alignment or lag at a glance.</li>
+                <li>Use an <strong>assertion strategy</strong> you can justify: either strict equality after a spin/longer run, or a documented weaker check, per the caveat above. If you use strict equality right at 2s only, expect occasional failure unless your network timing always delivers in time.</li>
+                <li>Whatever you assert, the panic or failure path should still print the full height vector so a mismatch is obvious.</li>
+            </ul>
+            <p>Example shape (adapt names, message, and assertion to match the option you chose):</p>
+            <pre style="overflow-x:auto;padding:1rem;background:var(--bg2);border-radius:6px;font-size:0.85rem;">let heights: Vec&lt;u64&gt; = (0..4u32)
+    .map(|i| runner.node(i).expect("node").bft().committed_height())
+    .collect();
+// Strict snapshot (may fail under latency + fixed cutoff—see caveat above):
+assert!(
+    heights.iter().all(|&amp;h| h == heights[0]),
+    "validators not aligned on committed height: {:?}",
+    heights
+);
+println!("[lab] committed heights after 2s sim time: {:?}", heights);</pre>
+            <p>If your test sometimes returns early (transaction already executed), your check still runs on the path that reaches it—if you hit an early <code>return</code> before this line, move the height logic to a small helper and call it from each exit path, or document which path you tested; for grading yourself, the main path after the first <code>run_until</code> is enough.</p>
+        </div>
+
+        <div class="section project-step" id="step-4">
+            <h3>Step 4 — SimulationStats vs time</h3>
+            <p>Still after that first <code>run_until(2s)</code> (and ideally after your height assertion), print <code>runner.stats()</code>:</p>
+            <pre style="overflow-x:auto;padding:0.75rem;background:var(--bg2);border-radius:6px;font-size:0.88rem;">println!("[lab] stats after 2s: {:?}", runner.stats());</pre>
+            <p>Run again and note <code>events_processed</code>, <code>messages_sent</code>, and <code>timers_set</code>.</p>
+            <p>Now change <strong>only</strong> that first <code>run_until</code> duration to <code>Duration::from_millis(15)</code> (very tight). Re-run with <code>--nocapture</code>.</p>
+            <ul>
+                <li>Are committed heights still equal across nodes (or within your Step 3 tolerance)? (With only 15ms they often still match but stay at <code>0</code>.)</li>
+                <li>How do the stats compare to the 2-second run?</li>
+                <li>Does the test still pass end-to-end, or does it fail later because the transaction never finishes?</li>
+            </ul>
+            <p><strong>Restore</strong> <code>Duration::from_secs(2)</code> before you finish so you do not leave the suite flaky for others.</p>
+        </div>
+
+        <div class="section project-step" id="step-5">
+            <h3>Step 5 — Stretch (optional)</h3>
+            <ul>
+                <li>Repeat the height check a second time after the polling loop completes (or before final assertions), and confirm heights still satisfy your Step 3 rule (strict match or bounded spread) at the end of the test.</li>
+                <li>Or: temporarily remove / comment out the <code>schedule_initial_event</code> for <code>SubmitTransaction</code> and observe how failure mode differs (mempool never sees the tx vs sync invariant).</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>What “done” looks like</h2>
+            <ul>
+                <li>Markers in output prove you control where genesis and submit appear relative to simulation progress.</li>
+                <li>You can describe committed heights across the four nodes after a <code>run_until</code> slice, and explain why <strong>strict equality at an arbitrary time limit</strong> can fail under simulated gossip latency even when validators are not disagreeing on the canonical chain.</li>
+                <li>You can explain in one paragraph why starving simulated time lowers <code>events_processed</code> and can prevent the transaction from reaching executed state even when heights look aligned.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Next</h2>
+            <p>Future hands-on projects will branch into gossip dedup metrics, mempool limits, or production-only paths. For curriculum order, continue to general networking depth in <a href="../basic/module-05-libp2p.html">libp2p (basic)</a> or revisit <a href="module-01b-tx-flow.html">Transaction flow</a> with your new instrumentation mindset.</p>
+        </div>
+
+        <div class="navigation">
+            <a href="module-11-e2e-tests.html" class="btn btn-secondary">← End-to-End Tests</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="../basic/module-05-libp2p.html" class="btn btn-primary">Next: libp2p →</a>
+            <a href="../index.html" class="btn btn-primary">Back to Course</a>
+        </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
+    <script src="../shared/module-init.js" data-module-id="intermediate-project-01"></script>
+</body>
+</html>

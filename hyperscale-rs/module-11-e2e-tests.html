@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>End-to-End Tests: Code ↔ Flow</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>End-to-end tests: tracing code to flow</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: ~1–1.5 hours</span>
+                <span>📊 Difficulty: Intermediate</span>
+                <span>🎯 Hyperscale-rs Specific</span>
+            </div>
+        </div>
+
+        <div class="section" style="background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%); border: 2px solid rgba(37, 99, 235, 0.12);">
+            <p style="margin:0;font-size:1.02rem;line-height:1.6;color:var(--text);">
+                Instead of cataloging every test name, this module follows <strong>one simulation E2E</strong> and <strong>one production E2E-style test</strong> line by line: <em>what the test does</em> → <em>what protocol phase that is</em> → <em>which crate and code path implements it</em>.
+                Production is <strong>the same state machine and <code>IoLoop</code></strong> as simulation, but wiring (time, network, storage, threads) differs—called out explicitly.
+            </p>
+            <div class="e2e-design-note" style="margin-top:1rem;">
+                <strong>Design note</strong>
+                One <code>IoLoop</code> / <code>step</code> implementation for both harnesses so consensus logic is not forked—tests stay faithful and fixes apply everywhere. Trade-off: each harness must fake what it replaces (sim time, prod threads), so <em>integration</em> bugs only show up in the right harness.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning objectives</h2>
+            <ul>
+                <li>Trace <code>test_e2e_single_shard_transaction</code> from <code>SimulationRunner</code> through <code>IoLoop::step</code> to commit and execution</li>
+                <li>Trace <code>test_production_runner_with_network</code> through <code>ProductionRunner::build</code>, genesis, and the pinned event loop</li>
+                <li>State how production differs from simulation (wall-clock, QUIC, RocksDB, Tokio + pinned thread, batch flushing)</li>
+                <li>Explain what a <strong>pinned</strong> <code>io-loop</code> thread is, how <code>run_pinned_loop</code> relates to it, and how <span data-glossary="cpu affinity">CPU affinity</span> is applied with <code>core_affinity::set_for_current</code></li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Simulation vs production (same core, different harness)</h2>
+            <div class="e2e-split">
+                <div class="e2e-pillar e2e-pillar-sim">
+                    <div class="e2e-pillar-header">
+                        <div class="e2e-pillar-heading">🧪 Simulation harness</div>
+                        <div class="e2e-pillar-crate"><code>hyperscale-simulation</code></div>
+                    </div>
+                    <div class="e2e-pillar-body">
+                        <ul>
+                            <li><strong>Time:</strong> <code>SimulationRunner::run_until</code> advances a <strong>simulated</strong> clock (<code>Duration</code>).</li>
+                            <li><strong>Network:</strong> <code>SimulatedNetwork</code> + <code>SimNetworkAdapter</code>—latency queues, no real sockets.</li>
+                            <li><strong>Storage:</strong> <code>SimStorage</code> + <code><span data-glossary="syncdispatch">SyncDispatch</span></code> (in-process).</li>
+                            <li><strong>Threading:</strong> single-threaded driver; <code>IoLoop::step</code> called directly from the runner loop.</li>
+                            <li><strong>After each step:</strong> <code>flush_all_batches()</code> — drains validation / header batches and related commits <strong>immediately</strong>, every time (see <code>IoLoop::step</code> caller protocol; path in <a href="#suggested-crates-files-to-study">study table</a>). Keeps deterministic tests simple: no deferred batch work whose ordering depends on the next simulated clock tick.</li>
+                        </ul>
+                        <div class="e2e-design-note">
+                            <strong>Design note</strong>
+                            <code><span data-glossary="syncdispatch">SyncDispatch</span></code> runs validation/execution closures on the driver thread—zero pool nondeterminism, perfect replay. You do <em>not</em> exercise thread-pool ordering or contention that production’s <code>PooledDispatch</code> can surface.
+                        </div>
+                    </div>
+                </div>
+                <div class="e2e-pillar e2e-pillar-prod">
+                    <div class="e2e-pillar-header">
+                        <div class="e2e-pillar-heading">🌐 Production harness</div>
+                        <div class="e2e-pillar-crate"><code>hyperscale-production</code></div>
+                    </div>
+                    <div class="e2e-pillar-body">
+                        <ul>
+                            <li><strong>Time:</strong> wall clock on the pinned thread (<code>run_pinned_loop</code> sets time each iteration).</li>
+                            <li><strong>Network:</strong> <code>Libp2pAdapter</code> / <code>Libp2pNetwork</code>—real QUIC; gossip arrives on <span data-glossary="crossbeam channels">crossbeam channels</span> into the pinned loop.</li>
+                            <li><strong>Storage:</strong> <code>RocksDbStorage</code> + <code>SharedStorage</code> + <code>PooledDispatch</code>.</li>
+                            <li><strong>Threading:</strong> Tokio runtime for adapter/RPC/metrics; <strong>state machine on a pinned <code>std::thread</code></strong> (<code>spawn_pinned_loop</code>).</li>
+                            <li><strong>After each step:</strong> <code>flush_expired_batches</code>(<code>wall_clock_duration()</code>) — only flushes batch pipelines whose <strong>deadlines have passed</strong>; amasses work until then for throughput and steadier load (details below).</li>
+                        </ul>
+                        <div class="e2e-design-note">
+                            <strong>Design note</strong>
+                            The hot path is a blocking <code>std::thread</code> that must not <code>.await</code>; async I/O and sleeps stay on Tokio and <strong>push</strong> <code>NodeInput</code> through <span data-glossary="crossbeam channels">crossbeam</span>. Pros: clear ownership of state-machine mutation, no async locks inside <code>step</code>. Cons: two concurrency models and channel backpressure to tune.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="info" style="margin-top:1rem;margin-bottom:0;"><strong>Shared core:</strong> Both use <code>IoLoop&lt;Storage, NetworkAdapter, Dispatch&gt;::step(NodeInput)</code> and the same <code>NodeStateMachine</code>—so <code>SubmitTransaction</code>, BFT, <code>BlockCommitted</code>, and execution hooks behave the same <em>once an event reaches <code>step</code></em>. The harness decides <em>how</em> events get there and <em>when</em> time advances.</p>
+        </div>
+
+        <div class="section">
+            <h2>Pinned thread, <code>run_pinned_loop</code>, and <span data-glossary="cpu affinity">CPU affinity</span></h2>
+
+            <h3>What “pinned thread” means here</h3>
+            <p>Below is the actual production entrypoint: a <strong>named <code>std::thread</code></strong>, optional <span data-glossary="cpu affinity">CPU affinity</span> via <code>core_affinity::set_for_current</code>, then <code>run_pinned_loop</code>. Read the code first; captions spell out what each part testifies to.</p>
+
+            <p class="e2e-code-caption"><strong>Snippet context:</strong> <code>spawn_pinned_loop</code> — pinned-thread entry (file in <a href="#suggested-crates-files-to-study">study table</a>).</p>
+            <pre class="code-block-light" style="overflow-x:auto;"><code>pub fn spawn_pinned_loop(
+    io_loop: ProdIoLoop,
+    config: PinnedLoopConfig,
+) -&gt; std::thread::JoinHandle&lt;()&gt; {
+    std::thread::Builder::new()
+        .name("io-loop".to_string())
+        .spawn(move || {
+            // Try to pin to core 0
+            if let Some(core_ids) = core_affinity::get_core_ids() {
+                if let Some(&amp;core_id) = core_ids.first() {
+                    if core_affinity::set_for_current(core_id) {
+                        info!(?core_id, "Pinned io-loop thread to core");
+                    } else {
+                        warn!("Failed to pin io-loop thread to core 0");
+                    }
+                }
+            }
+
+            run_pinned_loop(io_loop, config);
+        })
+        .expect("failed to spawn io-loop thread")
+}</code></pre>
+            <ul class="e2e-code-reads" style="margin-top:0.5rem;">
+                <li><strong>Thread (not Tokio):</strong> <code>std::thread::Builder</code> + <code>.name("io-loop")</code> + <code>.spawn</code> — this is an OS thread whose closure <strong>only</strong> calls <code>run_pinned_loop</code> after the optional pin.</li>
+                <li><strong><span data-glossary="cpu affinity">Affinity</span> + <span data-glossary="syscall">syscall</span>:</strong> <code>set_for_current(core_id)</code> runs <strong>inside</strong> that new thread; the <code>info!(…)</code> line means the affinity <span data-glossary="syscall">syscall</span> succeeded, not that the core is yours alone.</li>
+            </ul>
+
+            <p class="e2e-code-caption" style="margin-top:1.25rem;"><strong>Snippet context:</strong> Tokio task after <code>spawn_pinned_loop</code> — metrics and shutdown <code>select!</code> (runner file in <a href="#suggested-crates-files-to-study">study table</a>).</p>
+            <pre class="code-block-light" style="overflow-x:auto;"><code>        // ── 3. Spawn pinned thread ───────────────────────────────────────
+        let loop_handle = spawn_pinned_loop(io_loop, pinned_config);
+
+        // ── 4. Metrics + shutdown loop ───────────────────────────────────
+        let mut metrics_tick = tokio::time::interval(Duration::from_secs(1));
+        metrics_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let mut shutdown_rx = self.shutdown_rx.take().expect("shutdown_rx already taken");
+
+        loop {
+            tokio::select! {
+                biased;
+                _ = &amp;mut shutdown_rx =&gt; {
+                    info!("Shutdown signal received");
+                    break;
+                }
+                _ = metrics_tick.tick() =&gt; {
+                    self.collect_metrics();
+                }
+            }
+        }</code></pre>
+            <p style="margin-top:0.5rem;font-size:0.95rem;">The same binary keeps a <strong>Tokio</strong> loop here (metrics, shutdown); libp2p/RPC/timers live on that runtime too. <code>NodeInput</code> for consensus reaches the <code>io-loop</code> thread through <span data-glossary="crossbeam channels">crossbeam channels</span> (<code>timer_rx</code> / <code>callback_rx</code> / <code>consensus_rx</code> in <code>PinnedLoopConfig</code>) read inside <code>run_pinned_loop</code> — see the next subsection.</p>
+            <div class="e2e-design-note">
+                <strong>Design note</strong>
+                Genesis runs on the Tokio task <em>before</em> <code>spawn_pinned_loop</code> so <code>IoLoop</code> and storage are initialized deterministically on one side, then the loop is handed off already consistent—avoids splitting genesis across threads. Cost: startup blocks the runtime briefly; acceptable before listeners are fully “hot.”
+            </div>
+
+            <h3>Diagram: logical CPUs, pinned target, and what runs where</h3>
+            <p class="e2e-code-caption">Schematic for <strong>one validator process</strong> on a typical multi-core host. <span data-glossary="cpu affinity">Affinity</span> affects only the <code>io-loop</code> <code>std::thread</code>; Tokio worker threads are usually <strong>unpinned</strong> and the OS may move them across logical CPUs.</p>
+
+            <div class="hs-thread-cpu-diagram" role="img" aria-label="Diagram: CPU 0 shows io-loop thread with affinity hint and other schedulable work; CPUs 1 and 2 show Tokio and network stack; crossbeam channels carry NodeInput from async side to io-loop.">
+                <div class="hs-diagram-legend">
+                    <table class="hs-legend-table">
+                        <caption class="hs-legend-caption">Legend</caption>
+                        <tbody>
+                            <tr>
+                                <td class="hs-legend-swatch-cell"><span class="hs-swatch hs-swatch--ioloop" aria-hidden="true"></span></td>
+                                <th scope="row" class="hs-legend-label"><code>io-loop</code> thread</th>
+                                <td class="hs-legend-desc"><code>std::thread</code> running <code>run_pinned_loop</code>; synchronous <code>IoLoop::step</code>; reads <span data-glossary="crossbeam channels">crossbeam</span> receivers (<code>timer_rx</code>, <code>callback_rx</code>, <code>consensus_rx</code>).</td>
+                            </tr>
+                            <tr>
+                                <td class="hs-legend-swatch-cell"><span class="hs-swatch hs-swatch--tokio" aria-hidden="true"></span></td>
+                                <th scope="row" class="hs-legend-label">Tokio / async side</th>
+                                <td class="hs-legend-desc">libp2p, RPC, timer sleeps, <code>ProdTimerManager</code> reinjections, runner’s metrics + shutdown <code>tokio::select!</code>; tasks <strong>send</strong> <code>NodeInput</code> into <span data-glossary="crossbeam channels">crossbeam</span> channels consumed by <code>io-loop</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="hs-legend-swatch-cell"><span class="hs-swatch hs-swatch--pools" aria-hidden="true"></span></td>
+                                <th scope="row" class="hs-legend-label">Pools (<code>PooledDispatch</code>)</th>
+                                <td class="hs-legend-desc">Heavy crypto, validation, execution work off the hot path; results often come back as <strong>callback</strong> <span data-glossary="crossbeam channels">crossbeam</span> channel events into <code>run_pinned_loop</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="hs-legend-swatch-cell"><span class="hs-swatch hs-swatch--other" aria-hidden="true"></span></td>
+                                <th scope="row" class="hs-legend-label">Everything else</th>
+                                <td class="hs-legend-desc">Other threads in this process, other processes, kernel/interrupt work: the scheduler may still run them on <strong>any</strong> logical CPU, including the affinity target, unless you isolate CPUs (e.g. <code>isolcpus</code>, cgroups).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="hs-diagram-cpu-row">
+                    <div class="hs-cpu hs-cpu--affinity">
+                        <div class="hs-cpu-label">Logical CPU 0 <span class="hs-cpu-badge">affinity target (typical)</span></div>
+                        <div class="hs-cpu-body">
+                            <div class="hs-thread-block hs-thread-block--ioloop">
+                                <span class="hs-thread-name">io-loop</span>
+                                <span class="hs-thread-detail"><code>run_pinned_loop</code> · <code>step</code> · channel recv / <code><span data-glossary="crossbeam">crossbeam</span>::select!</code></span>
+                            </div>
+                            <div class="hs-cpu-shared">Also schedulable here: Tokio workers, pools, <strong>other processes</strong>, kernel — affinity is <em>not</em> exclusive reservation.</div>
+                        </div>
+                    </div>
+                    <div class="hs-cpu hs-cpu--generic">
+                        <div class="hs-cpu-label">Logical CPU 1 <span class="hs-cpu-badge hs-cpu-badge--muted">unpinned typical</span></div>
+                        <div class="hs-cpu-body">
+                            <div class="hs-thread-block hs-thread-block--tokio">
+                                <span class="hs-thread-name">Tokio workers</span>
+                                <span class="hs-thread-detail">libp2p · QUIC · RPC · async tasks</span>
+                            </div>
+                            <div class="hs-thread-block hs-thread-block--pools">
+                                <span class="hs-thread-name">Dispatch pools</span>
+                                <span class="hs-thread-detail">crypto / validation / execution offload</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hs-cpu hs-cpu--generic">
+                        <div class="hs-cpu-label">Logical CPU 2 … <span class="hs-cpu-badge hs-cpu-badge--muted">unpinned typical</span></div>
+                        <div class="hs-cpu-body">
+                            <div class="hs-thread-block hs-thread-block--tokio">
+                                <span class="hs-thread-name">More Tokio / OS threads</span>
+                                <span class="hs-thread-detail">same process; OS may migrate them over time</span>
+                            </div>
+                            <div class="hs-thread-block hs-thread-block--other">
+                                <span class="hs-thread-name">Other workloads</span>
+                                <span class="hs-thread-detail">other apps, system threads, interrupts (simplified)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hs-diagram-arrows" aria-hidden="true">
+                    <div class="hs-arrow-label"><span data-glossary="crossbeam channels">Crossbeam channels</span> · <code>NodeInput</code></div>
+                    <div class="hs-arrow-line">
+                        <span class="hs-arrow-from">Tokio / adapters / pools</span>
+                        <span class="hs-arrow-glyph">→</span>
+                        <span class="hs-arrow-to"><code>consensus_rx</code> · <code>callback_rx</code> · <code>timer_rx</code> → <code>io-loop</code></span>
+                    </div>
+                </div>
+            </div>
+
+            <p style="margin-top:0.75rem;font-size:0.95rem;color:var(--text2);">Pinning does <strong>not</strong> reserve a core exclusively for this process unless you add stronger isolation (cgroups, isolated CPUs, etc.).</p>
+
+            <h3>What <code>run_pinned_loop</code> actually does</h3>
+            <p><strong>Read in-repo:</strong> <code>run_pinned_loop</code> (spawned from <code>spawn_pinned_loop</code> in the same module) — path in <a href="#suggested-crates-files-to-study">study table</a>.</p>
+            <p>It is the <strong>main engine loop</strong> for advancing the <code>IoLoop</code> while the node is up. The very first thing inside the function (before the big <code>loop</code>) is to apply <strong><span data-glossary="genesis block">genesis</span>-time <span data-glossary="timer op">timer ops</span> once</strong>:</p>
+            <ul class="e2e-code-reads" style="margin-bottom:1rem;">
+                <li><strong>Where they come from:</strong> On the Tokio side, <code>ProductionRunner::maybe_initialize_genesis()</code> builds the <span data-glossary="genesis block">genesis block</span>, calls <code>initialize_genesis</code> on the <span data-glossary="state machine">state machine</span>, runs <code>handle_actions</code> / flush, drains <code>timer_ops</code> from that step, then steps <code>StateCommitComplete</code> at height 0 (syncing BFT with the real JVT root) and merges any more <span data-glossary="timer op">timer ops</span>. That vector becomes <code>PinnedLoopConfig.initial_timer_ops</code>. (Implementation on the production-runner side — study table.)</li>
+                <li><strong>What “apply once” means:</strong> <code>run_pinned_loop</code> does <code>for op in take(initial_timer_ops) { timer_mgr.process_op(op); }</code> a <em>single</em> time at startup. Each <span data-glossary="timer op">TimerOp</span> (commonly <code>Set</code> for the initial proposal timer) tells <code>ProdTimerManager</code> to spawn a <strong>Tokio</strong> <code>sleep</code>; when it fires, it sends a timer <code>NodeInput</code> on <span data-glossary="crossbeam channels">crossbeam</span> <code>timer_rx</code>. So “once” is <strong>one drain at loop entry</strong>, not “timers only fire once.”</li>
+            </ul>
+            <div class="e2e-design-note">
+                <strong>Design note</strong>
+                Real sleeps live on Tokio because the pinned thread cannot block inside an async runtime; firing into <code>timer_rx</code> re-enters the synchronous <code>step</code> world. Trade-off: timer latency includes Tokio scheduling jitter (usually small vs consensus timeouts).
+            </div>
+            <p>After that, the loop repeats until shutdown:</p>
+            <ul>
+                <li>Check for shutdown on the shutdown channel.</li>
+                <li>Set <strong>wall-clock</strong> time on the loop (<code>io_loop.set_time(now)</code>).</li>
+                <li>Receive the next <code>NodeInput</code> with a <strong>priority order</strong> on <span data-glossary="crossbeam channels">crossbeam</span> channels (timer, then callback, then consensus); if nothing is ready, block on <code><span data-glossary="crossbeam">crossbeam</span>::select!</code> with a timeout derived from <code>nearest_batch_deadline()</code>.</li>
+                <li>For each event: <code>io_loop.step(event)</code>, then apply <code>TimerOp</code>s from the step (Tokio-backed sleeps that re-inject timer events into the timer channel).</li>
+                <li><code>flush_expired_batches</code>(<code>wall_clock_duration()</code>) — see <strong>Why simulation flushes everything; production batches</strong> below.</li>
+                <li><span data-glossary="periodic metrics">Periodic metrics</span>, <span data-glossary="channel depth export">channel depth export</span>, optional <span data-glossary="jvt gc">JVT GC</span> (<code>run_jvt_gc</code>).</li>
+            </ul>
+            <div class="e2e-design-note">
+                <strong>Design note</strong>
+                <strong>Timer &gt; callback &gt; consensus</strong> on <code>try_recv</code> favors time-driven liveness (proposal / round timers) over inbound work—otherwise a flood of gossip could delay handling a fired timer and stall progress. Risk if mis-tuned: chronic timer traffic could starve lower priorities; the codebase assumes timer volume stays bounded relative to protocol needs.
+            </div>
+
+            <h4>Why simulation flushes everything; production batches until deadlines</h4>
+            <p class="e2e-code-caption"><strong>Read in-repo:</strong> <code>flush_expired_batches</code>, <code>flush_all_batches</code>, <code>nearest_batch_deadline</code>, and <code>step</code> caller-protocol docs — <a href="#suggested-crates-files-to-study">study table</a>.</p>
+            <p>The <code>IoLoop</code> holds <strong>batch accumulators</strong> (notably validation and committed-header verification) with <strong>time-based deadlines</strong>. The two harnesses choose different flush policies after <code>step</code>:</p>
+            <ul class="e2e-code-reads">
+                <li><strong>Simulation — <code>flush_all_batches()</code></strong> flushes <em>all</em> pending batches and related paths every time, ignoring whether a deadline has arrived. The runner is <strong>single-threaded</strong> and fully owns <strong>simulated</strong> time. Flushing aggressively makes the state after each <code>step</code> “fully settled,” which simplifies assertions and avoids subtle ordering bugs when <code>run_until</code> jumps the clock—work is not left sitting in a batch whose expiry might fall awkwardly between synthetic events. Throughput of the fake network is not a goal, so paying the cost of an immediate flush every step is cheap and predictable.</li>
+                <li><strong>Production — <code>flush_expired_batches(now)</code></strong> only calls <code>flush_validation_batch</code> / <code>flush_committed_header_verifications</code> when <code>now</code> has passed each batch’s deadline. <strong>Reason:</strong> real validators see bursty traffic (gossip, RPC); <strong>batching until a short deadline amortizes verification work</strong>, reduces spikes on the pinned thread and worker pools, and acts as a form of <strong><a href="../basic/module-04-state-machines.html">backpressure</a></strong>—the pipeline does not have to react to every packet edge individually. The same file exposes <code>nearest_batch_deadline()</code> so <code>run_pinned_loop</code> can set the <code><span data-glossary="crossbeam">crossbeam</span>::select!</code> timeout: the loop wakes when a batch <em>must</em> flush even if no new <code>NodeInput</code> arrived, keeping latency bounded without flushing blindly after every event.</li>
+            </ul>
+            <p style="font-size:0.92rem;color:var(--text2);"><code>flush_all_batches()</code> still exists on <code>IoLoop</code> for paths that need an immediate drain (e.g. shutdown); production’s steady-state path prefers deadline-driven flushes.</p>
+
+            <div class="bft-design-callout">
+                <span class="callout-label">Correcting a common mental model</span>
+                <h3>Not a “test loop” or “user simulator”</h3>
+                <p><code>run_pinned_loop</code> is <strong>production architecture</strong>, not something that exists only to simulate users. E2E tests such as <code>test_production_runner_with_network</code> <strong>start and stop</strong> the same path briefly; a real validator runs it <strong>continuously</strong>. RPC or other tasks <strong>send</strong> work (e.g. <code>SubmitTransaction</code>) <strong>into</strong> the <span data-glossary="crossbeam channels">crossbeam</span> channels this loop reads—they are real inputs, not pretend traffic generated inside the loop.</p>
+                <p><strong>vs simulation:</strong> Deterministic simulation never spawns this thread: a single driver calls <code>IoLoop::step</code> from <code>SimulationRunner::run_until</code> with <strong>simulated time</strong> and an in-memory network. Same <code>step</code> logic, different harness.</p>
+            </div>
+
+            <p style="margin-top:1rem;font-size:0.95rem;color:var(--text2);">For a broader ladder of multitasking / threading terms mapped to hyperscale-rs (processes, async vs blocking, pools, backpressure), see the Basic module <a href="../basic/module-04-state-machines.html">State Machines &amp; Event-Driven Architecture</a> (section on threading and concurrency).</p>
+        </div>
+
+        <!-- ═══ Simulation trace ═══ -->
+        <div class="section">
+            <h2>1. Simulation E2E: <code>test_e2e_single_shard_transaction</code></h2>
+            <div class="e2e-trace-panel e2e-trace-panel--sim">
+                <div class="e2e-trace-intro e2e-trace-intro--sim">
+                    <div class="e2e-trace-intro-body">
+                        <p class="e2e-trace-intro-kicker">Source &amp; story</p>
+                        <p><strong>Test:</strong> <code>test_e2e_single_shard_transaction</code> in the simulation E2E integration tests — path in <a href="#suggested-crates-files-to-study">study table</a>.</p>
+                        <p><strong>Story:</strong> one shard, four validators; build a signed notarized tx, submit on node 0, run simulated time until the tx is executed (or evicted after success).</p>
+                    </div>
+                </div>
+                <div class="table-wrap table-wrap--reflow">
+                    <table class="content-table content-table-two-col e2e-trace-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Step (test / harness)</th>
+                                <th scope="col">Protocol meaning → code path</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text"><code>SimulationRunner::new(config, 42)</code></div>
+                                </td>
+                                <td>Construct topology and one <code>IoLoop</code> per validator with <code>SimStorage</code>, <code>RadixExecutor</code>, <code>SimNetworkAdapter</code>, <code><span data-glossary="syncdispatch">SyncDispatch</span></code>, and a per-node <span data-glossary="crossbeam channel">crossbeam channel</span> for injected events. Start from <code>SimulationRunner::new</code> in the simulation runner (study table).</td>
+                            </tr>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text"><code>runner.initialize_genesis()</code></div>
+                                </td>
+                                <td><strong>Engine genesis:</strong> For each node, <code>executor.run_genesis</code> via <code>GenesisWrapper</code>, then <code>finalize_genesis_jvt</code> (JVT state commitment at version 0). <strong>Consensus genesis:</strong> <code>finalize_genesis</code> builds <code>Block::genesis</code> per shard with the genesis JVT root, calls <code>state.initialize_genesis</code>, <code>handle_actions</code>, drains IO, schedules <code>StateCommitComplete</code> for height 0. Implemented in <code>initialize_genesis</code> / <code>finalize_genesis</code> on the same runner (study table).</td>
+                            </tr>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text">Manifest + <code>sign_and_notarize</code> → <code>RoutableTransaction</code></div>
+                                </td>
+                                <td>Builds a valid Radix-style transaction <strong>outside</strong> the consensus loop (test helper + Radix types). Not the hyperscale runner; it’s the payload the node will treat like any user tx.</td>
+                            </tr>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text"><code>schedule_initial_event(0, ZERO, SubmitTransaction { tx })</code></div>
+                                </td>
+                                <td>Inserts <code>NodeInput::SubmitTransaction</code> into the <span data-glossary="global deterministic event queue"><strong>global deterministic event queue</strong></span> for node 0 at the current sim time. Follow <code>schedule_initial_event</code> → <code>schedule_event</code> on the simulation runner (study table).</td>
+                            </tr>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text"><code>runner.run_until(Duration::from_secs(2))</code> (and later polling)</div>
+                                </td>
+                                <td><strong>Simulation driver:</strong> Repeatedly picks the next time from the minimum of (next queued event, next simulated network delivery), advances <code>now</code>, optionally prunes <span data-glossary="gossip dedup caches">gossip dedup caches</span>, flushes gossip/notifications/responses into channels, drains those into new queued events, then pops all due events and runs <code>io_loops[i].step(event)</code> + <code>flush_all_batches</code> + <code>drain_node_io</code> + timer scheduling from <code>StepOutput</code>. Core logic in <code>run_until</code> and <code>drain_node_io</code> on the simulation runner (study table).</td>
+                            </tr>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text"><code>NodeInput::SubmitTransaction</code> handled in <code>IoLoop::step</code></div>
+                                </td>
+                                <td><strong>Ingress:</strong> Computes shard set from <code>declared_reads</code>/<code>declared_writes</code>, <code>broadcast_to_shard</code> for each (simulated gossip). Marks tx as locally submitted; <code>queue_validation(tx)</code> if not already pending. <code>IoLoop::step</code> match arm <code>SubmitTransaction</code> (study table).</td>
+                            </tr>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text">Validation pipeline completes</div>
+                                </td>
+                                <td>Valid txs re-enter as <code>NodeInput::TransactionValidated</code>, which becomes <code>ProtocolEvent::TransactionGossipReceived</code> for the state machine (<code>feed_event</code>). Invalid → <code>TransactionValidationsFailed</code>. Same <code>IoLoop</code> module as submit (validation completion paths). <em class="e2e-inline-why">Why reshape: keeps one mempool/BFT entry shape whether the tx arrived from gossip or from the validator pipeline—extra hop, less duplicated consensus logic.</em></td>
+                            </tr>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text">Mempool + BFT + block commit</div>
+                                </td>
+                                <td><code>NodeStateMachine</code> applies protocol events: tx lands in mempool, proposer builds blocks, votes form QCs, two-chain commit rule fires. Committed blocks surface as <code>ProtocolEvent::BlockCommitted</code> (and related paths). Event dispatch in node state; consensus details in the BFT crate (study table).</td>
+                            </tr>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text"><code>on_block_committed</code> → execution</div>
+                                </td>
+                                <td>After commit, state runs <code>execution.on_block_committed(...)</code> (and mempool/livelock updates). This is where single-shard work runs through the execution engine; cross-shard would add provision coordination (not this particular test’s focus). Follow <code>on_block_committed</code> in node state (study table).</td>
+                            </tr>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text">Test assertions: <code>mempool().status</code> / <code>execution().is_executed</code></div>
+                                </td>
+                                <td>Observes <strong>observable end state</strong> on node 0: mempool may show progression or <code>None</code> if the tx was evicted after completion; execution’s <code>is_executed</code> confirms the engine path ran. Assertions live in the same simulation E2E test file (study table).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="e2e-design-note" style="margin-top:1rem;">
+                <strong>Design note</strong>
+                The tx is <code>schedule_initial_event</code>’d <em>before</em> the first long <code>run_until</code> so it sits in the pipeline like a “user submitted just as the network wakes”—cheap way to test mempool → propose path. It does not cover every ordering (e.g. submit only after many rounds); other tests vary timing.
+            </div>
+
+            <div class="e2e-run-cmds" style="margin-top:1rem;">
+                <p>Run this test only</p>
+                <code>cargo test -p hyperscale-simulation --test e2e_tests test_e2e_single_shard_transaction -- --nocapture</code>
+            </div>
+        </div>
+
+        <!-- ═══ Production trace ═══ -->
+        <div class="section">
+            <h2>2. Production E2E-style: <code>test_production_runner_with_network</code></h2>
+            <div class="e2e-trace-panel e2e-trace-panel--prod">
+                <div class="e2e-trace-intro e2e-trace-intro--prod">
+                    <div class="e2e-trace-intro-body">
+                        <p class="e2e-trace-intro-kicker">Source &amp; story</p>
+                        <p><strong>Test crate:</strong> production integration E2Es — path in <a href="#suggested-crates-files-to-study">study table</a>.</p>
+                        <p>This test <strong>does not submit a transaction</strong>; it proves <strong>production wiring</strong>: RocksDB, <code>ProductionRunner::build</code>, libp2p listening, <code>run()</code> spawning the pinned loop, then graceful shutdown. The <strong>same <code>IoLoop::step</code> path</strong> would process <code>SubmitTransaction</code> if an RPC task (or test) sent it on the consensus channel—see <code>ProductionRunner::tx_submission_sender()</code> on the production runner (study table).</p>
+                    </div>
+                </div>
+                <div class="table-wrap table-wrap--reflow">
+                    <table class="content-table content-table-two-col e2e-trace-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Step (test)</th>
+                                <th scope="col">What it validates → code path</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text"><code>TestFixtures::new(42, 1)</code> + <code>RocksDbStorage::open</code></div>
+                                </td>
+                                <td>Deterministic topology/keys for one validator; <strong>persistent</strong> storage under a temp directory. Production I/O path, unlike <code>SimStorage</code>. Test fixtures module + RocksDB-backed storage crate (study table). <em class="e2e-inline-why">Why real RocksDB here: catches compaction, locking, and path bugs that in-memory stores miss; cost is slower, flaky-disk-sensitive tests if not temp-scoped.</em></td>
+                            </tr>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text"><code>ProductionRunner::builder()...build().await</code></div>
+                                </td>
+                                <td>Wires <span data-glossary="prometheus">Prometheus</span> metrics install, <code>PooledDispatch</code>, <code>NodeStateMachine</code>, <code>SharedStorage</code>, <code>Libp2pAdapter::new</code>, <code>Libp2pNetwork</code>, <code>RadixExecutor</code>, <code>TransactionValidation</code>, and <code>IoLoop::new(...)</code> with production generic params. <span data-glossary="crossbeam channels">Crossbeam</span> senders/receivers are created for timer / callback / consensus / shutdown. <code>ProductionRunnerBuilder::build</code> on the production runner (study table).</td>
+                            </tr>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text"><code>runner.network()</code>, listen addresses</div>
+                                </td>
+                                <td>Confirms QUIC listener came up on localhost (port 0 = OS-assigned). Network stack is live; messages would be encoded/decoded for real gossip—not simulated delivery queues.</td>
+                            </tr>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text"><code>tokio::spawn(runner.run())</code></div>
+                                </td>
+                                <td><code>ProductionRunner::run</code>: calls <code>maybe_initialize_genesis()</code> on the <strong>still-local</strong> <code>IoLoop</code> (engine genesis + genesis block + <code>initialize_genesis</code> + <code>StateCommitComplete</code>—parallel idea to simulation’s genesis, but on RocksDB). Then moves <code>IoLoop</code> into <code>spawn_pinned_loop</code>. Main Tokio task then waits on shutdown + metrics ticks. See <code>maybe_initialize_genesis</code> and <code>run</code> on the production runner (study table).</td>
+                            </tr>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text">Pinned thread: <code>run_pinned_loop</code></div>
+                                </td>
+                                <td>Once at entry: drain <code>initial_timer_ops</code> from <span data-glossary="genesis block">genesis</span> setup (<code>maybe_initialize_genesis</code>) through <code>ProdTimerManager</code> — each <span data-glossary="timer op">TimerOp</span> arms a Tokio sleep that later injects timer <code>NodeInput</code> on <span data-glossary="crossbeam channels">crossbeam</span> <code>timer_rx</code>. Then loop: shutdown check → <code>set_time(now)</code> → priority <code>try_recv</code> (timer, callback, consensus) → optional blocking <code><span data-glossary="crossbeam">crossbeam</span>::select!</code> → <code>io_loop.step(event)</code> → <code>flush_expired_batches</code> → <span data-glossary="periodic metrics">periodic metrics</span> / <span data-glossary="channel depth export">channel depth export</span> / optional <span data-glossary="jvt gc">JVT GC</span> (<code>run_jvt_gc</code>). Production analogue of simulation’s <code>run_until</code> + <code>step</code>; events from real adapters and Tokio timers, not a <code>BTreeMap</code> queue. Implemented in <code>run_pinned_loop</code> (production event loop — study table).</td>
+                            </tr>
+                            <tr class="e2e-trace-row">
+                                <td>
+                                    <div class="e2e-trace-step-text"><code>drop(shutdown)</code> + join handle</div>
+                                </td>
+                                <td>Shutdown handle drops → <code>run</code>’s Tokio loop exits → sends on <code>xb_shutdown_tx</code> → pinned loop observes shutdown and exits → test asserts clean completion. Validates lifecycle, not tx finality.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="e2e-design-note" style="margin-top:1rem;">
+                <strong>Design note</strong>
+                <p style="margin:0.35rem 0 0;font-size:0.92rem;">This integration test is <strong>not</strong> a full &ldquo;tx through consensus to finality&rdquo; production E2E: it does not submit a transaction or assert block heights, QCs, or executed user state (aside from genesis wiring at startup). The pinned loop is real and would handle <code>SubmitTransaction</code> if something sent it on the consensus channel, but proving submit&rarr;mempool&rarr;BFT&rarr;commit&rarr;execute with assertions is what the <strong>simulation</strong> E2E above is for, or a heavier prod/RPC test if the repo adds one next to the existing production tests (study table).</p>
+                <p style="margin:0.5rem 0 0;font-size:0.92rem;">Skipping a full tx here keeps CI fast and failure modes obvious (build/wire/shutdown). <strong>Cross-shard / multishard:</strong> simulation includes scenarios such as <code>test_e2e_cross_shard_transaction</code> alongside the single-shard E2E in the same integration test file (study table). This module does not trace a <strong>production</strong> multishard integration test; that would mean multiple validators, real networking, and timing—outside the scope of <code>test_production_runner_with_network</code>.</p>
+            </div>
+
+            <div class="e2e-run-cmds">
+                <p>Run this test (use one test thread; serial tests)</p>
+                <code>cargo test -p hyperscale-production --test e2e_tests test_production_runner_with_network -- --test-threads=1 --nocapture</code>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>3. Mental model: one picture</h2>
+            <div class="e2e-design-note" style="margin-bottom:0.85rem;">
+                <strong>Design note</strong>
+                The sim side uses one <span data-glossary="ordered global event queue"><strong>ordered global event queue</strong></span> so replay is a total order of (time, tie-break)—great for debugging “who ran first.” Production has <strong>no</strong> single queue: concurrent producers + <span data-glossary="crossbeam channels">crossbeam</span> channel priorities mean order is emergent; tests must reason about protocol rules, not one serialized timeline.
+            </div>
+            <div class="e2e-diagram-box" aria-label="Flow sketch">                    Simulation                          Production
+                           │                                    │
+              schedule_event / run_until              <span data-glossary="crossbeam">crossbeam</span> + libp2p + Tokio timers
+                           │                                    │
+                           └──────────────┬─────────────────────┘
+                                          ▼
+                               IoLoop::step(NodeInput)
+                                          │
+                               NodeStateMachine (BFT, mempool, execution, …)</div>
+        </div>
+
+        <div class="section">
+            <h2>Where to go next</h2>
+            <ul>
+                <li><a href="module-01b-tx-flow.html">Transaction Flow</a> — full user→finality diagram aligned with these steps.</li>
+                <li><a href="module-10-performance-measurement.html">Performance Measurement</a> — <code>hyperscale-sim</code> binary vs production metrics (different from these integration tests).</li>
+                <li>More scenarios (cross-shard, livelock, crash): other integration tests in the simulation crate (e.g. <code>test_e2e_cross_shard_transaction</code> in the same <code>e2e_tests</code> target) use the <strong>same</strong> <code>SimulationRunner</code> pattern with different configs/assertions — paths in <a href="#suggested-crates-files-to-study">study table</a>.</li>
+                <li><strong>Hands-on:</strong> <a href="project-01-e2e-observability.html">Project 1 — E2E observability &amp; invariants</a> — edit the same test, add trace markers, assert synchronized heights, and correlate stats with simulated time.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Quiz</h2>
+            <p>Pass threshold: 70%.</p>
+            <div id="quiz-e2e" class="quiz-container"></div>
+        </div>
+
+        <div class="section hs-suggested-study-section" id="suggested-crates-files-to-study">
+            <h2>Suggested crates / files to study</h2>
+            <p class="hs-suggested-study-lead">Paths relative to the <a href="#" data-repo target="_blank" rel="noopener">hyperscale-rs</a> repo root. Use these when following the traces and code snippets above.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="hs-suggested-study-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Topic</th>
+                            <th scope="col">Path</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Simulation E2E tests</td>
+                            <td><a href="#" data-file="crates/simulation/tests/e2e_tests.rs" target="_blank" rel="noopener">crates/simulation/tests/e2e_tests.rs</a> — <code>test_e2e_single_shard_transaction</code>, <code>test_e2e_cross_shard_transaction</code>, …</td>
+                        </tr>
+                        <tr>
+                            <td>Simulation runner</td>
+                            <td><a href="#" data-file="crates/simulation/src/runner.rs" target="_blank" rel="noopener">crates/simulation/src/runner.rs</a> — <code>SimulationRunner::new</code>, genesis, <code>schedule_initial_event</code>, <code>run_until</code>, <code>drain_node_io</code></td>
+                        </tr>
+                        <tr>
+                            <td>Production E2E tests</td>
+                            <td><a href="#" data-file="crates/production/tests/e2e_tests.rs" target="_blank" rel="noopener">crates/production/tests/e2e_tests.rs</a> — <code>test_production_runner_with_network</code></td>
+                        </tr>
+                        <tr>
+                            <td>Production test fixtures</td>
+                            <td><a href="#" data-file="crates/production/tests/fixtures/mod.rs" target="_blank" rel="noopener">crates/production/tests/fixtures/mod.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>Production runner</td>
+                            <td><a href="#" data-file="crates/production/src/runner.rs" target="_blank" rel="noopener">crates/production/src/runner.rs</a> — <code>ProductionRunnerBuilder::build</code>, <code>maybe_initialize_genesis</code>, <code>run</code>, <code>tx_submission_sender</code></td>
+                        </tr>
+                        <tr>
+                            <td>Production event loop</td>
+                            <td><a href="#" data-file="crates/production/src/event_loop.rs" target="_blank" rel="noopener">crates/production/src/event_loop.rs</a> — <code>spawn_pinned_loop</code>, <code>run_pinned_loop</code></td>
+                        </tr>
+                        <tr>
+                            <td>Node <code>IoLoop</code></td>
+                            <td><a href="#" data-file="crates/node/src/io_loop/mod.rs" target="_blank" rel="noopener">crates/node/src/io_loop/mod.rs</a> — <code>step</code>, <code>SubmitTransaction</code>, validation pipeline, <code>flush_all_batches</code> / <code>flush_expired_batches</code></td>
+                        </tr>
+                        <tr>
+                            <td>Node state machine</td>
+                            <td><a href="#" data-file="crates/node/src/state.rs" target="_blank" rel="noopener">crates/node/src/state.rs</a> — <code>on_block_committed</code>, protocol event dispatch</td>
+                        </tr>
+                        <tr>
+                            <td>BFT</td>
+                            <td><a href="#" data-crate="bft" target="_blank" rel="noopener">crates/bft</a></td>
+                        </tr>
+                        <tr>
+                            <td>RocksDB storage</td>
+                            <td><a href="#" data-file="crates/storage-rocksdb/Cargo.toml" target="_blank" rel="noopener">crates/storage-rocksdb</a> (package <code>hyperscale_storage_rocksdb</code>)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="navigation">
+            <a href="module-10-performance-measurement.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="project-01-e2e-observability.html" class="btn btn-primary">Next: Hands-On Project 1 →</a>
+            <a href="../index.html" class="btn btn-primary">Back to Course</a>
+        </div>
+    </div>
+
+    <script src="../shared/course-data.js"></script>
+    <script src="../shared/hyperscale-flow-data.js"></script>
+    <script src="../shared/hyperscale-links.js"></script>
+    <script src="../shared/navigation.js"></script>
+    <script src="../shared/glossary.js"></script>
+    <script src="../shared/module-init.js" data-module-id="intermediate-e2e-tests"></script>
+    <script>
+        (function () {
+            var quizQuestions = [
+                {
+                    question: "In simulation, what does SimulationRunner::run_until primarily do between events?",
+                    options: [
+                        "Only sleep the host OS thread.",
+                        "Advance simulated time to the next of: queued NodeInput events or simulated network deliveries; flush deliveries; drain channels into the queue; call IoLoop::step for each due event.",
+                        "Compile the Radix Engine from source.",
+                        "Skip IoLoop and call RocksDB directly."
+                    ],
+                    correct: 1,
+                    explanation: "SimulationRunner::run_until interleaves the event queue with SimulatedNetwork delivery times, then steps each IoLoop for due events (path in the module study table)."
+                },
+                {
+                    question: "Where does NodeInput::SubmitTransaction first gossip the transaction and queue validation?",
+                    options: [
+                        "In SimulationRunner::new only.",
+                        "In IoLoop::step, in the SubmitTransaction arm (broadcast_to_shard + queue_validation).",
+                        "Only inside RocksDB compaction.",
+                        "In the spammer binary exclusively."
+                    ],
+                    correct: 1,
+                    explanation: "SubmitTransaction is handled in IoLoop::step; simulation and production both use this path once the event reaches step."
+                },
+                {
+                    question: "test_production_runner_with_network mainly proves:",
+                    options: [
+                        "That a cross-shard transaction finalizes on two shards.",
+                        "That ProductionRunner builds with RocksDB + libp2p, spawns the pinned IoLoop via run(), and shuts down cleanly—without necessarily submitting a user transaction.",
+                        "That simulation and production share no code.",
+                        "That Prometheus is optional."
+                    ],
+                    correct: 1,
+                    explanation: "The production e2e test wires the runner and network; it does not assert tx execution. Real tx submission would use RPC or tx_submission_sender to the consensus channel."
+                },
+                {
+                    question: "After a block commits, single-shard execution is driven from:",
+                    options: [
+                        "Only the simulator binary.",
+                        "NodeStateMachine paths such as on_block_committed, which invoke execution.on_block_committed (see node state in the study table).",
+                        "The libp2p adapter alone.",
+                        "GenesisWrapper only."
+                    ],
+                    correct: 1,
+                    explanation: "Commit triggers state machine logic that includes execution.on_block_committed; same pattern in sim and prod once BlockCommitted is processed."
+                },
+                {
+                    question: "Production’s pinned event loop (run_pinned_loop) differs from simulation mainly because:",
+                    options: [
+                        "It never calls IoLoop::step.",
+                        "It uses wall-clock time, crossbeam channel priorities (timer/callback/consensus), flush_expired_batches, and Tokio-backed timers instead of a single global simulated event queue.",
+                        "It replaces NodeStateMachine with a different crate.",
+                        "It cannot process BFT messages."
+                    ],
+                    correct: 1,
+                    explanation: "The production pinned loop documents priority recv, wall_clock_duration, flush_expired_batches, and ProdTimerManager—contrasted with SimulationRunner::run_until for simulation (paths in the study table)."
+                }
+            ];
+            if (typeof initializeQuiz === 'function') {
+                initializeQuiz('quiz-e2e', quizQuestions, 70);
+            }
+        })();
+    </script>
+</body>
+</html>

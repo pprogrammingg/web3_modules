@@ -58,7 +58,7 @@
             <h2>3. Documentation Guidelines</h2>
             <ul>
                 <li><strong>Rust doc comments</strong> – Use <code>///</code> on public items. Describe what the type or function is for, any invariants, and panics/errors if relevant.</li>
-                <li><strong>Guides</strong> – The <a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/guides" target="_blank" rel="noopener"><code>guides/</code></a> directory in the repo holds longer explanations (overview, architecture, codebase structure, consensus protocol). Follow the existing style and structure.</li>
+                <li><strong>Guides</strong> – The repo’s <strong>guides</strong> directory holds longer explanations (overview, architecture, codebase structure, consensus protocol). Follow the existing style and structure; path in the study table below.</li>
                 <li><strong>README / CONTRIBUTING</strong> – Small clarifications (e.g. setup steps, prerequisites) are often welcome.</li>
             </ul>
         </div>
@@ -66,7 +66,7 @@
         <div class="section">
             <h2>4. Testing Guidelines</h2>
             <ul>
-                <li>Use the existing test patterns: unit tests next to the code, integration tests in <code>tests/</code> or under <code>crates/*/tests</code>.</li>
+                <li>Use the existing test patterns: unit tests next to the code, integration tests at workspace or per-crate <code>tests/</code> directories (see study table).</li>
                 <li><strong>Determinism makes tests easier:</strong> State machines in hyperscale-rs are deterministic — same initial state + same sequence of events ⇒ same actions every time. Use that to write deterministic tests: no flaky timing, no need to mock the network or sleep for timeouts. Build the state machine, feed events in order, assert on actions; tests are repeatable and fast, and a failure points to a real logic bug.</li>
                 <li>If you add a test for a bug fix, make sure the test fails before the fix and passes after.</li>
             </ul>
@@ -102,6 +102,35 @@
             </div>
         </div>
 
+        <div class="section hs-suggested-study-section" id="suggested-crates-files-to-study">
+            <h2>Suggested crates / files to study</h2>
+            <p class="hs-suggested-study-lead">Use these when contributing docs or tests.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="hs-suggested-study-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Focus</th>
+                            <th scope="col">Path</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Guides</td>
+                            <td><a href="#" data-repo target="_blank" rel="noopener">hyperscale-rs</a> → <code>guides/</code> (long-form docs)</td>
+                        </tr>
+                        <tr>
+                            <td>Contributing</td>
+                            <td><a href="#" data-file="CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md</a> (if present)</td>
+                        </tr>
+                        <tr>
+                            <td>Integration tests</td>
+                            <td>Per crate: <code>crates/&lt;crate&gt;/tests/</code>; workspace-level <code>tests/</code> where used</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <div class="navigation">
             <a href="module-01b-tx-flow.html" class="btn btn-secondary">← Previous Module</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
@@ -110,6 +139,8 @@
     </div>
 
     <script src="../shared/course-data.js"></script>
+    <script src="../shared/hyperscale-flow-data.js"></script>
+    <script src="../shared/hyperscale-links.js"></script>
     <script src="../shared/navigation.js"></script>
     <script src="../shared/glossary.js"></script>
     <script src="../shared/module-init.js" data-module-id="basic-06"></script>

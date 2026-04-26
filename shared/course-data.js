@@ -1,12 +1,74 @@
 // Course data structure - organized by difficulty level.
 // Single source of truth for module ids and paths; verify-paths.js derives its list from this file.
+//
+// Global `courseLevel` (1..N) is the display order on the index: former "basic" = level 1,
+// intermediate bands = 2–6, advanced bands = 7–11. See `courseLevelMeta` for titles.
 const COURSE_DATA = {
+    courseLevelMeta: [
+        {
+            level: 1,
+            title: 'Foundations',
+            description:
+                'Blockchain, consensus, distributed systems, state machines, Hyperscale-rs orientation, transaction flow, first contribution, and libp2p context.'
+        },
+        {
+            level: 2,
+            title: 'Core protocol & shards',
+            description: 'Code map, BFT lifecycle, sharding concepts, and Hyperscale cross-shard flow.'
+        },
+        {
+            level: 3,
+            title: 'Execution & networking',
+            description: 'Radix execution path, P2P and gossip in general, then Hyperscale network adapters.'
+        },
+        {
+            level: 4,
+            title: 'Cryptography, timing & performance',
+            description: 'Signatures and aggregation, rounds and timers, and measuring sim vs production.'
+        },
+        {
+            level: 5,
+            title: 'Testing, libp2p & simulation',
+            description: 'E2E test traces, hands-on project, libp2p depth, and deterministic simulation.'
+        },
+        {
+            level: 6,
+            title: 'Storage & contribution tracks',
+            description: 'Persistence patterns, Hyperscale storage, and guided intermediate contributions.'
+        },
+        {
+            level: 7,
+            title: 'View changes & libp2p depth',
+            description: 'Advanced consensus liveness, view changes in the codebase, and production-grade libp2p topics.'
+        },
+        {
+            level: 8,
+            title: 'Performance & security',
+            description: 'Profiling, optimization, threat model, and mitigations in the node.'
+        },
+        {
+            level: 9,
+            title: 'Scale & global consensus',
+            description: 'Throughput and latency patterns, then epochs and cross-shard global coordination.'
+        },
+        {
+            level: 10,
+            title: 'Shard lifecycle & production',
+            description: 'Dynamic shards, production deployment, and operating Hyperscale-rs.'
+        },
+        {
+            level: 11,
+            title: 'Advanced testing & contributions',
+            description: 'Property-based and fuzzing-style strategy, then major contribution projects.'
+        }
+    ],
     levels: {
         basic: {
-            title: 'Basic Level',
-            description: 'Foundation concepts in blockchain, consensus, and distributed systems',
+            title: 'Level 1 — Foundations',
+            description: 'Foundation concepts in blockchain, consensus, and distributed systems (displayed as Level 1 on the index).',
             modules: [
                 {
+                    courseLevel: 1,
                     id: 'basic-01',
                     title: 'Blockchain Fundamentals',
                     duration: '1.5-2 hours',
@@ -22,6 +84,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 1,
                     id: 'basic-02',
                     title: 'Consensus Algorithms: From Basics to BFT',
                     duration: '1.5-2 hours',
@@ -37,6 +100,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 1,
                     id: 'basic-03',
                     title: 'Distributed Systems Fundamentals',
                     duration: '2-2.5 hours',
@@ -54,6 +118,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 1,
                     id: 'basic-04',
                     title: 'State Machines & Event-Driven Architecture',
                     duration: '1.5-2 hours',
@@ -69,6 +134,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 1,
                     id: 'intermediate-hs-overview',
                     title: 'Hyperscale-rs Overview & Setup',
                     duration: '1.5-2 hours',
@@ -83,6 +149,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 1,
                     id: 'basic-05b',
                     title: 'Transaction Flow: User to Finality',
                     duration: '~45 min',
@@ -98,6 +165,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 1,
                     id: 'basic-06',
                     title: 'Your First Contribution: Documentation & Tests',
                     duration: '1.5-2 hours',
@@ -113,6 +181,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 1,
                     id: 'basic-07',
                     title: 'libp2p: Why It Matters for Protocol Engineers',
                     duration: '1.5–2 hours',
@@ -130,10 +199,11 @@ const COURSE_DATA = {
             ]
         },
         intermediate: {
-            title: 'Intermediate Level',
-            description: 'Dive deeper into implementation details and start making meaningful contributions',
+            title: 'Levels 2–6 — Protocol & implementation',
+            description: 'Dive deeper into implementation details and contributions (index Levels 2–6).',
             modules: [
                 {
+                    courseLevel: 2,
                     id: 'intermediate-hs-crate-groups',
                     title: 'Crate Groups: First Contact to Cross-Shard',
                     duration: '2–3 hours',
@@ -149,6 +219,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 2,
                     id: 'intermediate-01',
                     title: 'BFT Implementation: Block Flow and Rust',
                     duration: '1.5-2 hours',
@@ -163,6 +234,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 2,
                     id: 'intermediate-02',
                     title: 'Sharding & Cross-Shard Transactions',
                     duration: '1.5-2 hours',
@@ -177,6 +249,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 2,
                     id: 'intermediate-03',
                     title: 'Cross-Shard Transactions in Hyperscale-rs',
                     duration: '1.5-2 hours',
@@ -192,6 +265,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 3,
                     id: 'intermediate-04',
                     title: 'Transaction Execution & Radix Engine',
                     duration: '1.5-2 hours',
@@ -207,6 +281,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 3,
                     id: 'intermediate-05',
                     title: 'Networking in Blockchain: libp2p & Gossip',
                     duration: '1.5-2 hours',
@@ -222,6 +297,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 3,
                     id: 'intermediate-06',
                     title: 'Networking in Hyperscale-rs',
                     duration: '1.5-2 hours',
@@ -237,6 +313,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 4,
                     id: 'intermediate-07',
                     title: 'Cryptography in Blockchain: Signatures & Aggregation',
                     duration: '1.5-2 hours',
@@ -252,6 +329,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 4,
                     id: 'intermediate-08',
                     title: 'Cryptography in Hyperscale-rs',
                     duration: '1.5-2 hours',
@@ -267,6 +345,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 4,
                     id: 'intermediate-timing',
                     title: 'Timing: Rounds, Heights, Timeouts & Timers',
                     duration: '1–1.5 hours',
@@ -283,6 +362,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 4,
                     id: 'intermediate-performance',
                     title: 'Performance Measurement',
                     duration: '1–1.5 hours',
@@ -297,6 +377,40 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 5,
+                    id: 'intermediate-e2e-tests',
+                    title: 'End-to-End Tests: Code ↔ Flow',
+                    duration: '1–1.5 hours',
+                    difficulty: 'Intermediate',
+                    path: 'hyperscale-rs/module-11-e2e-tests.html',
+                    description: 'Trace one simulation E2E (single-shard tx) and one production runner test step-by-step: test call → protocol phase → crate and file; sim vs prod harness differences',
+                    objectives: [
+                        'Trace test_e2e_single_shard_transaction through SimulationRunner, IoLoop::step, and on_block_committed',
+                        'Trace test_production_runner_with_network through ProductionRunner::build, genesis, and run_pinned_loop',
+                        'Explain how production differs from simulation (time, network, storage, threading, batch flush)',
+                        'Relate this trace to the full transaction flow module'
+                    ],
+                    hyperscaleSpecific: true
+                },
+                {
+                    courseLevel: 5,
+                    id: 'intermediate-project-01',
+                    kind: 'project',
+                    title: 'Hands-On Project 1: E2E Observability & Invariants',
+                    duration: '1.5–2 hours',
+                    difficulty: 'Intermediate',
+                    path: 'hyperscale-rs/project-01-e2e-observability.html',
+                    description: 'Edit the real single-shard E2E test: add trace markers, assert synchronized BFT heights across validators, and correlate SimulationStats with how much simulated time you grant—see outcomes change as you tighten the budget.',
+                    objectives: [
+                        'Run test_e2e_single_shard_transaction with cargo and --nocapture; map printed phases to the traced flow',
+                        'Insert println! or tracing at genesis and submit boundaries and confirm ordering in output',
+                        'After the first run_until, assert all validators share the same committed_height (deterministic sync invariant)',
+                        'Print SimulationStats after that boundary; repeat with a much shorter run_until and interpret heights, stats, and any failures'
+                    ],
+                    hyperscaleSpecific: true
+                },
+                {
+                    courseLevel: 5,
                     id: 'intermediate-libp2p',
                     title: 'libp2p: Transports, Identity, Security & Discovery',
                     duration: '2–2.5 hours',
@@ -313,6 +427,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 5,
                     id: 'intermediate-09',
                     title: 'Simulation & Testing: Deterministic Testing',
                     duration: '1.5-2 hours',
@@ -328,6 +443,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 5,
                     id: 'intermediate-10',
                     title: 'Hyperscale-rs Simulation Framework',
                     duration: '1.5-2 hours',
@@ -343,6 +459,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 6,
                     id: 'intermediate-11',
                     title: 'Storage & Persistence: RocksDB & State Management',
                     duration: '1.5-2 hours',
@@ -358,6 +475,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 6,
                     id: 'intermediate-12',
                     title: 'Storage in Hyperscale-rs',
                     duration: '1.5-2 hours',
@@ -367,12 +485,13 @@ const COURSE_DATA = {
                     objectives: [
                         'Understand RocksDB integration',
                         'Learn state persistence',
-                        'Understand JMT snapshots',
+                        'Understand JVT snapshots',
                         'Learn recovery'
                     ],
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 6,
                     id: 'intermediate-13',
                     title: 'Contribution: Improve Mempool & Backpressure',
                     duration: '1.5-2 hours',
@@ -388,6 +507,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 6,
                     id: 'intermediate-14',
                     title: 'Contribution: Enhance Simulation Framework',
                     duration: '1.5-2 hours',
@@ -405,10 +525,11 @@ const COURSE_DATA = {
             ]
         },
         advanced: {
-            title: 'Advanced Level',
-            description: 'Master advanced concepts, implement new features, and optimize performance',
+            title: 'Levels 7–11 — Advanced topics',
+            description: 'Master advanced concepts, implement new features, and optimize performance (index Levels 7–11).',
             modules: [
                 {
+                    courseLevel: 7,
                     id: 'advanced-01',
                     title: 'Advanced Consensus: View Changes & Liveness',
                     duration: '1.5-2 hours',
@@ -424,6 +545,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 7,
                     id: 'advanced-02',
                     title: 'View Changes in Hyperscale-rs',
                     duration: '1.5-2 hours',
@@ -439,6 +561,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 7,
                     id: 'advanced-libp2p',
                     title: 'libp2p: Gossipsub, Production & Protocol Design',
                     duration: '2–2.5 hours',
@@ -455,6 +578,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 8,
                     id: 'advanced-03',
                     title: 'Performance Optimization: Profiling & Metrics',
                     duration: '1.5-2 hours',
@@ -470,6 +594,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 8,
                     id: 'advanced-04',
                     title: 'Optimizing Hyperscale-rs Performance',
                     duration: '1.5-2 hours',
@@ -485,6 +610,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 8,
                     id: 'advanced-05',
                     title: 'Security in Blockchain Systems',
                     duration: '1.5-2 hours',
@@ -500,6 +626,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 8,
                     id: 'advanced-06',
                     title: 'Security in Hyperscale-rs',
                     duration: '1.5-2 hours',
@@ -515,6 +642,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 9,
                     id: 'advanced-07',
                     title: 'Scalability: Throughput & Latency Optimization',
                     duration: '1.5-2 hours',
@@ -530,6 +658,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 9,
                     id: 'advanced-08',
                     title: 'Scalability in Hyperscale-rs',
                     duration: '1.5-2 hours',
@@ -545,6 +674,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 9,
                     id: 'advanced-09',
                     title: 'Global Consensus: Epochs & Cross-Shard Coordination',
                     duration: '1.5-2 hours',
@@ -560,6 +690,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 9,
                     id: 'advanced-10',
                     title: 'Global Consensus in Hyperscale-rs',
                     duration: '1.5-2 hours',
@@ -575,6 +706,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 10,
                     id: 'advanced-11',
                     title: 'Shard Management: Splitting & Merging',
                     duration: '1.5-2 hours',
@@ -590,6 +722,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 10,
                     id: 'advanced-12',
                     title: 'Shard Management in Hyperscale-rs',
                     duration: '1.5-2 hours',
@@ -605,6 +738,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 10,
                     id: 'advanced-13',
                     title: 'Production Deployment & Operations',
                     duration: '1.5-2 hours',
@@ -620,6 +754,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 10,
                     id: 'advanced-14',
                     title: 'Hyperscale-rs Production Deployment',
                     duration: '1.5-2 hours',
@@ -635,6 +770,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 11,
                     id: 'advanced-15',
                     title: 'Advanced Testing: Property-Based & Fuzzing',
                     duration: '1.5-2 hours',
@@ -650,6 +786,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: false
                 },
                 {
+                    courseLevel: 11,
                     id: 'advanced-16',
                     title: 'Advanced Testing for Hyperscale-rs',
                     duration: '1.5-2 hours',
@@ -665,6 +802,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 11,
                     id: 'advanced-17',
                     title: 'Contribution: Implement Missing Features',
                     duration: '1.5-2 hours',
@@ -680,6 +818,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 11,
                     id: 'advanced-18',
                     title: 'Contribution: Performance Optimization',
                     duration: '1.5-2 hours',
@@ -696,6 +835,7 @@ const COURSE_DATA = {
                     hyperscaleSpecific: true
                 },
                 {
+                    courseLevel: 11,
                     id: 'advanced-19',
                     title: 'Contribution: Complete Global Consensus Implementation',
                     duration: '1.5-2 hours',

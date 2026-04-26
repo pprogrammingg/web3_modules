@@ -39,27 +39,56 @@
             <h2>Hyperscale-rs vs Radix Engine (relative roles)</h2>
             <p><strong>Hyperscale-rs</strong> is the consensus and coordination layer: it orders transactions (via BFT), handles cross-shard coordination via provisions (ProvisionCoordinator + five-phase execution protocol), and drives when execution runs. It does <em>not</em> interpret the content of Radix manifests or execute Radix Engine instructions itself.</p>
             <p><strong>Radix Engine</strong> (external to this repo) is the execution engine: it takes a transaction (e.g. a Radix manifest), interprets instructions (CallMethod, TakeFromWorktop, etc.), and applies state changes to a Radix-style world state (components, resources, vaults). Hyperscale-rs typically receives a transaction that has already been built for the engine (e.g. a <strong>UserTransaction</strong> or similar); it may <strong>analyze</strong> it (e.g. extract <code>declared_reads</code> / <code>declared_writes</code> for shard routing) and then order and coordinate it; the actual execution of the manifest is done by the engine, often in a separate process or library that hyperscale-rs calls.</p>
-            <p><strong>Paths:</strong> From the course repo, hyperscale-rs content lives under <code>hyperscale-rs/</code>; Radix Engine is a separate project (e.g. <code>radix-engine</code> or the Radix node). So when we say “execution” in hyperscale-rs we mean: (1) the <code>execution</code> crate that manages lifecycle, provision-based cross-shard flow, and calling out to the engine, and (2) the engine (external) that does the actual state transitions.</p>
+            <p><strong>Repos:</strong> Hyperscale-rs is the consensus and coordination codebase; Radix Engine is a separate project. When we say “execution” in hyperscale-rs we mean: (1) the <strong>execution</strong> crate that manages lifecycle, provision-based cross-shard flow, and calling out to the engine, and (2) the engine (external) that performs the actual state transitions.</p>
         </div>
 
         <div class="section">
             <h2>Transaction Lifecycle in the execution Crate</h2>
-            <p>In <code>crates/execution</code> you’ll find logic for:</p>
+            <p>The <strong>execution</strong> crate wires committed blocks to the engine:</p>
             <ul>
                 <li><strong>Receiving committed blocks</strong> – Events or actions from BFT indicate a block is committed; execution takes the transactions in that block and runs them (or hands them to the engine).</li>
                 <li><strong>Single-shard execution</strong> – For transactions that touch only one shard, execution is straightforward: apply in order, update state.</li>
-                <li><strong>Cross-shard execution</strong> – Start cross-shard flow (e.g. <code>start_cross_shard_execution</code>), register with ProvisionCoordinator; when ProvisioningComplete (quorum of StateProvisions from each required shard), execute and then vote aggregation → certificates. No 2PC coordinator. Refs: <code>crates/execution/src/state.rs</code>, <code>crates/provisions</code>.</li>
+                <li><strong>Cross-shard execution</strong> – Start cross-shard flow (e.g. <code>start_cross_shard_execution</code>), register with ProvisionCoordinator; when ProvisioningComplete (quorum of StateProvisions from each required shard), execute and then vote aggregation → certificates. No 2PC coordinator. See <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a> for entry points.</li>
             </ul>
         </div>
 
         <div class="section">
             <h2>State Management</h2>
-            <p>State is usually held in a structure that the engine understands (e.g. a JMT or key-value store). Hyperscale-rs may maintain a <strong>view</strong> of state (e.g. for validation or for building blocks), while the canonical execution and state update are done by the engine. Snapshots and persistence are often in a separate storage layer (see the Storage module later).</p>
+            <p>State is usually held in a structure that the engine understands (e.g. a JVT-backed tree or key-value store). Hyperscale-rs may maintain a <strong>view</strong> of state (e.g. for validation or for building blocks), while the canonical execution and state update are done by the engine. Snapshots and persistence are often in a separate storage layer (see the Storage module later).</p>
         </div>
 
         <div class="section">
             <h2>Validation</h2>
             <p>Before a transaction is proposed or executed, it is validated: structure, signatures, and (depending on design) static analysis (e.g. shard membership from <code>declared_reads</code> / <code>declared_writes</code>). Validation may happen at the mempool, at proposal time, and again at execution time to ensure the committed block is applied correctly.</p>
+        </div>
+
+        <div class="section hs-suggested-study-section" id="suggested-crates-files-to-study">
+            <h2>Suggested crates / files to study</h2>
+            <p class="hs-suggested-study-lead">Paths are relative to the <a href="#" data-repo target="_blank" rel="noopener">hyperscale-rs</a> repository root. Links open GitHub.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="hs-suggested-study-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Focus</th>
+                            <th scope="col">Path</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Execution crate</td>
+                            <td><a href="#" data-crate="execution" target="_blank" rel="noopener">crates/execution</a> — lifecycle, <code>on_block_committed</code>, single- vs cross-shard</td>
+                        </tr>
+                        <tr>
+                            <td>Cross-shard entry</td>
+                            <td><a href="#" data-file="crates/execution/src/state.rs" target="_blank" rel="noopener">crates/execution/src/state.rs</a> — e.g. <code>start_cross_shard_execution</code>, <code>required_shards</code></td>
+                        </tr>
+                        <tr>
+                            <td>Provisions</td>
+                            <td><a href="#" data-crate="provisions" target="_blank" rel="noopener">crates/provisions</a> — ProvisionCoordinator, StateProvision quorum</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="navigation">
@@ -70,6 +99,8 @@
     </div>
 
     <script src="../shared/course-data.js"></script>
+    <script src="../shared/hyperscale-flow-data.js"></script>
+    <script src="../shared/hyperscale-links.js"></script>
     <script src="../shared/navigation.js"></script>
     <script src="../shared/glossary.js"></script>
     <script src="../shared/module-init.js" data-module-id="intermediate-04"></script>

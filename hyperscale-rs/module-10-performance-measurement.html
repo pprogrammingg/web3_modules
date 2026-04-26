@@ -31,19 +31,19 @@
 
         <div class="section">
             <h2>How performance is measured today</h2>
-            <p>Hyperscale-rs measures performance in two main contexts: <strong>deterministic simulation</strong> (simulator + workload) and <strong>production</strong> (Prometheus metrics). The same consensus and execution logic runs in both; the difference is I/O (simulated time and network vs real libp2p and RocksDB) and what is instrumented.</p>
+            <p>Hyperscale-rs measures performance in two main contexts: <strong>deterministic simulation</strong> (simulator + workload) and <strong>production</strong> (<span data-glossary="prometheus">Prometheus</span> metrics). The same consensus and execution logic runs in both; the difference is I/O (simulated time and network vs real libp2p and RocksDB) and what is instrumented.</p>
 
             <h3>Simulation</h3>
             <p>The <strong>simulator</strong> (<code>hyperscale-sim</code>) runs a controlled workload for a fixed duration (e.g. <code>--seed 42 -s 2 -v 4 -d 60 --tps 1000</code>). It collects:</p>
             <ul>
                 <li><strong>Throughput:</strong> Submitted / completed / rejected counts; <strong>average TPS</strong> and <strong>peak TPS</strong> over the run (from completion counts per sample window).</li>
-                <li><strong>Latency:</strong> Per-transaction latency from submit to finalization; <strong>P50, P90, P99, max, avg</strong> (from an HDR histogram in <code>crates/simulator/src/metrics</code>).</li>
+                <li><strong>Latency:</strong> Per-transaction latency from submit to finalization; <strong>P50, P90, P99, max, avg</strong> (from an HDR histogram in the simulator metrics module — <a href="#suggested-crates-files-to-study">study table</a>).</li>
                 <li><strong>Outcomes:</strong> Retries, rejections, and <strong>in-flight at end</strong> (transactions not yet finalized when the run stops).</li>
                 <li><strong>Lock contention:</strong> Peak <strong>locked nodes</strong>, <strong>deferred</strong> count, and <strong>contention ratio</strong> from the mempool (cross-shard backpressure).</li>
             </ul>
             <p>Reports are produced by <code>MetricsCollector</code> / <code>SimulationReport</code> and printed at the end (and optionally a livelock report for stuck transactions). The simulation uses <strong>simulated time</strong> and a <strong>network simulator</strong> (configurable latency, no real TCP/QUIC or packet loss by default).</p>
 
-            <h3>Production (metrics crate + Prometheus)</h3>
+            <h3>Production (metrics crate + <span data-glossary="prometheus">Prometheus</span>)</h3>
             <p>In production, <code>hyperscale_metrics</code> defines a <code>MetricsRecorder</code> trait; <code>hyperscale_metrics_prometheus</code> implements it and is installed at startup. Recorded metrics include:</p>
             <ul>
                 <li><strong>Consensus:</strong> Blocks committed, block commit latency, block height, round, view changes.</li>
@@ -100,28 +100,54 @@
         </div>
 
         <div class="section">
-            <h2>Where to look in the repo</h2>
-            <ul>
-                <li><strong><code>crates/metrics</code></strong> — <code>MetricsRecorder</code> trait and all <code>record_*</code> entry points (storage, consensus, execution, network, sync, fetch, backpressure, livelock).</li>
-                <li><strong><code>crates/metrics-prometheus</code></strong> — Prometheus implementation: counters, gauges, histograms (e.g. block_commit_latency, transactions_finalized, rocksdb_read_latency).</li>
-                <li><strong><code>crates/simulator</code></strong> — Workload, <code>run_for</code>, <code>MetricsCollector</code>, <code>SimulationReport</code> (TPS, latency histogram, lock contention, samples). <code>simulator/src/metrics/mod.rs</code> has the report structure and <code>print_summary</code>.</li>
-                <li><strong><code>crates/storage-rocksdb</code></strong> — Where <code>record_storage_read</code>, <code>record_storage_write</code>, <code>record_block_persisted</code>, etc. are called.</li>
-                <li><strong><code>crates/node/src/io_loop/actions.rs</code></strong> — Where <code>record_transaction_finalized(latency_secs, cross_shard)</code> is called.</li>
-            </ul>
-        </div>
-
-        <div class="section">
             <h2>Step-by-step: Instrument and measure with simulation</h2>
             <p>Follow these steps to add or use performance instrumentation and run the simulator to collect throughput and latency.</p>
             <ol class="step-list">
                 <li><strong>Build and run the simulator.</strong> From the hyperscale-rs repo root: <code>cargo build --release</code>, then <code>cargo run --release --bin hyperscale-sim -- --seed 42 -s 2 -v 4 -d 60 --tps 1000</code>. This runs 2 shards, 4 validators per shard, 60 seconds of simulated time, with a target of 1000 TPS. The binary uses <code>SimulationRunner</code> and <code>MetricsCollector</code>; no extra instrumentation is required for built-in metrics.</li>
                 <li><strong>Read the simulation report.</strong> At the end of the run, <code>SimulationReport::print_summary()</code> prints: Submitted / Completed / Rejected / Retries / In-flight; Average TPS and Peak TPS; P50 / P90 / P99 / Max / Avg latency; peak lock contention (locked nodes, deferred count, contention ratio). Use this to judge throughput and tail latency for the workload and parameters.</li>
                 <li><strong>Vary parameters to measure behavior.</strong> Change <code>-s</code> (shards), <code>-v</code> (validators), <code>-d</code> (duration), and <code>--tps</code> to see how TPS and latency change. For example: <code>-s 1 -v 4 -d 30 --tps 500</code> for a single-shard baseline; <code>-s 2 -v 4 -d 60 --tps 2000</code> to stress cross-shard. Compare reports to spot regressions or scaling limits.</li>
-                <li><strong>Add a custom metric in simulation (optional).</strong> To record something the sim doesn’t already collect: in the simulator crate, extend <code>MetricsCollector</code> in <code>crates/simulator/src/metrics/mod.rs</code> with a new field and a <code>record_*</code> method; update <code>SimulationReport</code> and <code>finalize</code> / <code>print_summary</code> to include it. Call your recorder from the place in the sim that observes the event (e.g. in the runner when a transaction completes or when a round advances).</li>
-                <li><strong>Add a metric used in both sim and production (optional).</strong> Define the semantic in <code>crates/metrics</code>: add a method to the <code>MetricsRecorder</code> trait (and a default no-op impl). In <code>crates/metrics-prometheus</code>, implement it (e.g. a new counter or histogram). In production code paths (e.g. node, storage, execution), call <code>hyperscale_metrics::record_*(...)</code>. The simulator does not use the metrics crate for its report—it uses <code>MetricsCollector</code>—so for sim you either (a) also call the metrics crate from the sim runner if the production backend is not used in sim, or (b) keep sim-specific counters only in <code>MetricsCollector</code> and report them in <code>SimulationReport</code>. For a single metric that must appear in both, option (a) requires installing a no-op or a sim-specific recorder in tests/sim so that <code>record_*</code> doesn’t panic.</li>
+                <li><strong>Add a custom metric in simulation (optional).</strong> Extend <code>MetricsCollector</code> in the simulator metrics module (see study table) with a new field and <code>record_*</code>; update <code>SimulationReport</code> and <code>finalize</code> / <code>print_summary</code>. Call your recorder where the sim observes the event.</li>
+                <li><strong>Add a metric used in both sim and production (optional).</strong> Define the semantic on the shared <code>MetricsRecorder</code> trait in the metrics crate; implement it in the Prometheus backend; call <code>hyperscale_metrics::record_*(...)</code> from production paths. The simulator’s report uses <code>MetricsCollector</code> — align naming with the study table paths or install a no-op recorder in sim if you call <code>record_*</code> from both worlds.</li>
                 <li><strong>Optional: livelock report.</strong> After <code>run_for</code>, call <code>analyze_livelocks()</code> on the runner and <code>print_summary()</code> on the returned report to see stuck or deferred transactions and potential cycles. This helps interpret high in-flight or low completion rate.</li>
             </ol>
             <p>Summary: run <code>hyperscale-sim</code> with chosen <code>-s -v -d --tps</code>, read the printed report for TPS and latency, vary parameters to compare; optionally extend <code>MetricsCollector</code> or the shared <code>MetricsRecorder</code> and wire calls from the right code paths.</p>
+        </div>
+
+        <div class="section hs-suggested-study-section" id="suggested-crates-files-to-study">
+            <h2>Suggested crates / files to study</h2>
+            <p class="hs-suggested-study-lead">Paths relative to the <a href="#" data-repo target="_blank" rel="noopener">hyperscale-rs</a> repo root (crate names may vary slightly if the workspace is reorganized).</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="hs-suggested-study-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Focus</th>
+                            <th scope="col">Path</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Metrics trait + <code>record_*</code></td>
+                            <td><a href="#" data-file="crates/metrics/Cargo.toml" target="_blank" rel="noopener">crates/metrics</a> (<code>hyperscale_metrics</code>) — <code>MetricsRecorder</code>, storage / consensus / execution / network / sync / fetch / backpressure / livelock</td>
+                        </tr>
+                        <tr>
+                            <td>Prometheus backend</td>
+                            <td><a href="#" data-file="crates/metrics-prometheus/Cargo.toml" target="_blank" rel="noopener">crates/metrics-prometheus</a> — counters, gauges, histograms (e.g. block_commit_latency, transactions_finalized, rocksdb_read_latency)</td>
+                        </tr>
+                        <tr>
+                            <td>Simulator report</td>
+                            <td><a href="#" data-crate="simulator" target="_blank" rel="noopener">crates/simulator</a> — workload, <code>run_for</code>, <code>MetricsCollector</code>, <code>SimulationReport</code>; <a href="#" data-file="crates/simulator/src/metrics/mod.rs" target="_blank" rel="noopener">crates/simulator/src/metrics/mod.rs</a> — report + <code>print_summary</code></td>
+                        </tr>
+                        <tr>
+                            <td>Storage metrics hooks</td>
+                            <td><a href="#" data-file="crates/storage-rocksdb/Cargo.toml" target="_blank" rel="noopener">crates/storage-rocksdb</a> — <code>record_storage_read</code>, <code>record_storage_write</code>, <code>record_block_persisted</code>, …</td>
+                        </tr>
+                        <tr>
+                            <td>Tx finalized metric</td>
+                            <td><a href="#" data-file="crates/node/src/io_loop/actions.rs" target="_blank" rel="noopener">crates/node/src/io_loop/actions.rs</a> — <code>record_transaction_finalized(latency_secs, cross_shard)</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="section">
@@ -133,6 +159,7 @@
         <div class="navigation">
             <a href="module-09-timing.html" class="btn btn-secondary">← Previous Module</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="module-11-e2e-tests.html" class="btn btn-primary">Next Module →</a>
             <a href="../index.html" class="btn btn-primary">Back to Course</a>
         </div>
     </div>
@@ -172,12 +199,12 @@
                     question: "Where is transaction finalization latency recorded so it can appear in production metrics?",
                     options: [
                         "Only in the simulator MetricsCollector",
-                        "In crates/node/src/io_loop/actions.rs via hyperscale_metrics::record_transaction_finalized(latency_secs, cross_shard)",
-                        "In crates/bft/src/state.rs when a block is committed",
-                        "In crates/mempool when a tx is removed from the pool"
+                        "In the node io_loop action handler via hyperscale_metrics::record_transaction_finalized(latency_secs, cross_shard)",
+                        "In BFT state when a block is committed",
+                        "In the mempool when a tx is removed from the pool"
                     ],
                     correct: 1,
-                    explanation: "When the node processes a finalized transaction (e.g. after execution and certificate aggregation), the io_loop action handler calls record_transaction_finalized with the latency and whether the tx was cross-shard. The metrics crate (Prometheus in production) then records it."
+                    explanation: "When the node processes a finalized transaction (e.g. after execution and certificate aggregation), the io_loop action handler calls record_transaction_finalized with the latency and whether the tx was cross-shard. The shared metrics layer (Prometheus in production) then records it. Path in the module study table."
                 },
                 {
                     question: "What can simulation miss compared to real-life deployment?",
@@ -216,7 +243,7 @@
                     question: "You want to add a new performance metric that is recorded in both simulation and production. Which approach is correct?",
                     options: [
                         "Add it only to MetricsCollector in simulator/src/metrics; production will automatically get it.",
-                        "Define the semantic on MetricsRecorder in crates/metrics, implement it in metrics-prometheus (e.g. counter/histogram), and call hyperscale_metrics::record_*(...) from the production code path that observes the event. For sim, either extend MetricsCollector and SimulationReport for sim-only reporting, or call the same record_* from the sim runner if a no-op or sim-specific recorder is installed so both paths feed one metric.",
+                        "Define the semantic on MetricsRecorder in the shared metrics crate, implement it in metrics-prometheus (e.g. counter/histogram), and call hyperscale_metrics::record_*(...) from the production code path that observes the event. For sim, either extend MetricsCollector and SimulationReport for sim-only reporting, or call the same record_* from the sim runner if a no-op or sim-specific recorder is installed so both paths feed one metric.",
                         "Add a println! in the simulator and a Prometheus metric in production with different names.",
                         "Only add to Prometheus; the sim does not need it."
                     ],
@@ -227,7 +254,7 @@
                     question: "What is the role of MetricsCollector vs MetricsRecorder (metrics crate)?",
                     options: [
                         "They are the same type.",
-                        "MetricsCollector is used by the simulator to build SimulationReport (TPS, latency histogram, lock contention). MetricsRecorder is the trait in crates/metrics implemented by metrics-prometheus (and no-op) for production (and tests) to record counters, histograms, etc.",
+                        "MetricsCollector is used by the simulator to build SimulationReport (TPS, latency histogram, lock contention). MetricsRecorder is the trait in the hyperscale_metrics crate implemented by metrics-prometheus (and no-op) for production (and tests) to record counters, histograms, etc.",
                         "MetricsRecorder is only for simulation.",
                         "MetricsCollector exports to Prometheus."
                     ],

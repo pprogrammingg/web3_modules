@@ -32,20 +32,14 @@
 
         <div class="section">
             <h2>1. Where to Start</h2>
-            <p>After cloning and building hyperscale-rs, the most useful entry points are:</p>
-            <ul>
-                <li><code>crates/core/src/lib.rs</code> – re-exports core types and traits (<span data-glossary="state machine">StateMachine</span>, <span data-glossary="event-driven">Event</span>, <span data-glossary="event-driven">Action</span>)</li>
-                <li><code>crates/core/src/traits.rs</code> – <span data-glossary="state machine">StateMachine</span> trait definition</li>
-                <li><code>crates/node/src/lib.rs</code> and <code>crates/node/src/state.rs</code> – main <span data-glossary="state machine">NodeStateMachine</span> and how it composes sub–state machines</li>
-                <li><code>crates/types/</code> – shared types (blocks, votes, hashes)</li>
-            </ul>
+            <p>After cloning and building hyperscale-rs, start from the <strong>core</strong> and <strong>node</strong> crates: re-exports and the <span data-glossary="state machine">StateMachine</span> trait, then <span data-glossary="state machine">NodeStateMachine</span> composition, then shared <strong>types</strong>. Exact paths are in <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a> below.</p>
             <p>Use <code>cargo doc --open</code> to generate and open API docs for the workspace; search for types and traits by name.</p>
         </div>
 
         <div class="section">
             <h2>2. Core Types and Traits</h2>
             <h3>StateMachine trait</h3>
-            <p>Everything that participates in consensus implements the <span data-glossary="state machine">StateMachine</span> trait. In <code>crates/core/src/traits.rs</code> you'll see:</p>
+            <p>Everything that participates in consensus implements the <span data-glossary="state machine">StateMachine</span> trait. In the core crate’s traits module you’ll see:</p>
             <div class="code-block"><pre><code class="language-rust">fn handle(&amp;mut self, event: Event) -&gt; Vec&lt;Action&gt;;
 fn set_time(&amp;mut self, now: Duration);
 fn now(&amp;self) -&gt; Duration;</code></pre></div>
@@ -54,18 +48,18 @@ fn now(&amp;self) -&gt; Duration;</code></pre></div>
                 <strong>🤔 Think about it:</strong> Why pass <code>now</code> in from the outside instead of calling something like <code>SystemTime::now()</code> inside the state machine? What would break in tests or replay if the code read the real clock?
             </div>
             <h3>Event and Action enums</h3>
-            <p>In <code>crates/core/src/event.rs</code> and <code>crates/core/src/action.rs</code> you'll see the full set of events (e.g. <code>BlockHeaderReceived</code>, <code>ProposalTimer</code>, <code>QuorumCertificateFormed</code>) and actions (e.g. <code>BroadcastToShard</code>, <code>SetTimer</code>, <code>CommitBlock</code>). Browsing these gives you a map of what the system can react to and what it can do.</p>
+            <p>In the core crate’s <strong>event</strong> and <strong>action</strong> modules you’ll see the full set of events (e.g. <code>BlockHeaderReceived</code>, <code>ProposalTimer</code>, <code>QuorumCertificateFormed</code>) and actions (e.g. <code>BroadcastToShard</code>, <code>SetTimer</code>, <code>CommitBlock</code>). Browsing these gives you a map of what the system can react to and what it can do.</p>
         </div>
 
         <div class="section">
             <h2>3. NodeStateMachine and Composition</h2>
-            <p>The <strong>NodeStateMachine</strong> in <code>crates/node/src/state.rs</code> composes several sub–state machines (BFT, execution, mempool, etc.). When an event arrives:</p>
+            <p>The <strong>NodeStateMachine</strong> in the <strong>node</strong> crate composes several sub–state machines (BFT, execution, mempool, etc.). When an event arrives:</p>
             <ol>
                 <li>The node routes the event to the appropriate sub–state machine(s)</li>
                 <li>Each returns a list of actions</li>
                 <li>Actions are collected and executed by the runner (simulation or production)</li>
             </ol>
-            <p>Open <code>crates/node/src/state.rs</code> and find the <code>handle</code> implementation. Trace one event type (e.g. <code>Event::BlockHeaderReceived</code>) to see which sub–machines receive it and what actions they return.</p>
+            <p>Open the node state machine’s <code>handle</code> implementation (see study table). Trace one event type (e.g. <code>Event::BlockHeaderReceived</code>) to see which sub–machines receive it and what actions they return.</p>
             <div class="info" style="margin-top: 0.75rem;">
                 <strong>🤔 Check your understanding:</strong> If the node received two events at the same logical time, why would the *order* in which they're processed matter? (Think about proposer logic and votes.)
             </div>
@@ -87,8 +81,8 @@ fn now(&amp;self) -&gt; Duration;</code></pre></div>
                 <h3>Tasks</h3>
                 <ol>
                     <li>Run <code>cargo doc --open</code> and open the <code>core</code> and <code>node</code> crates. Find the <code>StateMachine</code> trait and the <code>NodeStateMachine</code> struct.</li>
-                    <li>In <code>crates/node/src/state.rs</code>, find where <code>Event::ProposalTimer</code> or <code>Event::BlockHeaderReceived</code> is handled. Note which sub–state machine(s) receive it.</li>
-                    <li>In <code>crates/core/src/event.rs</code>, list three event variants and one field or associated type for each. Do the same for three action variants in <code>action.rs</code>.</li>
+                    <li>In the node state machine source (study table), find where <code>Event::ProposalTimer</code> or <code>Event::BlockHeaderReceived</code> is handled. Note which sub–state machine(s) receive it.</li>
+                    <li>In core’s event and action modules (study table), list three event variants and one field or associated type for each, and the same for three action variants.</li>
                     <li>In your learning journal, write one paragraph: “How does the NodeStateMachine decide where to send an event?” (Use the code to support your answer.)</li>
                 </ol>
                 <h4>Success Criteria</h4>
@@ -105,6 +99,43 @@ fn now(&amp;self) -&gt; Duration;</code></pre></div>
             <div id="quiz-02" class="quiz-container"></div>
         </div>
 
+        <div class="section hs-suggested-study-section" id="suggested-crates-files-to-study">
+            <h2>Suggested crates / files to study</h2>
+            <p class="hs-suggested-study-lead">Paths relative to the <a href="#" data-repo target="_blank" rel="noopener">hyperscale-rs</a> repo root.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="hs-suggested-study-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Focus</th>
+                            <th scope="col">Path</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Core re-exports</td>
+                            <td><a href="#" data-file="crates/core/src/lib.rs" target="_blank" rel="noopener">crates/core/src/lib.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td><code>StateMachine</code> trait</td>
+                            <td><a href="#" data-file="crates/core/src/traits.rs" target="_blank" rel="noopener">crates/core/src/traits.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>Events / actions</td>
+                            <td><a href="#" data-file="crates/core/src/event.rs" target="_blank" rel="noopener">crates/core/src/event.rs</a>, <a href="#" data-file="crates/core/src/action.rs" target="_blank" rel="noopener">crates/core/src/action.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>Node state machine</td>
+                            <td><a href="#" data-file="crates/node/src/lib.rs" target="_blank" rel="noopener">crates/node/src/lib.rs</a>, <a href="#" data-file="crates/node/src/state.rs" target="_blank" rel="noopener">crates/node/src/state.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>Shared types</td>
+                            <td><a href="#" data-crate="types" target="_blank" rel="noopener">crates/types</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <div class="navigation">
             <a href="module-01c-crate-groups.html" class="btn btn-secondary">← Previous Module</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
@@ -113,6 +144,8 @@ fn now(&amp;self) -&gt; Duration;</code></pre></div>
     </div>
 
     <script src="../shared/course-data.js"></script>
+    <script src="../shared/hyperscale-flow-data.js"></script>
+    <script src="../shared/hyperscale-links.js"></script>
     <script src="../shared/navigation.js"></script>
     <script src="../shared/glossary.js"></script>
     <script src="../shared/module-init.js" data-module-id="intermediate-hs-codebase"></script>
@@ -163,7 +196,7 @@ fn now(&amp;self) -&gt; Duration;</code></pre></div>
                 explanation: "Event defines the vocabulary in core; the node's handle shows which sub–machine(s) get which event; each sub–machine's handle implements the logic. To trigger both BFT and mempool you extend Event, route from the node to both, and implement in each crate."
             },
             {
-                question: "In crates/node/src/state.rs, when the node receives Event::BlockHeaderReceived, what typically happens next (conceptually)?",
+                question: "When the node receives Event::BlockHeaderReceived, what typically happens next (conceptually)?",
                 options: [
                     "The node immediately writes the block to disk, then returns no actions",
                     "The event is routed to the relevant sub–state machine(s); they return actions (e.g. vote, set timer); the runner will execute those actions",
