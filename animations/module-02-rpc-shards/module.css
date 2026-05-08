@@ -1,0 +1,198 @@
+/* Module 02 — tall canvas: users → RPCs → mempools → shard routing */
+
+.anim-diagram-wrap--tall .anim-diagram {
+  max-width: 100%;
+}
+
+.anim-diagram-svg--large {
+  min-height: 520px;
+}
+
+.anim-packet-layer {
+  pointer-events: none;
+}
+
+.manifest-packet {
+  filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.25));
+}
+
+.manifest-details {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--anim-bg);
+  border: 1px solid var(--anim-border);
+  border-radius: var(--anim-radius);
+  font-size: 0.85rem;
+}
+
+.manifest-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--anim-primary);
+}
+
+.manifest-details-lede {
+  margin: 0.65rem 0 0.5rem;
+  color: var(--anim-text-muted);
+  font-size: 0.82rem;
+}
+
+.manifest-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.35rem;
+}
+
+.manifest-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.manifest-table th,
+.manifest-table td {
+  border: 1px solid var(--anim-border);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+}
+
+.manifest-table th {
+  background: var(--anim-bg2, #f9fafb);
+  font-weight: 600;
+}
+
+.topology-path {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: opacity 0.35s ease, stroke-width 0.35s ease;
+}
+
+.path-muted {
+  opacity: 0.22;
+}
+
+.path-user-rpc-a {
+  stroke: var(--anim-packet-a);
+}
+
+.path-user-rpc-b {
+  stroke: var(--anim-packet-b);
+}
+
+.path-user-rpc-c {
+  stroke: var(--anim-accent);
+}
+
+.path-mempool-hop-w,
+.path-mempool-hop-e {
+  stroke: #64748b;
+  stroke-dasharray: 4 4;
+}
+
+.path-shard-leg-a {
+  stroke: var(--anim-packet-a);
+  stroke-dasharray: 10 7;
+}
+
+.path-shard-leg-b {
+  stroke: var(--anim-packet-b);
+  stroke-dasharray: 10 7;
+}
+
+.path-shard-leg-c {
+  stroke: var(--anim-accent);
+  stroke-dasharray: 10 7;
+}
+
+.shard-shell {
+  transition: stroke 0.35s ease, filter 0.35s ease;
+}
+
+.shard-node {
+  transition: fill 0.35s ease, stroke 0.35s ease;
+}
+
+.rpc-card rect,
+.mempool-tag {
+  transition: stroke 0.35s ease, filter 0.35s ease;
+}
+
+.user-card rect {
+  transition: stroke 0.35s ease, filter 0.35s ease;
+}
+
+/* Phase: emphasis ramps up */
+.anim-root[data-phase="users"] .user-card rect {
+  stroke: var(--anim-primary);
+  stroke-width: 2.5;
+}
+
+.anim-root[data-phase="ingress"] .topology-path.path-user-rpc-a,
+.anim-root[data-phase="ingress"] .topology-path.path-user-rpc-b,
+.anim-root[data-phase="ingress"] .topology-path.path-user-rpc-c {
+  opacity: 0.95;
+  stroke-width: 3;
+}
+
+.anim-root[data-phase="mempool"] .rpc-card rect {
+  stroke: var(--anim-primary);
+  stroke-width: 2.75;
+  filter: drop-shadow(0 0 5px rgba(37, 99, 235, 0.28));
+}
+
+.anim-root[data-phase="mempool"] .topology-path.path-mempool-hop-w,
+.anim-root[data-phase="mempool"] .topology-path.path-mempool-hop-e {
+  opacity: 0.88;
+  stroke-width: 3;
+}
+
+.anim-root[data-phase="route"] .topology-path.path-shard-leg-a,
+.anim-root[data-phase="route"] .topology-path.path-shard-leg-b,
+.anim-root[data-phase="route"] .topology-path.path-shard-leg-c {
+  opacity: 0.92;
+  stroke-width: 3;
+}
+
+.anim-root[data-phase="shards"] .shard-shell {
+  stroke: var(--anim-secondary);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.22));
+}
+
+.anim-root[data-phase="shards"] .shard-node {
+  fill: #d1fae5;
+  stroke: #059669;
+}
+
+.prose-block {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  background: var(--anim-bg);
+  border: 1px solid var(--anim-border);
+  border-radius: var(--anim-radius);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--anim-text);
+}
+
+.prose-block h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--anim-primary);
+}
+
+.prose-block p {
+  margin: 0 0 0.65rem;
+}
+
+.prose-block p:last-child {
+  margin-bottom: 0;
+}
+
+.anim-root[data-phase="idle"] .topology-path {
+  opacity: 0.28;
+}
+
+.anim-root[data-phase="done"] .topology-path {
+  opacity: 0.55;
+}

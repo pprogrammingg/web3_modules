@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Verification script for course module paths.
- * Module list is derived from shared/course-data.js (single source of truth).
+ * Module list is derived from common/course-data.js (single source of truth).
  * Run with: node verify-paths.js
  */
 
@@ -9,22 +9,24 @@ const fs = require('fs');
 const path = require('path');
 
 const COURSES_DIR = __dirname;
-const SHARED_DIR = path.join(COURSES_DIR, 'shared');
+const COMMON_DIR = path.join(COURSES_DIR, 'common');
 
-// Required shared files (existence check)
-const SHARED_FILES = [
+// Required common files (existence check)
+const COMMON_FILES = [
     'styles.css',
+    'ensure-styles.js',
     'course-data.js',
     'navigation.js',
     'glossary.js',
     'module-init.js',
+    'protocol-engineer-track.js',
     'hyperscale-flow-data.js',
     'hyperscale-links.js',
 ];
 
 // Derive module list from course-data.js so we don't duplicate it
 function loadModulesFromCourseData() {
-    const courseDataPath = path.join(SHARED_DIR, 'course-data.js');
+    const courseDataPath = path.join(COMMON_DIR, 'course-data.js');
     const content = fs.readFileSync(courseDataPath, 'utf8');
     const regex = /id:\s*'([^']+)'[\s\S]*?path:\s*'([^']+)'/g;
     const modules = [];
@@ -35,29 +37,43 @@ function loadModulesFromCourseData() {
     return modules;
 }
 
-// Expected CSS path from module file path (e.g. basic/foo.html -> ../shared/, intermediate/bar.html -> ../shared/)
+// Expected CSS path from module file path (e.g. hyperscale/basic/foo.html -> ../../common/)
 function expectedCssPathFor(moduleFile) {
     const dir = path.dirname(moduleFile);
-    if (!dir || dir === '.') return 'shared/styles.css';
+    if (!dir || dir === '.') return 'common/styles.css';
     const depth = dir.split(path.sep).length;
-    return '../'.repeat(depth) + 'shared/styles.css';
+    return '../'.repeat(depth) + 'common/styles.css';
 }
 
-const VALID_JS_PATHS = ['../shared/course-data.js', '../shared/navigation.js', '../shared/glossary.js', '../shared/module-init.js', '../shared/hyperscale-flow-data.js', '../shared/hyperscale-links.js'];
+const COMMON_JS = [
+    'ensure-styles.js',
+    'course-data.js',
+    'navigation.js',
+    'protocol-engineer-track.js',
+    'glossary.js',
+    'module-init.js',
+    'hyperscale-flow-data.js',
+    'hyperscale-links.js',
+];
+const VALID_JS_PATHS = [
+    ...COMMON_JS.map(f => `common/${f}`),
+    ...COMMON_JS.map(f => `../common/${f}`),
+    ...COMMON_JS.map(f => `../../common/${f}`),
+];
 
 let errors = [];
 let warnings = [];
 
 console.log('🔍 Verifying course module paths...\n');
 
-// Check shared files exist
-console.log('Checking shared files...');
-SHARED_FILES.forEach(file => {
-    const filePath = path.join(SHARED_DIR, file);
+// Check common files exist
+console.log('Checking common/ assets...');
+COMMON_FILES.forEach(file => {
+    const filePath = path.join(COMMON_DIR, file);
     if (fs.existsSync(filePath)) {
         console.log(`  ✅ ${file}`);
     } else {
-        errors.push(`Missing shared file: ${file}`);
+        errors.push(`Missing common file: ${file}`);
         console.log(`  ❌ ${file} - MISSING`);
     }
 });
@@ -100,9 +116,9 @@ MODULES.forEach(({ id, file }) => {
     if (jsPaths.length > 0) {
         console.log(`  📝 JS paths found: ${jsPaths.length}`);
         jsPaths.forEach(jsPath => {
-            const isShared = VALID_JS_PATHS.includes(jsPath);
+            const isCommon = VALID_JS_PATHS.includes(jsPath);
             const isSameDir = !jsPath.startsWith('..') && jsPath.endsWith('.js');
-            if (isShared || isSameDir) {
+            if (isCommon || isSameDir) {
                 console.log(`  ✅ ${path.basename(jsPath)} path is correct`);
             } else {
                 warnings.push(`${file}: JS path '${jsPath}' might be incorrect (expected one of: ${VALID_JS_PATHS.join(', ')} or same-dir .js)`);

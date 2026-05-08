@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cryptography in Hyperscale-rs</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Cryptography in Hyperscale-rs</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: 1.5–2 hours</span>
+                <span>📊 Difficulty: Intermediate</span>
+                <span>🎯 Hyperscale-rs Specific</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand why BLS is used for quorum and state certificates</li>
+                <li>Compare signature schemes used in blockchain (table)</li>
+                <li>Understand how libp2p identity and validator bind (BLS over PeerId) work</li>
+                <li>See where BLS and Ed25519 appear in the repo</li>
+                <li>Understand QC and StateCertificate aggregation</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Cryptographic Topics Around Merkle Trees, State Roots, and QC Certificates</h2>
+            <p>Reference table: where each concept fits and what you need to know for blockchain and Hyperscale-rs.</p>
+            <table class="content-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Concept</th>
+                        <th>What It Is</th>
+                        <th>Where It Appears</th>
+                        <th>What You Need to Know</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Cryptographic Hashing</td>
+                        <td><span data-glossary="hash functions">Hash Functions</span></td>
+                        <td>Deterministic one-way functions producing fixed-size outputs</td>
+                        <td>Everything in blockchains</td>
+                        <td>SHA-256, Keccak, collision resistance, preimage resistance</td>
+                    </tr>
+                    <tr>
+                        <td>Authenticated Data Structures</td>
+                        <td><span data-glossary="merkle root">Merkle Trees</span></td>
+                        <td>Binary tree where leaves hash data and parents hash children</td>
+                        <td>Bitcoin blocks, Ethereum state, rollups</td>
+                        <td>Building trees, generating proofs, verifying proofs</td>
+                    </tr>
+                    <tr>
+                        <td>Authenticated Data Structures</td>
+                        <td><span data-glossary="merkle proof">Merkle Proofs</span></td>
+                        <td>Minimal set of hashes proving a leaf belongs to a tree</td>
+                        <td>SPV clients, rollups, state sync</td>
+                        <td>Proof construction, proof verification</td>
+                    </tr>
+                    <tr>
+                        <td>Authenticated Data Structures</td>
+                        <td><span data-glossary="merkle patricia tree">Merkle Patricia Trees</span></td>
+                        <td>Trie structure optimized for key-value state</td>
+                        <td>Ethereum state root</td>
+                        <td>Tries, path compression, key hashing</td>
+                    </tr>
+                    <tr>
+                        <td>Authenticated Data Structures</td>
+                        <td><span data-glossary="sparse merkle tree">Sparse Merkle Trees</span></td>
+                        <td>Efficient tree for huge key spaces</td>
+                        <td>zk rollups, stateless blockchains</td>
+                        <td>Bit paths, default nodes, proof compression</td>
+                    </tr>
+                    <tr>
+                        <td>Authenticated Data Structures</td>
+                        <td><span data-glossary="verkle tree">Verkle Trees</span></td>
+                        <td>Vector commitment trees replacing Merkle trees</td>
+                        <td>Ethereum future roadmap</td>
+                        <td>Polynomial commitments, vector commitments</td>
+                    </tr>
+                    <tr>
+                        <td>Blockchain State</td>
+                        <td><span data-glossary="state root">State Root</span></td>
+                        <td>Hash of the entire world state</td>
+                        <td>Ethereum block header</td>
+                        <td>State transitions, trie updates</td>
+                    </tr>
+                    <tr>
+                        <td>Blockchain State</td>
+                        <td><span data-glossary="transaction root">Transaction Root</span></td>
+                        <td>Merkle root of transactions in a block</td>
+                        <td>Bitcoin, Ethereum</td>
+                        <td>Transaction ordering, proof generation</td>
+                    </tr>
+                    <tr>
+                        <td>Blockchain State</td>
+                        <td><span data-glossary="receipt root">Receipt Root</span></td>
+                        <td>Merkle root of execution receipts</td>
+                        <td>Ethereum</td>
+                        <td>Log proofs</td>
+                    </tr>
+                    <tr>
+                        <td>Distributed Consensus</td>
+                        <td><span data-glossary="quorum certificate">Quorum Certificate (QC)</span></td>
+                        <td>Aggregated signatures proving consensus majority</td>
+                        <td>HotStuff, Aptos, Sui, Diem</td>
+                        <td>BFT consensus, quorum intersection</td>
+                    </tr>
+                    <tr>
+                        <td>Distributed Consensus</td>
+                        <td><span data-glossary="block commit proof">Block Commit Proof</span></td>
+                        <td>Evidence a block was agreed upon</td>
+                        <td>Tendermint, HotStuff</td>
+                        <td>Finality proofs</td>
+                    </tr>
+                    <tr>
+                        <td>Digital Signatures</td>
+                        <td><span data-glossary="signature schemes">Signature Schemes</span></td>
+                        <td>Cryptographic proof of identity</td>
+                        <td>Validators sign blocks and votes</td>
+                        <td>ECDSA, EdDSA, BLS</td>
+                    </tr>
+                    <tr>
+                        <td>Signature Aggregation</td>
+                        <td><span data-glossary="bls aggregation">BLS Aggregation</span></td>
+                        <td>Combine many validator signatures into one</td>
+                        <td>Ethereum 2, some BFT chains</td>
+                        <td>Pairing cryptography</td>
+                    </tr>
+                    <tr>
+                        <td>Distributed Systems</td>
+                        <td><span data-glossary="bft">Byzantine Fault Tolerance</span></td>
+                        <td>Consensus despite malicious nodes</td>
+                        <td>HotStuff, PBFT</td>
+                        <td>Quorum math, liveness vs safety</td>
+                    </tr>
+                    <tr>
+                        <td>Distributed Systems</td>
+                        <td><span data-glossary="state machine replication">State Machine Replication</span></td>
+                        <td>Deterministic execution replicated across nodes</td>
+                        <td>All blockchains</td>
+                        <td>Deterministic execution</td>
+                    </tr>
+                    <tr>
+                        <td>Zero Knowledge</td>
+                        <td><span data-glossary="commitment schemes">Commitment Schemes</span></td>
+                        <td>Hide data but allow verification later</td>
+                        <td>ZK rollups</td>
+                        <td>Pedersen commitments</td>
+                    </tr>
+                    <tr>
+                        <td>Zero Knowledge</td>
+                        <td><span data-glossary="polynomial commitment">Polynomial Commitments</span></td>
+                        <td>Commit to polynomial evaluations</td>
+                        <td>Verkle trees, SNARKs</td>
+                        <td>KZG commitments</td>
+                    </tr>
+                    <tr>
+                        <td>Zero Knowledge</td>
+                        <td><span data-glossary="snark">SNARK/STARK Proofs</span></td>
+                        <td>Succinct proofs verifying computation</td>
+                        <td>zkSync, Starknet</td>
+                        <td>Constraint systems</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Why BLS is chosen</h2>
+            <p>The repo doesn’t spell out “we chose BLS because …” in one place, but the usage makes the reason clear: <strong>aggregatable signatures for consensus</strong>.</p>
+            <ul>
+                <li><strong>QuorumCertificate</strong> holds a single <code>Bls12381G2Signature</code> that is an <strong>aggregated signature</strong> from 2f+1 validators for the same message (block hash, etc.).</li>
+                <li><strong>StateCertificate</strong> also uses an aggregated BLS signature from many <code>StateVoteBlock</code>s.</li>
+            </ul>
+            <p>Type definitions: see <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a>.</p>
+            <p>Flow:</p>
+            <ol>
+                <li>Many validators sign the <strong>same message</strong> (e.g. block hash).</li>
+                <li>Their BLS signatures are <strong>combined into one</strong> aggregated signature.</li>
+                <li>You store and verify <strong>one signature and one aggregated public key</strong>, instead of N Ed25519 signatures.</li>
+            </ol>
+            <p>That gives:</p>
+            <ul>
+                <li><strong>Constant size and cost</strong> — QC size and verification cost don’t grow with committee size.</li>
+                <li><strong>Compact quorum certificates</strong> — One 96-byte BLS G2 signature instead of N×64-byte Ed25519 signatures.</li>
+                <li><strong>Same-message aggregation</strong> — Matches the “everyone signs this block hash” pattern (as in Ethereum 2, Chia, etc.).</li>
+            </ul>
+            <p>In the types module, the split is summarized as: <strong>Ed25519 for “fast signing”</strong> and <strong>BLS (BLS12-381 G1 pubkey / G2 sig) for “aggregatable signatures”</strong>. So BLS is chosen for quorum/state certificates; the keygen binary generates the validator BLS key (from a 32-byte hex seed or at random) used in that aggregation scheme.</p>
+        </div>
+
+        <div class="section">
+            <h2>Signature schemes: comparison</h2>
+            <p>Different schemes are used for different roles. The table below summarizes pros and cons so you can see why BLS fits consensus certificates and why Ed25519 is used where aggregation isn’t needed.</p>
+            <table class="content-table">
+                <thead>
+                    <tr>
+                        <th>Scheme</th>
+                        <th>Typical use</th>
+                        <th>Pros</th>
+                        <th>Cons</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Ed25519</strong></td>
+                        <td>Tx signing, fast one-off signatures</td>
+                        <td>Fast signing/verify; small keys &amp; sigs; no pairing</td>
+                        <td>No native aggregation; N sigs = N times size/cost</td>
+                    </tr>
+                    <tr>
+                        <td><strong>BLS (BLS12-381)</strong></td>
+                        <td>QC, StateCertificate, attestations</td>
+                        <td>Same-message aggregation; constant-size QC; one verify for 2f+1 signers</td>
+                        <td>Slower than Ed25519; pairing-based; need same message for aggregation</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ECDSA (e.g. secp256k1)</strong></td>
+                        <td>Bitcoin, Ethereum (legacy) tx signing</td>
+                        <td>Widely used; hardware support; no aggregation needed for single-sig txs</td>
+                        <td>No aggregation; larger sigs than Ed25519; malleability concerns</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>In Hyperscale-rs: use the table to justify “BLS for QC/StateCertificate, Ed25519 for fast signing” where the design is explained (e.g. in docs or a future general Cryptography module).</p>
+        </div>
+
+        <div class="section">
+            <h2>Libp2p identity and validator bind</h2>
+            <p><strong>Two keys, one binding.</strong> Consensus identity is the BLS public key (votes, QCs, validator set). libp2p uses an Ed25519 keypair for TLS and <code>PeerId</code>. In the current design the libp2p keypair is <strong>generated at random</strong> (<code>generate_random_keypair()</code> in the network adapter identity module). The runner then signs a <strong>validator bind message</strong> (the PeerId bytes) with the BLS key, so the network layer can verify that this peer owns the claimed validator identity.</p>
+            <p><strong>In production:</strong> the production runner creates the libp2p adapter with <code>ed25519_keypair</code> (from <code>generate_random_keypair()</code>) and <code>local_bind_signature</code> (BLS signature over <code>validator_bind_message(peer_id)</code>). The <strong>validator-bind protocol</strong> proves the peer controls the BLS key for the given ValidatorId. Topology holds every validator's BLS public key; the runner passes <code>initial_validator_keys</code> so the network can verify bind signatures. (Legacy note: an older design used <code>LIBP2P_IDENTITY_DOMAIN</code> = <code>b"hyperscale-libp2p-identity-v1:"</code>: it is prepended (or otherwise combined) with the pubkey before hashing so that the derived key is bound to this specific use. That way the same BLS pubkey hashed with a different domain would yield a different PeerId, avoiding collisions and tying the derivation to “Hyperscale libp2p identity” only. So anyone who knows a validator’s BLS public key can compute that validator’s <code>PeerId</code> (e.g. <code>compute_peer_id_for_validator(public_key)</code>). The topology already has every validator’s BLS public key, so at startup the runner can fill <code>validator_peers</code> and <code>peer_validators</code> without out-of-band PeerId exchange.) File paths: <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a>.</p>
+            <p><strong>Why not BLS for libp2p?</strong> libp2p’s identity and TLS are built for key types like Ed25519. So: BLS = consensus identity; Ed25519 = Ed25519 = transport key. PeerId is no longer derivable from BLS alone; identity is tied by the BLS signature over PeerId.</p>
+        </div>
+
+        <div class="section">
+            <h2>Quiz: Cryptography and identity</h2>
+            <p>These questions are designed to be challenging: answers are not obvious and some distractors are plausible. Use the module text and repo links to decide. Pass threshold: 70%.</p>
+            <div id="quiz-cryptography" class="quiz-container"></div>
+        </div>
+
+        <div class="section hs-suggested-study-section" id="suggested-crates-files-to-study">
+            <h2>Suggested crates / files to study</h2>
+            <p class="hs-suggested-study-lead">Paths relative to the <a href="#" data-repo target="_blank" rel="noopener">hyperscale-rs</a> repo root.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="hs-suggested-study-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Focus</th>
+                            <th scope="col">Path</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>QC (BLS aggregate)</td>
+                            <td><a href="#" data-file="crates/types/src/quorum_certificate.rs" target="_blank" rel="noopener">crates/types/src/quorum_certificate.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>CertifiedBlock (block + certifying QC)</td>
+                            <td><a href="#" data-file="crates/types/src/block/certified.rs" target="_blank" rel="noopener">crates/types/src/block/certified.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>Production runner (libp2p + bind sig)</td>
+                            <td><a href="#" data-file="crates/production/src/runner.rs" target="_blank" rel="noopener">crates/production/src/runner.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>libp2p key generation</td>
+                            <td><a href="#" data-file="crates/network-libp2p/src/adapter/identity.rs" target="_blank" rel="noopener">crates/network-libp2p/src/adapter/identity.rs</a> — <code>generate_random_keypair()</code></td>
+                        </tr>
+                        <tr>
+                            <td>Validator-bind protocol</td>
+                            <td><a href="#" data-file="crates/network-libp2p/src/validator_bind.rs" target="_blank" rel="noopener">crates/network-libp2p/src/validator_bind.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>Validator BLS keygen</td>
+                            <td><code>crates/keygen</code> / crypto tooling (32-byte hex seed or random) — browse workspace for the keygen binary crate name</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section section-oss-contribution" id="oss-contribution">
+            <h2>OSS contribution: batch crypto validation (#43)</h2>
+            <p class="oss-journey-welcome">Performance work shines when it’s measurable and incremental. You’re not expected to rewrite cryptography in a weekend—you’re expected to show curiosity, numbers, and clear communication. That combination opens doors upstream and here.</p>
+            <p>Track <a class="oss-issue-link" href="https://github.com/hyperscalers/hyperscale-rs/issues/43" target="_blank" rel="noopener">issue #43 — Fork radix-transactions to add batch crypto validation</a>. Goal: speed up signature checks on batches from the Radix transaction stack by extending or forking <code>radix-transactions</code>, then wiring validation into the paths you mapped (QC, validator bind, identity).</p>
+
+            <div class="oss-contrib-step">
+                <h3>Step 1 — Make a safe sandbox</h3>
+                <p>Fork <strong>radix-transactions</strong> (or the upstream Radix repo named in the issue) under your GitHub user and create a focused branch for experiments.</p>
+                <div class="oss-expected"><strong>Expected result:</strong> You can build and run tests on your fork without touching hyperscale-rs yet—freedom to explore.</div>
+            </div>
+
+            <div class="oss-contrib-step">
+                <h3>Step 2 — Prove the win with evidence</h3>
+                <p>Benchmark current single-verify vs your batch API on a synthetic workload; write down hardware, flags, and methodology in the PR so numbers travel.</p>
+                <div class="oss-expected"><strong>Expected result:</strong> A small table or paragraph (“before / after / setup”) reviewers can trust—or refine—without rerunning your whole life.</div>
+            </div>
+
+            <div class="oss-contrib-step">
+                <h3>Step 3 — Integrate with consent</h3>
+                <p>Open a <strong>draft PR</strong> to hyperscale-rs that pins your fork in <code>Cargo.toml</code> <em>only if</em> maintainers agree—often the first merge targets radix upstream, then hyperscale picks up the release.</p>
+                <div class="oss-expected"><strong>Expected result:</strong> The thread agrees on sequencing; you avoid surprise dependency forks and stay proud of a clean story.</div>
+            </div>
+
+            <div class="oss-payoff">
+                <strong>Reward:</strong> Faster verification means healthier nodes and happier operators—and you’ll have bench numbers that belong on your portfolio forever.
+            </div>
+        </div>
+
+        <div class="navigation">
+            <a href="module-09-timing.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="module-10-performance-measurement.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../../common/course-data.js"></script>
+    <script src="../../common/hyperscale-flow-data.js"></script>
+    <script src="../../common/hyperscale-links.js"></script>
+    <script src="../../common/navigation.js"></script>
+    <script src="../../common/protocol-engineer-track.js"></script>
+    <script src="../../common/glossary.js"></script>
+    <script src="../../common/module-init.js" data-module-id="intermediate-08"></script>
+    <script src="module-08-cryptography-quiz.js"></script>
+</body>
+</html>

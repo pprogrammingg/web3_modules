@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Animation — One tx: propose · votes · QC · commit</title>
+  <link rel="stylesheet" href="../../common/styles.css" />
+  <link rel="stylesheet" href="module.css" />
+</head>
+<body class="anim-body">
+  <div class="anim-root" data-anim-module="shard-bft" data-phase="idle">
+    <nav class="anim-home-bar" aria-label="Animation hub">
+      <a href="../index.html">← Animations</a>
+    </nav>
+
+    <header class="anim-header">
+      <div>
+        <h1>Module 03 — One mempool packet through BFT</h1>
+        <p class="anim-lede">
+          Single transaction <strong>T</strong> leaves the pool, the <strong>proposer</strong> broadcasts a <strong>proposal</strong> to validators, two
+          <strong>vote</strong> paths (V1, V2) merge into <strong>QC</strong>, then <strong>T</strong> moves to committed block and chain head — all driven by <code>manifest.js</code>.
+        </p>
+      </div>
+      <div class="anim-toolbar">
+        <button type="button" class="anim-btn anim-btn--primary" data-action="play">Play</button>
+        <button type="button" class="anim-btn" data-action="reset">Reset</button>
+      </div>
+    </header>
+
+    <div class="anim-status" aria-live="polite" data-live></div>
+
+    <div class="anim-diagram-wrap anim-diagram-wrap--tall">
+      <div class="anim-diagram" data-diagram>
+        <svg
+          class="anim-diagram-svg anim-diagram-svg--bft"
+          data-diagram-svg
+          viewBox="0 0 560 860"
+          xmlns="http://www.w3.org/2000/svg"
+          role="img"
+          aria-label="Single shard BFT schematic one tx"
+        >
+          <!-- Mempool (one packet waiting) -->
+          <rect x="168" y="44" width="224" height="84" rx="14" fill="#eff6ff" stroke="#93c5fd" stroke-width="2" />
+          <text x="280" y="78" text-anchor="middle" font-size="13" font-weight="600" fill="#1e40af" font-family="system-ui,sans-serif">mempool-pool</text>
+          <text x="280" y="100" text-anchor="middle" font-size="11" fill="#64748b" font-family="system-ui,sans-serif">one pending tx</text>
+
+          <!-- Proposer -->
+          <circle cx="280" cy="228" r="30" fill="#dbeafe" stroke="#3b82f6" stroke-width="2" />
+          <text x="280" y="233" text-anchor="middle" font-size="11" font-weight="600" fill="#1e3a8a" font-family="system-ui,sans-serif">proposer</text>
+
+          <!-- Validators -->
+          <text x="280" y="332" text-anchor="middle" font-size="11" fill="#64748b" font-family="system-ui,sans-serif">validators (proposal arrives)</text>
+          <circle cx="210" cy="400" r="16" fill="#f1f5f9" stroke="#64748b" stroke-width="2" />
+          <text x="210" y="404" text-anchor="middle" font-size="9" fill="#475569" font-family="system-ui,sans-serif">L</text>
+          <circle cx="280" cy="400" r="16" fill="#e0e7ff" stroke="#6366f1" stroke-width="2" />
+          <text x="280" y="404" text-anchor="middle" font-size="9" fill="#3730a3" font-family="system-ui,sans-serif">C</text>
+          <circle cx="350" cy="400" r="16" fill="#f1f5f9" stroke="#64748b" stroke-width="2" />
+          <text x="350" y="404" text-anchor="middle" font-size="9" fill="#475569" font-family="system-ui,sans-serif">R</text>
+
+          <!-- QC hub -->
+          <circle cx="280" cy="556" r="34" fill="#ecfdf5" stroke="#10b981" stroke-width="2" />
+          <text x="280" y="552" text-anchor="middle" font-size="11" font-weight="600" fill="#047857" font-family="system-ui,sans-serif">QC hub</text>
+          <text x="280" y="568" text-anchor="middle" font-size="9" fill="#64748b" font-family="system-ui,sans-serif">votes + cert</text>
+
+          <!-- Committed block -->
+          <rect x="208" y="648" width="144" height="44" rx="8" fill="#fff7ed" stroke="#fb923c" stroke-width="2" />
+          <text x="280" y="674" text-anchor="middle" font-size="11" font-weight="600" fill="#9a3412" font-family="system-ui,sans-serif">committed block</text>
+
+          <!-- Chain -->
+          <text x="280" y="774" text-anchor="middle" font-size="12" font-weight="600" fill="#334155" font-family="system-ui,sans-serif">chain head</text>
+          <path d="M 240 792 L 320 792" stroke="#94a3b8" stroke-width="3" stroke-linecap="round" />
+
+          <!-- Animated legs -->
+          <path id="path-mempool-proposer" class="topology-path path-muted leg-tx" d="M 280 128 L 280 198" />
+          <path id="path-proposer-validators" class="topology-path path-muted leg-tx" d="M 280 258 L 280 384" />
+
+          <path id="path-vote-left-qc" class="topology-path path-muted leg-vote" d="M 210 400 Q 235 478 280 522" />
+          <path id="path-vote-right-qc" class="topology-path path-muted leg-vote" d="M 350 400 Q 325 478 280 522" />
+
+          <path id="path-qc-committed" class="topology-path path-muted leg-tx" d="M 280 590 L 280 648" />
+          <path id="path-committed-chain" class="topology-path path-muted leg-tx" d="M 280 692 L 280 758" />
+
+          <g font-family="system-ui,sans-serif" font-size="9" fill="#64748b">
+            <text x="24" y="168">pickup</text>
+            <text x="24" y="320">propose</text>
+            <text x="24" y="480">votes → QC</text>
+            <text x="24" y="620">commit</text>
+            <text x="24" y="720">finalize</text>
+          </g>
+
+          <text x="280" y="842" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="system-ui,sans-serif">
+            One shard · illustrative timing · V1/V2 run together
+          </text>
+
+          <g data-packet-layer class="anim-packet-layer"></g>
+        </svg>
+      </div>
+
+      <div class="anim-legend">
+        <span><span class="anim-dot" style="background: #2563eb"></span> T — transaction</span>
+        <span><span class="anim-dot" style="background: #7c3aed"></span> V1 · vote</span>
+        <span><span class="anim-dot" style="background: #a855f7"></span> V2 · vote</span>
+      </div>
+
+      <details class="manifest-details">
+        <summary>Manifest (resolved at Play)</summary>
+        <p class="manifest-details-lede">
+          Optional <code>dotRadius</code> per event (votes smaller). Same <code>routes[from|to]</code> → path ids.
+        </p>
+        <div class="manifest-table-wrap">
+          <table class="manifest-table">
+            <thead>
+              <tr>
+                <th>t&nbsp;(ms)</th>
+                <th>dur</th>
+                <th>pkt</th>
+                <th>from</th>
+                <th>to</th>
+                <th>pathId</th>
+              </tr>
+            </thead>
+            <tbody id="manifest-table-body"></tbody>
+          </table>
+        </div>
+      </details>
+
+      <div class="prose-block">
+        <h2>What you’re seeing</h2>
+        <p>
+          <strong>T</strong> is one mempool entry. The proposer sends a <strong>proposal</strong> to validators; <strong>V1</strong> and <strong>V2</strong> are schematic vote messages converging on
+          <strong>QC hub</strong> (same wall-clock start in the manifest so they animate together). Then <strong>T</strong> continues as the certified / committed unit onto the chain strip.
+        </p>
+        <p style="margin-bottom: 0; color: var(--anim-text-muted); font-size: 0.85rem">
+          Add more vote legs by copying routes + paths + events; tune <code>dotRadius</code> in <code>manifest-player</code> per row.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../common/core.js"></script>
+  <script src="../../common/manifest-player.js"></script>
+  <script src="manifest.js"></script>
+  <script src="scene.js"></script>
+  <script>
+    (function () {
+      var m = window.Module03Manifest;
+      var MP = window.ManifestPlayer;
+      if (!m || !m.events || !MP) return;
+      var tb = document.getElementById("manifest-table-body");
+      if (!tb) return;
+      m.events
+        .slice()
+        .sort(function (a, b) {
+          return a.tMs - b.tMs;
+        })
+        .forEach(function (e) {
+          var pid = MP.resolvePathId(e, m.routes || {}) || "—";
+          var tr = document.createElement("tr");
+          var dr = e.dotRadius != null ? e.dotRadius : "—";
+          tr.innerHTML =
+            "<td>" +
+            e.tMs +
+            "</td><td>" +
+            e.durMs +
+            "</td><td>" +
+            e.packet +
+            "</td><td>" +
+            (e.from || "") +
+            "</td><td>" +
+            (e.to || "") +
+            '</td><td><code style="font-size:0.72rem">' +
+            pid +
+            "</code></td>";
+          tb.appendChild(tr);
+        });
+    })();
+  </script>
+</body>
+</html>

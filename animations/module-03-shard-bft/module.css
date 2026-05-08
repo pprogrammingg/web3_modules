@@ -1,0 +1,125 @@
+.anim-diagram-svg--bft {
+  min-height: 520px;
+}
+
+.anim-packet-layer {
+  pointer-events: none;
+}
+
+.manifest-packet--small {
+  opacity: 0.95;
+}
+
+.manifest-packet {
+  filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.28));
+}
+
+.manifest-details {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--anim-bg);
+  border: 1px solid var(--anim-border);
+  border-radius: var(--anim-radius);
+  font-size: 0.85rem;
+}
+
+.manifest-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--anim-primary);
+}
+
+.manifest-details-lede {
+  margin: 0.65rem 0 0.5rem;
+  color: var(--anim-text-muted);
+  font-size: 0.82rem;
+}
+
+.manifest-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.35rem;
+}
+
+.manifest-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.manifest-table th,
+.manifest-table td {
+  border: 1px solid var(--anim-border);
+  padding: 0.3rem 0.45rem;
+  text-align: left;
+}
+
+.manifest-table th {
+  background: var(--anim-bg2, #f9fafb);
+  font-weight: 600;
+}
+
+.topology-path {
+  fill: none;
+  stroke-width: 2.75;
+  stroke-linecap: round;
+  transition: opacity 0.3s ease, stroke-width 0.3s ease;
+}
+
+.path-muted {
+  opacity: 0.18;
+}
+
+.leg-tx {
+  stroke: var(--anim-packet-a);
+}
+
+.leg-vote {
+  stroke: #9333ea;
+  stroke-dasharray: 8 6;
+}
+
+.prose-block {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  background: var(--anim-bg);
+  border: 1px solid var(--anim-border);
+  border-radius: var(--anim-radius);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.prose-block h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--anim-primary);
+}
+
+.anim-root[data-phase="idle"] .topology-path {
+  opacity: 0.18;
+}
+
+.anim-root[data-phase="pool"] .leg-tx {
+  opacity: 0.55;
+}
+
+.anim-root[data-phase="propose"] #path-mempool-proposer,
+.anim-root[data-phase="propose"] #path-proposer-validators {
+  opacity: 0.95;
+  stroke-width: 3.25;
+}
+
+.anim-root[data-phase="votes"] #path-vote-left-qc,
+.anim-root[data-phase="votes"] #path-vote-right-qc {
+  opacity: 0.95;
+  stroke-width: 3.25;
+}
+
+.anim-root[data-phase="commit"] #path-qc-committed,
+.anim-root[data-phase="commit"] #path-committed-chain {
+  opacity: 0.95;
+  stroke-width: 3.25;
+}
+
+.anim-root[data-phase="done"] .topology-path {
+  opacity: 0.48;
+}

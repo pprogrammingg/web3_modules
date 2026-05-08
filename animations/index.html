@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Animations — experiments</title>
+  <link rel="stylesheet" href="../common/styles.css" />
+  <style>
+    .anim-list { margin-top: 1.5rem; list-style: none; padding: 0; }
+    .anim-list li { margin: 0.75rem 0; padding: 1rem; background: var(--anim-bg); border: 1px solid var(--anim-border); border-radius: var(--anim-radius); box-shadow: var(--anim-shadow); }
+    .anim-list a { font-weight: 600; color: var(--anim-primary); text-decoration: none; }
+    .anim-list a:hover { text-decoration: underline; }
+    .anim-list p { margin: 0.35rem 0 0; font-size: 0.9rem; color: var(--anim-text-muted); }
+  </style>
+</head>
+<body class="anim-body">
+  <div class="anim-root">
+    <nav class="anim-home-bar" aria-label="Site">
+      <a href="../index.html">← Course home</a>
+    </nav>
+    <header class="anim-header" style="margin-bottom: 0">
+      <div>
+        <h1>Animation experiments</h1>
+        <p class="anim-lede">Self-contained HTML5 diagrams — course UI from repo <code>common/</code>; animation JS stays under <code>animations/shared/</code>. Add new folders alongside <code>module-01-rpc-mempool/</code>.</p>
+      </div>
+    </header>
+    <ul class="anim-list">
+      <li>
+        <a href="module-01-rpc-mempool/index.html">Module 01 — Two users → RPC → mempool</a>
+        <p>Mobile sends slightly ahead of the laptop; both txs hit the RPC, then each follows its own lane into the mempool as separate queue entries.</p>
+      </li>
+      <li>
+        <a href="module-02-rpc-shards/index.html">Module 02 — Two RPCs · mempools · 2/3/4-node shards</a>
+        <p>Submit → mempool hop → shard legs (Hyperscale-shaped manifest); route map + renderer in shared JS.</p>
+      </li>
+      <li>
+        <a href="module-03-shard-bft/index.html">Module 03 — One mempool tx · propose · votes · QC · commit</a>
+        <p>Single T plus parallel vote dots (V1/V2); optional per-event dotRadius in manifest.</p>
+      </li>
+    </ul>
+  </div>
+</body>
+</html>

@@ -10,8 +10,8 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = __dirname;
-const NAV_PATH = path.join(ROOT, 'shared', 'navigation.js');
-const CSS_PATH = path.join(ROOT, 'shared', 'styles.css');
+const NAV_PATH = path.join(ROOT, 'common', 'navigation.js');
+const CSS_PATH = path.join(ROOT, 'common', 'styles.css');
 
 let failed = 0;
 

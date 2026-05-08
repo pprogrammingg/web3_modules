@@ -1,0 +1,91 @@
+/* Module 01 — Tx → RPC → mempool (extends ../../common/styles.css) */
+
+.anim-diagram-wrap {
+  position: relative;
+}
+
+.path-base {
+  fill: none;
+  stroke: var(--anim-line);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 8 6;
+}
+
+.path-active {
+  stroke: var(--anim-primary);
+  stroke-dasharray: none;
+  opacity: 0.35;
+}
+
+.rpc-node rect,
+.mempool-node rect {
+  transition: stroke 0.25s ease, filter 0.25s ease;
+}
+
+.anim-root[data-phase="ingress"] .rpc-node rect {
+  stroke: #93c5fd;
+  stroke-width: 2;
+}
+
+.anim-root[data-phase="fanin"] .rpc-node rect {
+  stroke: var(--anim-primary);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px rgba(37, 99, 235, 0.35));
+}
+
+.anim-root[data-phase="mempool"] .rpc-node rect,
+.anim-root[data-phase="done"] .rpc-node rect {
+  stroke: var(--anim-border);
+  stroke-width: 2;
+  filter: none;
+}
+
+.anim-root[data-phase="mempool"] .mempool-node rect,
+.anim-root[data-phase="done"] .mempool-node rect {
+  stroke: var(--anim-secondary);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.35));
+}
+
+.mempool-hud {
+  margin-top: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  background: var(--anim-bg2, #f9fafb);
+  border: 1px solid var(--anim-border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mempool-hud strong {
+  color: var(--anim-primary);
+}
+
+.packet-phone {
+  fill: var(--anim-packet-a);
+}
+
+.packet-laptop {
+  fill: var(--anim-packet-b);
+}
+
+.anim-reduced-hint {
+  display: none;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.85rem;
+  background: #fef3c7;
+  border-radius: 8px;
+  color: #92400e;
+}
+
+.anim-root[data-phase="done"] .anim-reduced-hint {
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-root[data-phase="idle"] .anim-reduced-hint {
+    display: block;
+  }
+}

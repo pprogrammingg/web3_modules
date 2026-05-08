@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Animation — RPCs, mempools & shard validators</title>
+  <link rel="stylesheet" href="../../common/styles.css" />
+  <link rel="stylesheet" href="module.css" />
+</head>
+<body class="anim-body">
+  <div class="anim-root" data-anim-module="rpc-shards" data-phase="idle">
+    <nav class="anim-home-bar" aria-label="Animation hub">
+      <a href="../index.html">← Animations</a>
+    </nav>
+
+    <header class="anim-header">
+      <div>
+        <h1>Mempools → shards (validator groups)</h1>
+        <p class="anim-lede">
+          Hyperscale-shaped story: <strong>submit → RPC → mempool on that node → later</strong> toward each interested shard (gossip /
+          proposer pull bundled as one schematic leg). Timing is illustrative; see <code>manifest.js</code> comments.
+        </p>
+      </div>
+      <div class="anim-toolbar">
+        <button type="button" class="anim-btn anim-btn--primary" data-action="play">Play</button>
+        <button type="button" class="anim-btn" data-action="reset">Reset</button>
+      </div>
+    </header>
+
+    <div class="anim-status" aria-live="polite" data-live></div>
+
+    <div class="anim-diagram-wrap anim-diagram-wrap--tall">
+      <div class="anim-diagram" data-diagram>
+        <svg
+          class="anim-diagram-svg anim-diagram-svg--large"
+          data-diagram-svg
+          viewBox="0 0 960 1120"
+          xmlns="http://www.w3.org/2000/svg"
+          role="img"
+          aria-label="Topology: users, two RPC gateways, three shards"
+        >
+          <text x="480" y="36" text-anchor="middle" font-size="12" fill="#94a3b8" font-family="system-ui,sans-serif">Public internet</text>
+
+          <g class="user-card" transform="translate(48, 88)">
+            <rect width="124" height="64" rx="10" fill="#fff" stroke="#cbd5e1" stroke-width="2" />
+            <text x="62" y="28" text-anchor="middle" font-size="13" font-weight="600" fill="#334155" font-family="system-ui,sans-serif">📱 User A</text>
+            <text x="62" y="46" text-anchor="middle" font-size="11" fill="#64748b" font-family="system-ui,sans-serif">Americas</text>
+          </g>
+          <g class="user-card" transform="translate(212, 88)">
+            <rect width="124" height="64" rx="10" fill="#fff" stroke="#cbd5e1" stroke-width="2" />
+            <text x="62" y="28" text-anchor="middle" font-size="13" font-weight="600" fill="#334155" font-family="system-ui,sans-serif">💻 User B</text>
+            <text x="62" y="46" text-anchor="middle" font-size="11" fill="#64748b" font-family="system-ui,sans-serif">Americas</text>
+          </g>
+          <g class="user-card" transform="translate(788, 88)">
+            <rect width="124" height="64" rx="10" fill="#fff" stroke="#cbd5e1" stroke-width="2" />
+            <text x="62" y="28" text-anchor="middle" font-size="13" font-weight="600" fill="#334155" font-family="system-ui,sans-serif">🌍 User C</text>
+            <text x="62" y="46" text-anchor="middle" font-size="11" fill="#64748b" font-family="system-ui,sans-serif">Europe · other RPC</text>
+          </g>
+
+          <!-- Longer ingress arcs (more vertical slack) -->
+          <path
+            id="path-user-a-rpcw"
+            class="topology-path path-muted path-user-rpc-a"
+            d="M 110 152 Q 200 290 280 402"
+          />
+          <path
+            id="path-user-b-rpcw"
+            class="topology-path path-muted path-user-rpc-b"
+            d="M 274 152 Q 278 295 280 402"
+          />
+          <path
+            id="path-user-c-rpce"
+            class="topology-path path-muted path-user-rpc-c"
+            d="M 850 152 Q 758 290 680 402"
+          />
+
+          <g class="rpc-card" transform="translate(158, 402)">
+            <rect width="244" height="92" rx="14" fill="#eff6ff" stroke="#93c5fd" stroke-width="2" />
+            <text x="122" y="34" text-anchor="middle" font-size="14" font-weight="600" fill="#1e40af" font-family="system-ui,sans-serif">RPC · west ingress</text>
+            <text x="122" y="54" text-anchor="middle" font-size="11" fill="#64748b" font-family="system-ui,sans-serif">JSON-RPC / HTTP · front door</text>
+            <rect class="mempool-tag" x="28" y="62" width="188" height="22" rx="6" fill="#fff" stroke="#bfdbfe" stroke-width="1.5" />
+            <text x="122" y="77" text-anchor="middle" font-size="10" fill="#1d4ed8" font-family="system-ui,sans-serif">mempool (pending txs)</text>
+          </g>
+
+          <g class="rpc-card" transform="translate(558, 402)">
+            <rect width="244" height="92" rx="14" fill="#fff7ed" stroke="#fdba74" stroke-width="2" />
+            <text x="122" y="34" text-anchor="middle" font-size="14" font-weight="600" fill="#9a3412" font-family="system-ui,sans-serif">RPC · east ingress</text>
+            <text x="122" y="54" text-anchor="middle" font-size="11" fill="#64748b" font-family="system-ui,sans-serif">different operator / region</text>
+            <rect class="mempool-tag" x="28" y="62" width="188" height="22" rx="6" fill="#fff" stroke="#fed7aa" stroke-width="1.5" />
+            <text x="122" y="77" text-anchor="middle" font-size="10" fill="#c2410c" font-family="system-ui,sans-serif">mempool (pending txs)</text>
+          </g>
+
+          <!-- Admission hop inside full-node card (ingress → local mempool view) -->
+          <path
+            id="path-rpcw-mempool"
+            class="topology-path path-muted path-mempool-hop-w"
+            d="M 280 402 L 280 494"
+          />
+          <path
+            id="path-rpce-mempool"
+            class="topology-path path-muted path-mempool-hop-e"
+            d="M 680 402 L 680 494"
+          />
+
+          <text x="480" y="538" text-anchor="middle" font-size="12" fill="#64748b" font-family="system-ui,sans-serif">
+            after mempool: gossip to interested shards · proposer pulls when due (per shard)
+          </text>
+
+          <path
+            id="path-mempoolw-shard-a"
+            class="topology-path path-muted path-shard-leg-a"
+            d="M 280 494 Q 232 690 220 848"
+          />
+          <path
+            id="path-mempoolw-shard-b"
+            class="topology-path path-muted path-shard-leg-b"
+            d="M 280 494 Q 385 690 480 848"
+          />
+          <path
+            id="path-mempoole-shard-c"
+            class="topology-path path-muted path-shard-leg-c"
+            d="M 680 494 Q 718 690 760 848"
+          />
+
+          <g class="shard-group" transform="translate(220, 900)">
+            <rect class="shard-shell" x="-92" y="-52" width="184" height="104" rx="16" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2" />
+            <circle class="shard-node" cx="-32" cy="4" r="18" fill="#eef2ff" stroke="#818cf8" stroke-width="2" />
+            <circle class="shard-node" cx="32" cy="4" r="18" fill="#eef2ff" stroke="#818cf8" stroke-width="2" />
+            <text y="42" x="0" text-anchor="middle" font-size="12" font-weight="600" fill="#334155" font-family="system-ui,sans-serif">Shard α · 2 nodes</text>
+          </g>
+
+          <g class="shard-group" transform="translate(480, 900)">
+            <rect class="shard-shell" x="-98" y="-58" width="196" height="116" rx="16" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2" />
+            <circle class="shard-node" cx="0" cy="-18" r="16" fill="#eef2ff" stroke="#818cf8" stroke-width="2" />
+            <circle class="shard-node" cx="-36" cy="22" r="16" fill="#eef2ff" stroke="#818cf8" stroke-width="2" />
+            <circle class="shard-node" cx="36" cy="22" r="16" fill="#eef2ff" stroke="#818cf8" stroke-width="2" />
+            <text y="52" x="0" text-anchor="middle" font-size="12" font-weight="600" fill="#334155" font-family="system-ui,sans-serif">Shard β · 3 nodes</text>
+          </g>
+
+          <g class="shard-group" transform="translate(760, 900)">
+            <rect class="shard-shell" x="-102" y="-58" width="204" height="116" rx="16" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2" />
+            <circle class="shard-node" cx="-28" cy="-22" r="14" fill="#eef2ff" stroke="#818cf8" stroke-width="2" />
+            <circle class="shard-node" cx="28" cy="-22" r="14" fill="#eef2ff" stroke="#818cf8" stroke-width="2" />
+            <circle class="shard-node" cx="-28" cy="22" r="14" fill="#eef2ff" stroke="#818cf8" stroke-width="2" />
+            <circle class="shard-node" cx="28" cy="22" r="14" fill="#eef2ff" stroke="#818cf8" stroke-width="2" />
+            <text y="52" x="0" text-anchor="middle" font-size="12" font-weight="600" fill="#334155" font-family="system-ui,sans-serif">Shard γ · 4 nodes</text>
+          </g>
+
+          <text x="480" y="1068" text-anchor="middle" font-size="11" fill="#94a3b8" font-family="system-ui,sans-serif">
+            closer circles ≈ validators that gossip / coordinate together more often for this shard
+          </text>
+
+          <!-- Packets render above topology -->
+          <g data-packet-layer class="anim-packet-layer"></g>
+        </svg>
+      </div>
+
+      <div class="anim-legend">
+        <span><span class="anim-dot" style="background: var(--anim-packet-a)"></span> Packet A → Shard α</span>
+        <span><span class="anim-dot" style="background: var(--anim-packet-b)"></span> Packet B → Shard β</span>
+        <span><span class="anim-dot" style="background: var(--anim-accent)"></span> Packet C → Shard γ</span>
+      </div>
+
+      <details class="manifest-details">
+        <summary>Animation manifest (sorted by time)</summary>
+        <p class="manifest-details-lede">
+          Each row is one leg. <code>from</code>/<code>to</code> resolve to a path via the static <code>routes</code> map in <code>manifest.js</code>; resolved <code>pathId</code>
+          is shown for audit (same resolution as Play).
+        </p>
+        <div class="manifest-table-wrap">
+          <table class="manifest-table">
+            <thead>
+              <tr>
+                <th>t&nbsp;(ms)</th>
+                <th>dur&nbsp;(ms)</th>
+                <th>pkt</th>
+                <th>from</th>
+                <th>to</th>
+                <th>pathId</th>
+              </tr>
+            </thead>
+            <tbody id="manifest-table-body"></tbody>
+          </table>
+        </div>
+      </details>
+
+      <div class="prose-block">
+        <h2>After mempool — what actually happens?</h2>
+        <p>
+          The mempool is <strong>local state on each full node</strong> behind that RPC (not global magic). When it’s time to move forward,
+          <strong>shard routing</strong> decides which validator set “owns” the transaction (by account, address space, or whatever rule your chain uses).
+        </p>
+        <p>
+          It is usually <strong>not</strong> “any random shard node grabs one tx.” Under consensus, the <strong>proposer for that shard and round</strong>
+          (leader election / round-robin in BFT) builds a candidate block and <strong>pulls eligible txs from that shard’s mempool</strong>; other validators
+          on <strong>that shard only</strong> verify and vote. Everyone on the shard applies the same committed block — inclusion is rule-driven.
+        </p>
+        <h3 style="margin: 1rem 0 0.45rem; font-size: 0.95rem; color: var(--anim-primary)">Where does the block end up?</h3>
+        <p>
+          The block’s first hop is <strong>inside the shard</strong>: gossip of the proposal / header to fellow validators on that shard, then votes,
+          then a quorum certificate and commit onto <strong>that shard’s chain</strong>. It does not “fly to every other shard” as one copied block —
+          other shards have their own proposers and blocks at the same logical time. Cross-shard txs use extra phases (provisions, execution) after
+          each shard has committed what it must — see Cross-Shard / execution modules in the main course.
+        </p>
+        <p style="margin-bottom: 0; color: var(--anim-text-muted); font-size: 0.85rem">
+          <strong>Manifest note:</strong> this animation stops at “packet has reached the shard’s validator group.” Adding explicit manifest legs for
+          <code>try_propose → BuildProposal → vote → QC → commit</code> would need more SVG (intra-shard loop or timeline) — the comments in
+          <code>manifest.js</code> describe that next layer.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../common/core.js"></script>
+  <script src="../../common/manifest-player.js"></script>
+  <script src="manifest.js"></script>
+  <script src="scene.js"></script>
+  <script>
+    (function () {
+      var m = window.Module02Manifest;
+      var MP = window.ManifestPlayer;
+      if (!m || !m.events || !MP) return;
+      var tb = document.getElementById("manifest-table-body");
+      if (!tb) return;
+      m.events
+        .slice()
+        .sort(function (a, b) {
+          return a.tMs - b.tMs;
+        })
+        .forEach(function (e) {
+          var pid = MP.resolvePathId(e, m.routes || {}) || "—";
+          var tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td>" +
+            e.tMs +
+            "</td><td>" +
+            e.durMs +
+            "</td><td>" +
+            e.packet +
+            "</td><td>" +
+            (e.from || "") +
+            "</td><td>" +
+            (e.to || "") +
+            '</td><td><code style="font-size:0.78rem">' +
+            pid +
+            "</code></td>";
+          tb.appendChild(tr);
+        });
+    })();
+  </script>
+</body>
+</html>

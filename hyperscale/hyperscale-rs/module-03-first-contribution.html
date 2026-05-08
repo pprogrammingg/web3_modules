@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your First Contribution: Documentation & Tests</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Your First Contribution: Documentation & Tests</h1>
+            <div class="course-meta">
+                <span>⏱️ Practical track: ~1 hour · With deep reading: 2–4 hours</span>
+                <span>📊 Difficulty: Level 2</span>
+                <span>🎯 Hyperscale-rs Specific</span>
+            </div>
+        </div>
+
+        <div class="section oss-path-intro">
+            <p><strong>You belong here.</strong> Every maintainer’s first merge started with a small, careful change—documentation, a test, a typo fix. This module walks beside you: each step says what to do and what “good” looks like when you’re done. There is no prize for rushing; the win is shipping something real and feeling confident doing it again.</p>
+        </div>
+
+        <div class="section">
+            <h2>Learning Objectives</h2>
+            <p>By the end, you will have:</p>
+            <ul>
+                <li>Contrast simulation vs production E2E harnesses and where those tests live in the repo</li>
+                <li>Produce two short numbered traces (sim + prod) that name concrete symbols and setup phases—not only high-level summaries</li>
+                <li>Contribute <strong>one new simulation E2E</strong> and <strong>one production E2E extension</strong> that fit existing patterns and CI</li>
+                <li>Ship both through a forked PR using <strong>Section 3 — Submitting Your PR</strong> and respond to review</li>
+            </ul>
+        </div>
+
+        <div class="section module-tight-prose">
+            <h2>1. Docs, tests, and end-to-end (this module’s focus)</h2>
+            <p>Documentation and small unit tests are still the lowest-risk way to learn layout, review culture, and Rust conventions—but <strong>this module’s assignment centers on integration / E2E tests</strong>: same core state machine as production, exercised through the simulation harness (fast, deterministic) and the production harness (real threads, network, storage). Line-by-line tracing of canonical tests lives in <a href="module-11-e2e-tests.html">End-to-end tests: tracing code to flow</a>; read or skim it alongside Segments 1–2 below if you have not already.</p>
+        </div>
+
+        <div class="section">
+            <h2>2. Practical Assignment</h2>
+            <div class="assignment">
+                <h3>Assignment: four segments (~1 hour)</h3>
+                <p><strong>What “trace” means here:</strong> Segments 1–2 ask for <strong>numbered traces in your journal</strong>—steps tied to symbols and blocks you read in the source. That deliverable is prose, not extra prints in the repo. If you add <strong>temporary instrumentation</strong> while exploring, use <strong><code>tracing::debug!</code></strong> (see <code>use tracing::debug</code>) and run with <code>RUST_LOG=debug</code>, consistent with <a href="module-01-overview.html">module 1 — Trace flows end-to-end</a> and <a href="module-11-e2e-tests.html">module 11</a>—not <code>println!</code>, which bypasses log filtering and is easy to leave behind by mistake.</p>
+                <p>Work in order. Each segment is sized for <strong>about 10–25 minutes</strong>—one small win per sitting: a trace you can narrate, a command whose story you understand, then two tight contributions. Checkboxes save in this browser (resume anytime). Deep reference material lives in <a href="module-11-e2e-tests.html">module 11 — End-to-end tests</a>; keep it open in another tab.</p>
+
+                <div class="assignment-step-block" id="assignment-segment-1">
+                    <div class="assignment-segment-head">
+                        <h4>Segment 1 — Simulation: trace one canonical E2E</h4>
+                        <span class="assignment-time-pill" title="Adjust to your pace">⏱️ ~10–25 min</span>
+                    </div>
+                    <p class="assignment-outcome"><strong>By the end:</strong> You ran <code>test_e2e_single_shard_transaction</code> (or another substantial test in the same file) and can name <em>where</em> setup ends and <em>where</em> the harness drives <code>IoLoop::step</code> toward commit.</p>
+                    <p><strong>Where to open:</strong> <a href="#" data-file="crates/simulation/tests/e2e_tests.rs" target="_blank" rel="noopener"><code>crates/simulation/tests/e2e_tests.rs</code></a>. Jump to <code>fn test_e2e_single_shard_transaction</code> (editor search). Skim the module docs (<code>//!</code>) first—they frame what “good” means for this harness.</p>
+                    <p class="e2e-code-caption"><strong>Anchor pattern</strong> — simulation tests usually spin a runner, advance simulated time, and inject work; your trace should follow that spine:</p>
+                    <pre class="code-block-light"><code>// Illustrative shape — follow the real test body in e2e_tests.rs
+#[test]
+fn test_e2e_single_shard_transaction() {
+    // 1. Build SimulationRunner + SimulatedNetwork + storage fixtures
+    // 2. Genesis / shard setup to match the scenario
+    // 3. Submit tx / drive inputs (same APIs sibling tests use)
+    // 4. runner.run_until(...) or stepping loop — each tick hits IoLoop::step
+    // 5. flush / settle — simulation flushes batches aggressively each step
+    // 6. assert committed state, receipts, or cross-check invariants
+}</code></pre>
+                    <p><strong>Numbered trace (do this in your journal):</strong> Write <strong>6–10 steps</strong>. For each step, note <em>which symbol or block</em> you are in (example hints below—not line numbers, because they drift between commits).</p>
+                    <ol class="assignment-trace-steps">
+                        <li><strong>Fixture arrives:</strong> you see <code>SimulationRunner</code> / builder calls and network/storage wiring.</li>
+                        <li><strong>Clock domain:</strong> simulated <code>Duration</code> advances—no wall clock.</li>
+                        <li><strong>Inputs:</strong> transactions or control messages enter the same paths production uses once inside <code>step</code>.</li>
+                        <li><strong>Step boundary:</strong> each iteration ultimately calls into <code>IoLoop::step</code> (find the call site in the runner loop).</li>
+                        <li><strong>After step:</strong> simulation-style flushing drains batches immediately—tie this to what you read in module 11.</li>
+                        <li><strong>Proof:</strong> assertions on balances, logs, or committed blocks—whatever this test encodes as “done.”</li>
+                    </ol>
+                    <p><strong>Run it:</strong></p>
+                    <pre class="code-block-light"><code>RUST_LOG=debug cargo test -p hyperscale-simulation --test e2e_tests test_e2e_single_shard_transaction -- --nocapture</code></pre>
+                    <p class="assignment-run-note"><strong>What you should see:</strong> Cargo compiling on first run (coffee moment), then <code>test test_e2e_single_shard_transaction ... ok</code>. <code>RUST_LOG=debug</code> surfaces <code>tracing::debug!</code> lines when you add temporary instrumentation; omit the prefix if you want a quieter run.</p>
+                    <ul class="assignment-checklist">
+                        <li><label class="assignment-check-card" for="assign-trace-sim"><input type="checkbox" id="assign-trace-sim" data-assignment-check="trace-sim" /> <span class="assignment-check-label">Segment 1 done — I ran the sim test and wrote a 6–10 step trace with “where in code” notes.</span></label></li>
+                    </ul>
+                </div>
+
+                <div class="assignment-step-block" id="assignment-segment-2">
+                    <div class="assignment-segment-head">
+                        <h4>Segment 2 — Production: same exercise, heavier harness</h4>
+                        <span class="assignment-time-pill">⏱️ ~10–25 min</span>
+                    </div>
+                    <p class="assignment-outcome"><strong>By the end:</strong> You can contrast <em>this</em> test’s startup story with Segment 1: pinned loop, wall clock, real network stack, RocksDB—without losing the thread that “inside <code>step</code>, the story matches.”</p>
+                    <p><strong>Where to open:</strong> <a href="#" data-file="crates/production/tests/e2e_tests.rs" target="_blank" rel="noopener"><code>crates/production/tests/e2e_tests.rs</code></a>. Jump to <code>fn test_production_runner_with_network</code>.</p>
+                    <p class="e2e-code-caption"><strong>Anchor pattern</strong> — production tests pay once for process-realistic wiring; your trace should capture genesis → runner → pinned thread → shutdown:</p>
+                    <pre class="code-block-light"><code>// Illustrative shape — follow the real test in production e2e_tests.rs
+#[test]
+fn test_production_runner_with_network() {
+    // 1. ProductionRunner::build / temp dirs / RocksDB open
+    // 2. Network + storage adapters — Libp2p path, not SimulatedNetwork
+    // 3. Genesis and shard bootstrap (may run on async side before pin)
+    // 4. spawn_pinned_loop → run_pinned_loop drives IoLoop::step on std::thread
+    // 5. Submit work; wall-clock batch flushing (flush_expired_batches)
+    // 6. Graceful shutdown + asserts on live behavior
+}</code></pre>
+                    <p><strong>Can you run it?</strong> <strong>Yes,</strong> on a normal developer machine that already builds the workspace: it is a standard <code>cargo test</code> integration test. Expect a <strong>slower compile</strong> and test runtime than simulation; native deps (for example RocksDB) must build. Use a single test thread while iterating:</p>
+                    <pre class="code-block-light"><code>RUST_LOG=debug cargo test -p hyperscale-production --test e2e_tests test_production_runner_with_network -- --test-threads=1 --nocapture</code></pre>
+                    <p class="assignment-run-note">If the binary fails to link on your machine, finish this segment using <strong>module 11’s walkthrough + reading the test source</strong>, write your numbered trace anyway, and note the blocker in your journal—maintainers see this occasionally; CI still proves the path.</p>
+                    <p><strong>Numbered trace:</strong> Again <strong>6–10 steps</strong>, plain English. Explicitly call out one moment where <strong>Tokio/async</strong> hands work to the <strong>pinned <code>io-loop</code></strong> (channels), per module 11.</p>
+                    <ul class="assignment-checklist">
+                        <li><label class="assignment-check-card" for="assign-trace-prod"><input type="checkbox" id="assign-trace-prod" data-assignment-check="trace-prod" /> <span class="assignment-check-label">Segment 2 done — I ran or deeply read the prod test and wrote a 6–10 step trace contrasting sim vs prod wiring.</span></label></li>
+                    </ul>
+                </div>
+
+                <div class="assignment-step-block" id="assignment-segment-3">
+                    <div class="assignment-segment-head">
+                        <h4>Segment 3 — Add one new simulation E2E</h4>
+                        <span class="assignment-time-pill">⏱️ ~10–25 min</span>
+                    </div>
+                    <p class="assignment-outcome"><strong>By the end:</strong> You have a <strong>new</strong> <code>#[test]</code> next to the ones you studied—small, reviewable, green locally.</p>
+                    <p>Add it to <code>crates/simulation/tests/e2e_tests.rs</code> (or the workspace’s established split if tests moved). Reuse <code>SimulationRunner</code> patterns from <strong>neighbors in the same file</strong>. Target a real gap: behavior not yet asserted, or deeper coverage of a flow <strong>already supported</strong> by test APIs—grep siblings for transaction builders; do not invent unsupported payloads.</p>
+                    <p>Scope questions: tie to <a href="https://github.com/hyperscalers/hyperscale-rs/issues/18" target="_blank" rel="noopener">issue #18</a> or ask early on a draft PR.</p>
+                    <pre class="code-block-light"><code>RUST_LOG=debug cargo test -p hyperscale-simulation --test e2e_tests &lt;your_test_name&gt; -- --nocapture</code></pre>
+                    <p class="assignment-run-note"><strong>What you should see:</strong> Your test name in the summary line ending in <code>ok</code>; failures print panics/asserts—fix by aligning with existing fixtures before widening ambition.</p>
+                    <ul class="assignment-checklist">
+                        <li><label class="assignment-check-card" for="assign-contrib-sim"><input type="checkbox" id="assign-contrib-sim" data-assignment-check="contrib-sim" /> <span class="assignment-check-label">Segment 3 done — my new simulation E2E passes locally.</span></label></li>
+                    </ul>
+                </div>
+
+                <div class="assignment-step-block" id="assignment-segment-4">
+                    <div class="assignment-segment-head">
+                        <h4>Segment 4 — Extend production E2E + open the PR</h4>
+                        <span class="assignment-time-pill">⏱️ ~10–25 min</span>
+                    </div>
+                    <p class="assignment-outcome"><strong>By the end:</strong> One focused production change (assertion, invariant, or short scenario on existing setup) is passing under the prod command, and you have (or are ready to open) a PR from your fork.</p>
+                    <p>Prefer a <strong>surgical</strong> edit in <code>crates/production/tests/e2e_tests.rs</code>—extend <code>test_production_runner_with_network</code>’s setup rather than spawning new multi-node complexity unless a maintainer agreed.</p>
+                    <pre class="code-block-light"><code>RUST_LOG=debug cargo test -p hyperscale-production --test e2e_tests &lt;your_test_name&gt; -- --test-threads=1 --nocapture</code></pre>
+                    <p class="assignment-run-note"><strong>What you should see:</strong> Same as Segment 2 style output—your test name listed with <code>ok</code>. Keep using <code>--test-threads=1</code> until you are confident the test is deterministic.</p>
+                    <p>Then follow <strong>Section 3 — Submitting Your PR</strong> below: fork workflow, PR body with both <code>cargo test</code> lines you ran, link to issue when helpful.</p>
+                    <ul class="assignment-checklist">
+                        <li><label class="assignment-check-card" for="assign-contrib-prod"><input type="checkbox" id="assign-contrib-prod" data-assignment-check="contrib-prod" /> <span class="assignment-check-label">Segment 4 done — production addition passes; PR opened or branch ready with verification commands.</span></label></li>
+                    </ul>
+                </div>
+
+                <div class="info" style="margin-top: 1rem;">
+                    <p style="margin-top:0;"><strong>Why these four?</strong> Segments 1–2 build reading muscle and a personal map of the repo; segments 3–4 turn that map into commits CI can replay. A fifth “reflection” step is optional—fold a sentence into your PR description instead.</p>
+                    <p style="margin-bottom:0;"><strong>When stuck:</strong> Ship simulation first; mirror to production only after green. Follow existing builders; keep tests deterministic.</p>
+                </div>
+
+                <h4>Success criteria</h4>
+                <ul>
+                    <li>✅ Two numbered traces (sim + prod) with code anchors—not only prose summary</li>
+                    <li>✅ One new simulation E2E and one production E2E extension, both green with the commands above (or documented env blocker for prod)</li>
+                    <li>✅ PR from fork includes verification commands and issue link when scope was non-obvious</li>
+                </ul>
+
+                <div class="oss-payoff">
+                    <strong>The sweet part:</strong> You walked the same paths CI walks—fast simulation for iteration, production harness for reality—and left evidence others can replay.
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>3. Submitting Your PR</h2>
+            <p class="hs-suggested-study-lead" style="margin-top: 0;">After you’ve carried out the practical assignment above, use this checklist to open and land your contribution (include the exact <code>RUST_LOG=debug cargo test -p hyperscale-simulation …</code> and <code>RUST_LOG=debug cargo test -p hyperscale-production …</code> commands you ran).</p>
+
+            <div class="oss-contrib-step">
+                <h3>Step 1 — Fork upstream, then branch on <em>your</em> copy</h3>
+                <p><strong>Upstream</strong> is the canonical project repo (e.g. hyperscale-rs in the org). As an outside contributor you almost never get permission to push branches straight there—you wouldn’t be able to anyway without maintainer write access.</p>
+                <p><strong>What to do instead:</strong> On GitHub, <strong>fork</strong> the upstream repo into your account. Clone <em>your fork</em> (or add it as <code>origin</code>), create a branch with a clear name such as <code>docs/improve-core-traits</code> or <code>tests/add-event-coverage</code>, commit there, and <strong>push to your fork</strong>. Then open a pull request <strong>from your fork’s branch into upstream</strong>. One logical change per PR.</p>
+                <p><strong>Maintainers</strong> with direct push access may branch on the upstream repo; everyone else should stick to fork → PR.</p>
+                <div class="oss-expected"><strong>Expected result:</strong> Your pushes succeed because they target a repo you control; reviewers see a normal PR from fork to upstream; your branch name still tells a story at a glance.</div>
+            </div>
+
+            <div class="oss-contrib-step">
+                <h3>Step 2 — Describe and link</h3>
+                <p>In the PR body: reference the issue (<code>Fixes #42</code> / <code>Closes #42</code> when appropriate), say what you changed, why, and how you verified it—for example: “Added unit tests for <code>handle(ProposalTimer)</code> when node is proposer; ran <code>cargo test</code>, green.”</p>
+                <div class="oss-expected"><strong>Expected result:</strong> A reviewer can approve without guessing your intent; you look thorough, not flashy.</div>
+            </div>
+
+            <div class="oss-contrib-step">
+                <h3>Step 3 — Commit messages that match the house style</h3>
+                <p>Follow the repo’s <code>CONTRIBUTING.md</code> for commit and PR conventions. Common shape: short imperative subject (&lt;72 chars), optional body—e.g. <code>docs(core): clarify StateMachine trait contract</code> or <code>test(bft): add ProposalTimer proposer path</code>.</p>
+                <div class="oss-expected"><strong>Expected result:</strong> CI and maintainers recognize the format; your commits read like part of the project history.</div>
+            </div>
+
+            <div class="oss-contrib-step">
+                <h3>Step 4 — Run checks and respond with grace</h3>
+                <p>Run <code>cargo test</code>, <code>cargo doc</code>, and any other checks the repo documents. When feedback arrives, treat it as collaboration: ask if something is unclear, push fixes in small commits or as requested.</p>
+                <div class="oss-expected"><strong>Expected result:</strong> CI passes; conversation stays constructive; you finish feeling respected even if the last tweak is tiny.</div>
+            </div>
+        </div>
+
+        <div class="section hs-suggested-study-section" id="suggested-crates-files-to-study">
+            <h2>Suggested crates / files to study</h2>
+            <p class="hs-suggested-study-lead">Guides, contributing policy, and E2E integration tests you will touch in this assignment.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="hs-suggested-study-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Focus</th>
+                            <th scope="col">Path</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Simulation E2E</td>
+                            <td><a href="#" data-file="crates/simulation/tests/e2e_tests.rs" target="_blank" rel="noopener">crates/simulation/tests/e2e_tests.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>Production E2E</td>
+                            <td><a href="#" data-file="crates/production/tests/e2e_tests.rs" target="_blank" rel="noopener">crates/production/tests/e2e_tests.rs</a></td>
+                        </tr>
+                        <tr>
+                            <td>Guides</td>
+                            <td><a href="#" data-repo target="_blank" rel="noopener">hyperscale-rs</a> → <code>guides/</code> (long-form docs)</td>
+                        </tr>
+                        <tr>
+                            <td>Contributing</td>
+                            <td>Repo root: <a href="#" data-file="CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md</a></td>
+                        </tr>
+                        <tr>
+                            <td>Other integration tests</td>
+                            <td>Per crate: <code>crates/&lt;crate&gt;/tests/</code>; workspace-level <code>tests/</code> where used</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="navigation">
+            <a href="../basic/module-04-state-machines.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="module-01-overview.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../../common/course-data.js"></script>
+    <script src="../../common/hyperscale-flow-data.js"></script>
+    <script src="../../common/hyperscale-links.js"></script>
+    <script src="../../common/navigation.js"></script>
+    <script src="../../common/protocol-engineer-track.js"></script>
+    <script src="../../common/glossary.js"></script>
+    <script>
+        (function () {
+            var PREFIX = 'basic-06-assignment-';
+            var LEGACY_KEYS = ['step0', 'step1sim', 'step1prod', 'step2', 'step3', 'reflect'];
+
+            /**
+             * One-time migration from pre–four-segment assignment keys (step0…reflect)
+             * to trace-sim / trace-prod / contrib-sim / contrib-prod.
+             */
+            try {
+                if (localStorage.getItem(PREFIX + 'migrated-v2') !== '1') {
+                    function wasChecked(suffix) {
+                        return localStorage.getItem(PREFIX + suffix) === '1';
+                    }
+                    function turnOn(suffix) {
+                        localStorage.setItem(PREFIX + suffix, '1');
+                    }
+                    if (wasChecked('step1sim') || wasChecked('step0')) turnOn('trace-sim');
+                    if (wasChecked('step1prod')) turnOn('trace-prod');
+                    if (wasChecked('step2')) turnOn('contrib-sim');
+                    if (wasChecked('step3')) turnOn('contrib-prod');
+                    LEGACY_KEYS.forEach(function (k) {
+                        localStorage.removeItem(PREFIX + k);
+                    });
+                    localStorage.setItem(PREFIX + 'migrated-v2', '1');
+                }
+            } catch (e) {}
+
+            document.querySelectorAll('[data-assignment-check]').forEach(function (cb) {
+                var key = PREFIX + cb.getAttribute('data-assignment-check');
+                try {
+                    cb.checked = localStorage.getItem(key) === '1';
+                } catch (e) {}
+                cb.addEventListener('change', function () {
+                    try {
+                        localStorage.setItem(key, cb.checked ? '1' : '0');
+                    } catch (e) {}
+                });
+            });
+        })();
+    </script>
+    <script src="../../common/module-init.js" data-module-id="basic-06"></script>
+</body>
+</html>

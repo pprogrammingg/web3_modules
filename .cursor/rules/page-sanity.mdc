@@ -1,0 +1,22 @@
+---
+description: Run HTML sanity script after changing landing, layouts, or asset paths
+globs: index.html, hyperscale/index.html, solana-core/**/*.html, common/*.html, common/*.css, common/*.js
+alwaysApply: false
+---
+
+# Page sanity checks
+
+After editing **landing cards**, **track hubs**, **relative paths** to `common/`, or **external `<a href="https://...">` links**, run:
+
+```bash
+node scripts/sanity-pages.js
+```
+
+This verifies:
+
+- Root **`index.html`** still has both **Hyperscale** and **Solana Core** cards and the glossary link.
+- **`hyperscale/index.html`**, **`solana-core/index.html`**, **`common/glossary.html`**, **`animations/index.html`**: local **CSS/JS** paths resolve to existing files.
+- Every **Hyperscale module** listed in **`common/course-data.js`**: same asset checks; **`http(s)`** links use **`target="_blank"`** and **`rel`** including **`noopener`**.
+- All **`solana-core/**/*.html`** pages: same checks.
+
+Use alongside **`node verify-paths.js`** (path contract) and **`bash test-all.sh`** for broader checks.

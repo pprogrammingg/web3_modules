@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyperscale-rs Learning Journey</title>
+    <link rel="stylesheet" href="../common/styles.css" id="main-styles">
+    <script src="../common/ensure-styles.js"></script>
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="All tracks">← All tracks</a>
+    </nav>
+    <div class="container">
+        <header>
+            <h1>🚀 Blockchain & Hyperscale-rs Learning Journey</h1>
+            <p class="subtitle">Seven levels — exactly three modules each — structured path toward elite decentralized protocol engineering (Levels 2–7 include one purple OSS contribution module; Level 1 is foundations + transaction-flow map only)</p>
+        </header>
+
+        <div class="info elite-course-banner" style="margin: 1.25rem 0 2rem; padding: 1.35rem 1.5rem;">
+            <h3 style="margin-top: 0;">Who this trains</h3>
+            <p>This is deliberate coursework for engineers growing along the whole ladder—<strong>junior</strong>, <strong>intermediate</strong>, <strong>senior</strong>, <strong>tech lead</strong>, <strong>staff</strong>, and beyond. The primary outcome is not “know Hyperscale-rs only”; it is to think like a <strong>protocol engineer</strong>: precise about consensus and economics, rigorous in Rust, calm under partial synchrony, and fluent in networking and ops when shipping nodes.</p>
+            <p><strong>Hyperscale-rs</strong> is the cutting-edge lab—a serious Rust workspace where BFT, execution, cryptography, simulation, and libp2p meet. Every module ends with a <strong>Protocol engineer track</strong> panel: transferable Rust idioms, curated further reading, and protocol trivia so you round out as a professional, not only a tourist in one repo.</p>
+            <table class="elite-ladder-table" aria-label="Course level to career band">
+                <thead>
+                    <tr><th scope="col">Level</th><th scope="col">Approximate engineering band</th><th scope="col">What deepens here</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td>Junior → protocol-literate</td><td>Vocabulary, consensus, tx-flow map (reading-first)</td></tr>
+                    <tr><td>2</td><td>Mid → systems thinker</td><td>CAP, events, <strong>first OSS PR</strong></td></tr>
+                    <tr><td>3</td><td>Senior-minded → cartographer</td><td>Repo orientation, issue culture, crate mental map</td></tr>
+                    <tr><td>4</td><td>Senior → consensus &amp; sharding</td><td>BFT routines, cross-shard reasoning</td></tr>
+                    <tr><td>5</td><td>Senior / Staff- → execution &amp; crypto</td><td>VM boundaries, crypto ops, liveness timers</td></tr>
+                    <tr><td>6</td><td>Staff → measurement &amp; proof</td><td>Benches, E2E harnesses, observability</td></tr>
+                    <tr><td>7</td><td>Staff / Principal → P2P &amp; platform</td><td>libp2p production patterns, operator UX</td></tr>
+                </tbody>
+            </table>
+            <p style="margin-bottom: 0; font-size: 0.92rem; color: var(--text2);">Bands are guides, not gates—many people revisit levels as their role changes. Expect to iterate through the journey with us.</p>
+        </div>
+
+        <div class="progress-section">
+            <h2>Your Progress</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" id="overall-progress"></div>
+            </div>
+            <p id="progress-text">0% Complete</p>
+        </div>
+
+        <div class="info" style="margin: 2rem 0; padding: 1.5rem;">
+            <h3 style="margin-top: 0;">Course Structure</h3>
+            <p>Each <strong>Level</strong> (1–7) lists <strong>exactly three modules</strong>. <strong>Levels 2–7</strong> pair two learning tracks with <strong>one OSS contribution module</strong> (purple card, tied to a hyperscale-rs issue). <strong>Level 1</strong> is vocabulary → consensus → <strong>single-shard transaction flow</strong> so you see concrete Hyperscale wiring before long reading runs; your first hands-on OSS PR starts in <strong>Level 2</strong>. Contribution modules spell out steps and expected results so PR work feels guided.</p>
+            <ul>
+                <li><strong>Levels 1–3</strong> — Foundations → systems thinking → Hyperscale orientation &amp; crate map</li>
+                <li><strong>Levels 4–5</strong> — Sharding, BFT, cross-shard, then execution / timing / cryptography</li>
+                <li><strong>Levels 6–7</strong> — Measurement, E2E tests, lab project → libp2p depth &amp; packaging</li>
+            </ul>
+            <p>Hyperscale-rs–specific modules keep the <span style="background: #fef3c7; color: #92400e; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.9rem;">Hyperscale-rs</span> badge; contribution slots also show an <strong>OSS contribution</strong> pill with a light purple card treatment.</p>
+        </div>
+
+        <div class="timeline">
+            <div class="timeline-section">
+                <h2>📚 Level 1</h2>
+                <p class="phase-description">Three modules: blockchain literacy → consensus vocabulary → single-shard transaction flow (hands-on OSS starts Level 2).</p>
+                <div id="basic-modules"></div>
+            </div>
+
+            <div class="timeline-section">
+                <h2>🔧 Levels 2–5</h2>
+                <p class="phase-description">Systems theory, Hyperscale orientation, then shard/BFT/cross-shard and execution/crypto—three modules per level.</p>
+                <div id="intermediate-modules"></div>
+            </div>
+
+            <div class="timeline-section">
+                <h2>⚡ Levels 6–7</h2>
+                <p class="phase-description">Perf + E2E testing + lab project, then the libp2p stack ending with infra/service contributions.</p>
+                <div id="advanced-modules"></div>
+            </div>
+
+            <div class="timeline-section">
+                <h2>🎯 Hyperscale-rs only (by level)</h2>
+                <p class="phase-description">Filtered view of the same <strong>Level 1–7</strong> path for Hyperscale-rs–tagged modules.</p>
+                <div id="hyperscale-modules"></div>
+            </div>
+        </div>
+
+        <div class="resources">
+            <h2>📖 Resources</h2>
+            <div class="resource-grid">
+                <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener" class="resource-card">
+                    <span class="resource-icon" aria-hidden="true">⚙️</span>
+                    <h3 class="resource-title">Hyperscale-rs GitHub</h3>
+                    <p class="resource-desc">Source code, issues, and contributions</p>
+                    <span class="resource-arrow">→</span>
+                </a>
+                <a href="../common/glossary.html" class="resource-card">
+                    <span class="resource-icon" aria-hidden="true">📚</span>
+                    <h3 class="resource-title">Glossary</h3>
+                    <p class="resource-desc">Hover over <span class="glossary-term" data-glossary="blockchain">terms</span> in modules for quick definitions</p>
+                    <span class="resource-arrow">→</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="info" style="margin-top: 2rem;">
+            <h3>How to Use This Course</h3>
+            <ol>
+                <li><strong>Start at Level 1</strong> - Even if you have some experience, the foundation modules anchor the rest of the path</li>
+                <li><strong>Progress by level number</strong> — Complete all three modules in a level before jumping ahead unless you already know the topic</li>
+                <li><strong>Complete All Sections</strong> - Read content, take quizzes, complete assignments</li>
+                <li><strong>Focus on Hyperscale-rs Modules</strong> - If your goal is to contribute to hyperscale-rs, prioritize those modules</li>
+                <li><strong>Take Your Time</strong> - Each module is designed for 1.5-2 hours. Don't rush!</li>
+                <li><strong>Scroll to the Protocol engineer track</strong> — At the bottom of each module, curated Rust depth, readings, and protocol snacks scale with your level; revisit after promotions or role changes.</li>
+            </ol>
+        </div>
+    </div>
+
+    <script src="../common/course-data.js"></script>
+    <script src="../common/navigation.js"></script>
+    <script src="../common/glossary.js"></script>
+    <script>
+        initializeCourseIndex();
+    </script>
+</body>
+</html>

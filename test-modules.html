@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Course Module Tests</title>
-    <link rel="stylesheet" href="shared/styles.css">
+    <link rel="stylesheet" href="common/styles.css" id="main-styles">
+    <script src="common/ensure-styles.js"></script>
 </head>
 <body>
     <nav class="site-home-bar">
@@ -12,12 +13,12 @@
     </nav>
     <div class="course-content">
         <h1>🧪 Course Module Tests</h1>
-        <p>Checks that each module loads and includes shared CSS and JS.</p>
+        <p>Checks that each module loads and includes common CSS and JS.</p>
         <button class="btn btn-primary" onclick="runTests()">Run All Tests</button>
         <div id="results"></div>
     </div>
-    <script src="shared/course-data.js"></script>
-    <script src="shared/navigation.js"></script>
+    <script src="common/course-data.js"></script>
+    <script src="common/navigation.js"></script>
     <script>
         function getAvailableModules() {
             const list = [];

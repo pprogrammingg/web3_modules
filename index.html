@@ -3,100 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hyperscale-rs Learning Journey</title>
-    <link rel="stylesheet" href="shared/styles.css">
+    <title>Web3 Protocol Modules — Choose a track</title>
+    <link rel="stylesheet" href="common/styles.css" id="main-styles">
+    <script src="common/ensure-styles.js"></script>
+    <style>
+        .track-landing {
+            min-height: 70vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem 3rem;
+        }
+        .track-landing h1 {
+            font-size: clamp(1.75rem, 4vw, 2.35rem);
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+        .track-landing .lede {
+            color: var(--text2);
+            max-width: 36rem;
+            text-align: center;
+            margin-bottom: 2.25rem;
+            line-height: 1.55;
+        }
+        .track-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            max-width: 820px;
+            width: 100%;
+        }
+        .track-card {
+            display: block;
+            border-radius: 14px;
+            padding: 1.75rem 1.5rem;
+            text-decoration: none;
+            color: inherit;
+            border: 1px solid rgba(255,255,255,0.12);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .track-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 18px 48px rgba(0,0,0,0.35);
+        }
+        .track-card--hyperscale {
+            background: linear-gradient(145deg, #1e3a5f 0%, #0f2744 45%, #0a1628 100%);
+        }
+        .track-card--solana {
+            background: linear-gradient(145deg, #3d1f5c 0%, #241438 50%, #140a22 100%);
+        }
+        .track-card-badge {
+            display: inline-block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            opacity: 0.85;
+            margin-bottom: 0.75rem;
+        }
+        .track-card h2 {
+            margin: 0 0 0.65rem;
+            font-size: 1.45rem;
+        }
+        .track-card p {
+            margin: 0;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: rgba(255,255,255,0.88);
+        }
+        .track-card-arrow {
+            position: absolute;
+            right: 1.25rem;
+            bottom: 1.25rem;
+            font-size: 1.35rem;
+            opacity: 0.9;
+        }
+        .track-footer-links {
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            color: var(--text2);
+        }
+        .track-footer-links a {
+            color: var(--accent, #7cb8ff);
+        }
+    </style>
 </head>
 <body>
     <nav class="site-home-bar">
-        <a href="index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+        <span class="site-home-link" aria-current="page">Web3 modules</span>
     </nav>
-    <div class="container">
-        <header>
-            <h1>🚀 Blockchain & Hyperscale-rs Learning Journey</h1>
-            <p class="subtitle">From foundations to expert contributor — one numbered path (Levels 1–11)</p>
-        </header>
-
-        <div class="progress-section">
-            <h2>Your Progress</h2>
-            <div class="progress-bar">
-                <div class="progress-fill" id="overall-progress"></div>
-            </div>
-            <p id="progress-text">0% Complete</p>
+    <div class="track-landing container">
+        <h1>Choose your learning track</h1>
+        <p class="lede">Structured web modules for protocol engineering—pick <strong>Hyperscale</strong> (Rust / Radix-style journey) or <strong>Solana Core</strong> (validator and runtime depth). Shared glossary and styles live under <code>common/</code>.</p>
+        <div class="track-grid">
+            <a href="hyperscale/index.html" class="track-card track-card--hyperscale">
+                <span class="track-card-badge">Rust · BFT · libp2p</span>
+                <h2>Hyperscale</h2>
+                <p>Seven levels, three modules each—foundations through measurement, E2E, and networking. Anchored on the hyperscale-rs workspace and OSS contribution slots.</p>
+                <span class="track-card-arrow" aria-hidden="true">→</span>
+            </a>
+            <a href="solana-core/index.html" class="track-card track-card--solana">
+                <span class="track-card-badge">Validator · runtime · BPF</span>
+                <h2>Solana Core</h2>
+                <p>Parallel track grounded in the Solana monorepo: levels with reading segments (10–25 min), cross-linked modules, and the same glossary.</p>
+                <span class="track-card-arrow" aria-hidden="true">→</span>
+            </a>
         </div>
-
-        <div class="info" style="margin: 2rem 0; padding: 1.5rem;">
-            <h3 style="margin-top: 0;">Course Structure</h3>
-            <p>The index uses a <strong>single Level number</strong> from <strong>1 through 11</strong> (no separate “Basic” band name on the page):</p>
-            <ul>
-                <li><strong>Level 1</strong> — Foundations (blockchain, consensus, distributed systems, state machines, Hyperscale orientation)</li>
-                <li><strong>Levels 2–6</strong> — Protocol deep dive, implementation, testing, simulation, storage, and intermediate contributions</li>
-                <li><strong>Levels 7–11</strong> — Advanced view changes, performance, security, scale, production, testing, and major contributions</li>
-            </ul>
-            <p>Each level block uses a repeating color cycle so the path is easy to scan. Modules are marked with a <span style="background: #fef3c7; color: #92400e; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.9rem;">Hyperscale-rs</span> badge when they're specific to the hyperscale-rs codebase. <strong>Coming Soon</strong> modules still appear in their level so you can see the full roadmap.</p>
-        </div>
-
-        <div class="timeline">
-            <div class="timeline-section">
-                <h2>📚 Level 1 — Foundations</h2>
-                <p class="phase-description">Start here if you're new to blockchain or hyperscale-rs. Same content as before; only the section title uses the global level number.</p>
-                <div id="basic-modules"></div>
-            </div>
-
-            <div class="timeline-section">
-                <h2>🔧 Levels 2–6 — Protocol &amp; implementation</h2>
-                <p class="phase-description">Implementation depth and intermediate contributions. Work through <strong>Level 2</strong> upward when you can; each band uses the same 5-color cycle as the rest of the path.</p>
-                <div id="intermediate-modules"></div>
-            </div>
-
-            <div class="timeline-section">
-                <h2>⚡ Levels 7–11 — Advanced topics</h2>
-                <p class="phase-description">Advanced protocols, hardening, scale, operations, and contribution capstones. Levels continue the same numbering from the intermediate track.</p>
-                <div id="advanced-modules"></div>
-            </div>
-
-            <div class="timeline-section">
-                <h2>🎯 Hyperscale-rs only (by level)</h2>
-                <p class="phase-description">The same <strong>Level 1–11</strong> path, showing only Hyperscale-rs–specific modules.</p>
-                <div id="hyperscale-modules"></div>
-            </div>
-        </div>
-
-        <div class="resources">
-            <h2>📖 Resources</h2>
-            <div class="resource-grid">
-                <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener" class="resource-card">
-                    <span class="resource-icon" aria-hidden="true">⚙️</span>
-                    <h3 class="resource-title">Hyperscale-rs GitHub</h3>
-                    <p class="resource-desc">Source code, issues, and contributions</p>
-                    <span class="resource-arrow">→</span>
-                </a>
-                <a href="glossary.html" class="resource-card">
-                    <span class="resource-icon" aria-hidden="true">📚</span>
-                    <h3 class="resource-title">Glossary</h3>
-                    <p class="resource-desc">Hover over <span class="glossary-term" data-glossary="blockchain">terms</span> in modules for quick definitions</p>
-                    <span class="resource-arrow">→</span>
-                </a>
-            </div>
-        </div>
-
-        <div class="info" style="margin-top: 2rem;">
-            <h3>How to Use This Course</h3>
-            <ol>
-                <li><strong>Start at Level 1</strong> - Even if you have some experience, the foundation modules anchor the rest of the path</li>
-                <li><strong>Progress by level number</strong> - Follow Levels 2→6, then 7→11 when you can; skip only when you already know the topic</li>
-                <li><strong>Complete All Sections</strong> - Read content, take quizzes, complete assignments</li>
-                <li><strong>Focus on Hyperscale-rs Modules</strong> - If your goal is to contribute to hyperscale-rs, prioritize those modules</li>
-                <li><strong>Take Your Time</strong> - Each module is designed for 1.5-2 hours. Don't rush!</li>
-            </ol>
-        </div>
+        <p class="track-footer-links"><a href="common/glossary.html">📚 Glossary</a> · <a href="animations/index.html">Animations hub</a></p>
     </div>
-
-    <script src="shared/course-data.js"></script>
-    <script src="shared/navigation.js"></script>
-    <script src="shared/glossary.js"></script>
-    <script>
-        // Initialize course navigation
-        initializeCourseIndex();
-    </script>
 </body>
 </html>

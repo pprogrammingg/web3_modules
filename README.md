@@ -1,6 +1,6 @@
-# Blockchain & Hyperscale-rs Learning Journey
+# Web3 protocol modules
 
-Structured path from blockchain fundamentals to contributing to hyperscale-rs.
+Static HTML/CSS/JS courses: open **`index.html`** for the track picker (**Hyperscale** vs **Solana Core**). Shared assets and glossary live under **`common/`**; Hyperscale modules under **`hyperscale/`**; Solana reading segments under **`solana-core/`**.
 
 ## Build and open the project
 
@@ -23,23 +23,23 @@ Structured path from blockchain fundamentals to contributing to hyperscale-rs.
 
 **To run checks (optional):**
 ```bash
-node verify-paths.js    # Verify file paths
-./test-all.sh          # Run all tests
+node verify-paths.js       # Module paths vs course-data
+node scripts/sanity-pages.js   # Landing cards, hubs, local CSS/JS, external links
+./test-all.sh              # Includes both above plus quiz/CSS/JS smoke checks
 ```
 
 ## Quick Start
 
 1. Open `index.html` in your browser (or via a local server as above).
-2. Start with **Basic Level** modules.
-3. Complete modules: read → quiz → assignment → mark complete.
+2. Choose **Hyperscale** or **Solana Core**.
+3. For Hyperscale: start at Level 1 and follow module cards; complete read → quiz → assignment → mark complete where applicable.
 
 ## Structure
 
-- **Basic** - Foundation concepts
-- **Intermediate** - Implementation & contributions  
-- **Advanced** - Advanced concepts & optimization
-
-Modules marked **Hyperscale-rs** are codebase-specific.
+- **`common/`** — Styles, course data, navigation, glossary, hyperscale flow/link helpers
+- **`hyperscale/`** — `basic/`, `intermediate/`, `advanced/`, `hyperscale-rs/` modules + `hyperscale/index.html` (full journey)
+- **`solana-core/`** — Parallel track (levels, reading segments); glossary links point at `common/glossary.html`
+- **`animations/`** — Diagram experiments (uses `../common/styles.css` plus local `animations/shared/` JS)
 
 ## Deploy (GitHub Pages)
 

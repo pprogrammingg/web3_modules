@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Core — OSS contribution (guided issue)</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Solana Core home">← Solana Core</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
+    </nav>
+    <div class="course-content container">
+        <div class="course-header">
+            <h1>OSS contribution — guided issue / bench / small fix</h1>
+            <div class="course-meta">
+                <span>⏱️ 2–4 hours</span>
+                <span>📊 Solana Core · Level 3 · <strong>OSS contribution</strong></span>
+            </div>
+        </div>
+
+        <div class="info" style="margin: 1rem 0 1.25rem;">
+            <p style="margin: 0;"><strong>Cadence:</strong> Matches Hyperscale Level 3’s pattern—orientation + deep read, then a purple OSS slot with issue-linked work (#23-style specificity can be mirrored once you attach a real GitHub issue number).</p>
+        </div>
+
+        <div class="section">
+            <h2>Outcomes</h2>
+            <ul>
+                <li>Select or negotiate an issue that touches runtime, ledger, or benches—after you can trace banking/replay from Level 3 readings.</li>
+                <li>Deliver tests or benchmarks that fail before / pass after your change when applicable.</li>
+                <li>Document rollout risk for consensus-adjacent paths (even small changes).</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Resources</h2>
+            <ul>
+                <li><a href="https://github.com/solana-labs/solana/issues" target="_blank" rel="noopener noreferrer">Issues — solana-labs/solana</a></li>
+                <li><a href="https://github.com/solana-labs/solana/blob/master/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">CONTRIBUTING.md</a></li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Teaching maintainer loop</h2>
+            <p>Same bar as Hyperscale OSS modules: reproducible commands, minimal blast radius, early draft PR optional. Pair with <code>scripts/check-solana-changes.js --save</code> after upstream sync.</p>
+            <p>Prior reading: <a href="module-02-banking-replay-pipeline.html">Banking &amp; replay pipeline</a>. <a href="../../common/glossary.html">Glossary</a>.</p>
+        </div>
+
+        <p><a href="../index.html" class="btn btn-secondary">← Back to Solana Core</a></p>
+    </div>
+</body>
+</html>

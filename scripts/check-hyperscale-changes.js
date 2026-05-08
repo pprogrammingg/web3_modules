@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Check which hyperscale-rs paths changed (git diff) and which flow steps / teaching
- * modules are affected. Update the flow data in shared/hyperscale-flow-data.js first,
+ * modules are affected. Update the flow data in common/hyperscale-flow-data.js first,
  * then run this to see which HTML modules to re-check.
  *
  * Usage:
@@ -9,11 +9,11 @@
  *   node scripts/check-hyperscale-changes.js --save
  *
  *   diff-target: commit or branch to diff against. If omitted, uses the stored
- *   "last synced" commit (shared/hyperscale-rs-last-synced.txt) if present, else main.
+ *   "last synced" commit (common/hyperscale-rs-last-synced.txt) if present, else main.
  *   So after you pull hyperscale-rs, run once with no args to see changes since last
  *   recorded baseline; then run with --save to record current HEAD as the new baseline.
  *
- *   --save: write current hyperscale-rs HEAD to shared/hyperscale-rs-last-synced.txt
+ *   --save: write current hyperscale-rs HEAD to common/hyperscale-rs-last-synced.txt
  *   and exit. Use after you've pulled and updated modules so the next run diffs
  *   against this commit.
  *
@@ -26,9 +26,9 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
-const SHARED_DIR = path.join(REPO_ROOT, 'shared');
-const FLOW_DATA_PATH = path.join(SHARED_DIR, 'hyperscale-flow-data.js');
-const LAST_SYNCED_PATH = path.join(SHARED_DIR, 'hyperscale-rs-last-synced.txt');
+const COMMON_DIR = path.join(REPO_ROOT, 'common');
+const FLOW_DATA_PATH = path.join(COMMON_DIR, 'hyperscale-flow-data.js');
+const LAST_SYNCED_PATH = path.join(COMMON_DIR, 'hyperscale-rs-last-synced.txt');
 
 const configPath = path.join(__dirname, 'hyperscale-repo.config.js');
 const defaultRepoPath = fs.existsSync(configPath) ? require(configPath).DEFAULT_LOCAL_REPO_PATH : null;
@@ -41,7 +41,7 @@ const diffTarget = diffTargetArg || (fs.existsSync(LAST_SYNCED_PATH) ? fs.readFi
 
 function loadFlowData() {
     if (!fs.existsSync(FLOW_DATA_PATH)) {
-        console.error('Missing shared/hyperscale-flow-data.js');
+        console.error('Missing common/hyperscale-flow-data.js');
         process.exit(1);
     }
     // Load as Node module (the file sets module.exports when module is defined)
@@ -137,7 +137,7 @@ function main() {
     console.log('Changed files (excluding vendor/):', changedFiles.length);
     console.log('');
     if (affectedFileRefs.length > 0) {
-        console.log('Affected FILE_REFS (update shared/hyperscale-flow-data.js and check modules):');
+        console.log('Affected FILE_REFS (update common/hyperscale-flow-data.js and check modules):');
         affectedFileRefs.forEach(({ path: p, note }) => console.log('  -', p, '→', note));
         console.log('');
     }
