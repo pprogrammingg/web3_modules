@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="../common/styles.css" id="main-styles">
     <script src="../common/ensure-styles.js"></script>
     <style>
+        /* Hub-only: hero + cadence note (cards use shared .module-card / .course-level-band from styles.css) */
         .solana-hero {
             background: linear-gradient(135deg, rgba(88, 44, 131, 0.35) 0%, rgba(20, 10, 34, 0.5) 100%);
             border: 1px solid rgba(168, 85, 247, 0.25);
@@ -15,52 +16,17 @@
             margin-bottom: 2rem;
         }
         .solana-hero h1 { margin-top: 0; }
-        .level-card {
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 1.25rem 1.15rem;
-            margin-bottom: 1.5rem;
-            background: var(--bg2, rgba(0,0,0,0.2));
-        }
-        .level-card h2 { margin-top: 0; font-size: 1.15rem; }
-        .module-row { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.75rem; align-items: stretch; }
-        .module-row a {
-            display: inline-flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.25rem;
-            padding: 0.45rem 0.85rem;
-            border-radius: 8px;
-            background: rgba(168, 85, 247, 0.15);
-            border: 1px solid rgba(168, 85, 247, 0.35);
-            color: inherit;
-            text-decoration: none;
-            font-size: 0.92rem;
-        }
-        .module-row a:hover { background: rgba(168, 85, 247, 0.28); }
-        .module-row a.solana-module--contrib {
-            background: rgba(139, 92, 246, 0.22);
-            border-color: rgba(196, 181, 253, 0.55);
-            border-width: 2px;
-        }
-        .module-row a.solana-module--contrib .dur { color: rgba(237, 233, 254, 0.95); }
-        .oss-pill {
-            display: inline-block;
-            font-size: 0.68rem;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: #ede9fe;
-            background: rgba(91, 33, 182, 0.65);
-            padding: 0.15rem 0.45rem;
-            border-radius: 4px;
-        }
-        .dur { color: var(--text2); font-size: 0.85rem; }
         .cadence-note {
             font-size: 0.88rem;
             color: var(--text2);
-            margin-top: 0.75rem;
+            margin: 0.75rem 0 0;
             line-height: 1.45;
+        }
+        .solana-module-blurb {
+            margin: 0;
+            font-size: 0.92rem;
+            line-height: 1.45;
+            color: var(--text2);
         }
     </style>
 </head>
@@ -80,63 +46,112 @@
             <p>Point scripts at your clone (see <code>scripts/solana-repo.config.js</code>, default <code>../other-projects/solana</code>). After pulling upstream: <code>node scripts/check-solana-changes.js</code> then refresh affected pages.</p>
         </div>
 
-        <section class="level-card" aria-labelledby="lvl1">
-            <h2 id="lvl1">Level 1 — Runtime shape</h2>
-            <p>Validator roles, ledger surfaces, and where transactions enter the pipeline. (Three reading modules — contribution work starts in Level 2.)</p>
-            <div class="module-row">
-                <a href="level-01/module-01-architecture-overview.html">
-                    <span>Architecture overview</span>
-                    <span class="dur">~15 min</span>
+        <section class="course-level-band course-level-band--1" aria-labelledby="lvl1">
+            <div class="course-level-band-header">
+                <h2 id="lvl1" class="course-level-band-title">Level 1 — Runtime shape</h2>
+                <p class="course-level-band-desc">Validator roles, ledger surfaces, and where transactions enter the pipeline. (Three reading modules — contribution work starts in Level 2.)</p>
+            </div>
+            <div class="module-grid module-grid--in-phase">
+                <a href="level-01/module-01-architecture-overview.html" class="module-card available">
+                    <h3 class="module-title-with-badges">Architecture overview</h3>
+                    <p class="solana-module-blurb">Roles across gossip, TPU, TVU, and blockstore—how the node is organized.</p>
+                    <div class="module-time-estimate" title="Rough time to read, understand and complete">
+                        <span class="module-time-icon" aria-hidden="true">⏱</span>
+                        <span class="module-time-value">~15 min</span>
+                        <span class="module-time-label">Read, understand &amp; complete</span>
+                    </div>
                 </a>
-                <a href="level-01/module-02-tpu-gossip-overview.html">
-                    <span>TPU &amp; gossip sketch</span>
-                    <span class="dur">~12 min</span>
+                <a href="level-01/module-02-tpu-gossip-overview.html" class="module-card available">
+                    <h3 class="module-title-with-badges">TPU &amp; gossip sketch</h3>
+                    <p class="solana-module-blurb">Ingress path: stages from fetch through banking and where gossip fits.</p>
+                    <div class="module-time-estimate" title="Rough time to read, understand and complete">
+                        <span class="module-time-icon" aria-hidden="true">⏱</span>
+                        <span class="module-time-value">~12 min</span>
+                        <span class="module-time-label">Read, understand &amp; complete</span>
+                    </div>
                 </a>
-                <a href="level-01/module-03-ledger-read-models.html">
-                    <span>Ledger read models</span>
-                    <span class="dur">~18 min</span>
+                <a href="level-01/module-03-ledger-read-models.html" class="module-card available">
+                    <h3 class="module-title-with-badges">Ledger read models</h3>
+                    <p class="solana-module-blurb">Roots, forks, and the surfaces code uses to read blocks and state.</p>
+                    <div class="module-time-estimate" title="Rough time to read, understand and complete">
+                        <span class="module-time-icon" aria-hidden="true">⏱</span>
+                        <span class="module-time-value">~18 min</span>
+                        <span class="module-time-label">Read, understand &amp; complete</span>
+                    </div>
                 </a>
             </div>
         </section>
 
-        <section class="level-card" aria-labelledby="lvl2">
-            <h2 id="lvl2">Level 2 — Accounts, programs &amp; first contribution</h2>
-            <p>Parallel accounts model and BPF boundary, then a guided first contribution—mirrors Hyperscale Level 2 (two concepts + one OSS slot).</p>
-            <p class="cadence-note">Order: read accounts → read loaders/syscalls → complete the contribution module when ready.</p>
-            <div class="module-row">
-                <a href="level-02/module-01-accounts-rent-parallelism.html">
-                    <span>Accounts, rent &amp; parallelism</span>
-                    <span class="dur">~18 min</span>
+        <section class="course-level-band course-level-band--2" aria-labelledby="lvl2">
+            <div class="course-level-band-header">
+                <h2 id="lvl2" class="course-level-band-title">Level 2 — Accounts, programs &amp; first contribution</h2>
+                <p class="course-level-band-desc">Parallel accounts model and BPF boundary, then a guided first contribution—mirrors Hyperscale Level 2 (two concepts + one OSS slot).</p>
+                <p class="cadence-note">Order: read accounts → read loaders/syscalls → complete the contribution module when ready.</p>
+            </div>
+            <div class="module-grid module-grid--in-phase">
+                <a href="level-02/module-01-accounts-rent-parallelism.html" class="module-card available">
+                    <h3 class="module-title-with-badges">Accounts, rent &amp; parallelism</h3>
+                    <p class="solana-module-blurb">Account model, rent exempt threshold, and scheduler-facing parallelism.</p>
+                    <div class="module-time-estimate" title="Rough time to read, understand and complete">
+                        <span class="module-time-icon" aria-hidden="true">⏱</span>
+                        <span class="module-time-value">~18 min</span>
+                        <span class="module-time-label">Read, understand &amp; complete</span>
+                    </div>
                 </a>
-                <a href="level-02/module-02-bpf-loaders-syscalls.html">
-                    <span>BPF loaders &amp; syscall boundary</span>
-                    <span class="dur">~16 min</span>
+                <a href="level-02/module-02-bpf-loaders-syscalls.html" class="module-card available">
+                    <h3 class="module-title-with-badges">BPF loaders &amp; syscall boundary</h3>
+                    <p class="solana-module-blurb">Loader crates, program deployment, and how the runtime dispatches syscalls.</p>
+                    <div class="module-time-estimate" title="Rough time to read, understand and complete">
+                        <span class="module-time-icon" aria-hidden="true">⏱</span>
+                        <span class="module-time-value">~16 min</span>
+                        <span class="module-time-label">Read, understand &amp; complete</span>
+                    </div>
                 </a>
-                <a href="level-02/module-03-contribution-first-pr.html" class="solana-module--contrib">
-                    <span class="oss-pill">OSS contribution</span>
-                    <span>Docs, tests &amp; first PR</span>
-                    <span class="dur">3–5 hours · mergeable slice</span>
+                <a href="level-02/module-03-contribution-first-pr.html" class="module-card available module-card--contribution">
+                    <h3 class="module-title-with-badges">Docs, tests &amp; first PR<span class="badge-contribution">OSS contribution</span></h3>
+                    <p class="solana-module-blurb">Scoped mergeable slice: docs or tests with clear review surface.</p>
+                    <div class="module-time-estimate" title="Rough effort for the contribution slice">
+                        <span class="module-time-icon" aria-hidden="true">⏱</span>
+                        <span class="module-time-value">3–5 hours</span>
+                        <span class="module-time-label">Mergeable contribution slice</span>
+                    </div>
                 </a>
             </div>
         </section>
 
-        <section class="level-card" aria-labelledby="lvl3">
-            <h2 id="lvl3">Level 3 — Run it locally, trace the pipeline, ship a fix</h2>
-            <p>Build and observe like Hyperscale Level 3 orientation: operator/debug skills, then banking/replay literacy, then a scoped contribution with issue hygiene.</p>
-            <p class="cadence-note">Purple module last is intentional—you ship after you can build and read the hot path.</p>
-            <div class="module-row">
-                <a href="level-03/module-01-local-validator-tracing.html">
-                    <span>Local validator &amp; tracing</span>
-                    <span class="dur">~20 min</span>
+        <section class="course-level-band course-level-band--3" aria-labelledby="lvl3">
+            <div class="course-level-band-header">
+                <h2 id="lvl3" class="course-level-band-title">Level 3 — Run it locally, trace the pipeline, ship a fix</h2>
+                <p class="course-level-band-desc">Build and observe like Hyperscale Level 3 orientation: operator/debug skills, then banking/replay literacy, then a scoped contribution with issue hygiene.</p>
+                <p class="cadence-note">Purple module last is intentional—you ship after you can build and read the hot path.</p>
+            </div>
+            <div class="module-grid module-grid--in-phase">
+                <a href="level-03/module-01-local-validator-tracing.html" class="module-card available">
+                    <h3 class="module-title-with-badges">Local validator &amp; tracing</h3>
+                    <p class="solana-module-blurb">Build from source, run localnet, and follow logs across subsystems.</p>
+                    <div class="module-time-estimate" title="Rough time to read, understand and complete">
+                        <span class="module-time-icon" aria-hidden="true">⏱</span>
+                        <span class="module-time-value">~20 min</span>
+                        <span class="module-time-label">Read, understand &amp; complete</span>
+                    </div>
                 </a>
-                <a href="level-03/module-02-banking-replay-pipeline.html">
-                    <span>Banking &amp; replay pipeline</span>
-                    <span class="dur">~18 min</span>
+                <a href="level-03/module-02-banking-replay-pipeline.html" class="module-card available">
+                    <h3 class="module-title-with-badges">Banking &amp; replay pipeline</h3>
+                    <p class="solana-module-blurb">How banking threads consume packets and how replay confirms ledger state.</p>
+                    <div class="module-time-estimate" title="Rough time to read, understand and complete">
+                        <span class="module-time-icon" aria-hidden="true">⏱</span>
+                        <span class="module-time-value">~18 min</span>
+                        <span class="module-time-label">Read, understand &amp; complete</span>
+                    </div>
                 </a>
-                <a href="level-03/module-03-contribution-guided-issue.html" class="solana-module--contrib">
-                    <span class="oss-pill">OSS contribution</span>
-                    <span>Guided issue / bench / small fix</span>
-                    <span class="dur">2–4 hours · labeled “good first issue” optional</span>
+                <a href="level-03/module-03-contribution-guided-issue.html" class="module-card available module-card--contribution">
+                    <h3 class="module-title-with-badges">Guided issue / bench / small fix<span class="badge-contribution">OSS contribution</span></h3>
+                    <p class="solana-module-blurb">Pick a labeled issue or tiny bench—ship with clean repro and tests.</p>
+                    <div class="module-time-estimate" title="Rough effort for the contribution slice">
+                        <span class="module-time-icon" aria-hidden="true">⏱</span>
+                        <span class="module-time-value">2–4 hours</span>
+                        <span class="module-time-label">“Good first issue” optional</span>
+                    </div>
                 </a>
             </div>
         </section>

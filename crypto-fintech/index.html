@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cryptography for Blockchains &amp; FinTech</title>
+    <link rel="stylesheet" href="../common/styles.css" id="main-styles">
+    <script src="../common/ensure-styles.js"></script>
+</head>
+<body class="crypto-track">
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="All tracks">← All tracks</a>
+    </nav>
+    <div class="container">
+        <header>
+            <h1>🔐 Cryptography for Blockchains &amp; FinTech</h1>
+            <p class="subtitle">Seven levels — exactly three modules each — theoretical depth paired with <strong>hands-on labs</strong>. Each module is paced as <strong>~20–25 minute segments</strong> (about <strong>two hours</strong> total reading) plus optional deeper tinkering. <strong>Levels 2–7</strong> include one <strong>guided build</strong> (coral card) per level—shipping small artifacts, not only quizzes.</p>
+        </header>
+
+        <div class="info elite-course-banner" style="margin: 1.25rem 0 2rem; padding: 1.35rem 1.5rem;">
+            <h3 style="margin-top: 0;">Who this trains</h3>
+            <p>Backend and protocol engineers who need <strong>credible cryptography vocabulary</strong>: enough to read specs, review implementations, and collaborate with security teams—without pretending to be a cryptographer. Modules emphasize <strong>what breaks in production</strong> (API misuse, timing, custody, ZK positioning) as much as textbook definitions.</p>
+            <table class="elite-ladder-table" aria-label="Crypto track level overview">
+                <thead>
+                    <tr><th scope="col">Level</th><th scope="col">Focus</th><th scope="col">Hands-on arc</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td>Hashes, AEAD, DH framing</td><td>Small labs every module — no guided capstone yet</td></tr>
+                    <tr><td>2</td><td>Signatures &amp; wallet-shaped keys</td><td><strong>Guided build:</strong> sign / verify CLI</td></tr>
+                    <tr><td>3</td><td>Merkle &amp; state commitments</td><td><strong>Guided build:</strong> proof checker toy</td></tr>
+                    <tr><td>4</td><td>Threshold &amp; custody patterns</td><td><strong>Guided build:</strong> quorum / policy demo</td></tr>
+                    <tr><td>5</td><td>ZK for architects</td><td><strong>Guided build:</strong> Circom hello</td></tr>
+                    <tr><td>6</td><td>FinTech key ops</td><td><strong>Guided build:</strong> secure compare + checklist</td></tr>
+                    <tr><td>7</td><td>Hardening &amp; horizon</td><td><strong>Capstone:</strong> threat model write-up</td></tr>
+                </tbody>
+            </table>
+            <p style="margin-bottom: 0; font-size: 0.92rem; color: var(--text2);">Parallel to <a href="../hyperscale/index.html">Hyperscale</a> and <a href="../solana-core/index.html">Solana Core</a>—reuse the shared <a href="../common/glossary.html">glossary</a>.</p>
+        </div>
+
+        <div class="progress-section">
+            <h2>Your Progress</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" id="crypto-overall-progress"></div>
+            </div>
+            <p id="crypto-progress-text">0% Complete</p>
+        </div>
+
+        <div class="info" style="margin: 2rem 0; padding: 1.5rem;">
+            <h3 style="margin-top: 0;">Course structure</h3>
+            <p>Each <strong>module</strong> uses four <strong>segments</strong> (~20–25 minutes of focused reading). Green badges mark modules with hands-on segments; <strong>Guided build</strong> cards are larger scoped labs designed as portfolio artifacts.</p>
+            <ul>
+                <li><strong>Levels 1–3</strong> — Foundations through Merkle-shaped thinking.</li>
+                <li><strong>Levels 4–5</strong> — Threshold custody patterns and ZK vocabulary.</li>
+                <li><strong>Levels 6–7</strong> — Operated keys in FinTech settings and production-grade realism.</li>
+            </ul>
+        </div>
+
+        <div class="timeline">
+            <div class="timeline-section">
+                <h2>📚 Level 1</h2>
+                <p class="phase-description">Cryptographic primitives used everywhere in chains—four segments per module plus labs.</p>
+                <div id="crypto-basic-modules"></div>
+            </div>
+
+            <div class="timeline-section">
+                <h2>🔧 Levels 2–5</h2>
+                <p class="phase-description">Signatures, Merkle proofs, thresholds, and ZK introductions—with guided builds.</p>
+                <div id="crypto-intermediate-modules"></div>
+            </div>
+
+            <div class="timeline-section">
+                <h2>⚡ Levels 6–7</h2>
+                <p class="phase-description">Operational cryptography and capstone threat modeling.</p>
+                <div id="crypto-advanced-modules"></div>
+            </div>
+        </div>
+
+        <div class="resources">
+            <h2>📖 Resources</h2>
+            <div class="resource-grid">
+                <a href="../common/glossary.html" class="resource-card">
+                    <span class="resource-icon" aria-hidden="true">📚</span>
+                    <h3 class="resource-title">Glossary</h3>
+                    <p class="resource-desc">Hover <span class="glossary-term" data-glossary="digital signature">terms</span> across tracks</p>
+                    <span class="resource-arrow">→</span>
+                </a>
+                <a href="../hyperscale/index.html" class="resource-card">
+                    <span class="resource-icon" aria-hidden="true">🚀</span>
+                    <h3 class="resource-title">Hyperscale track</h3>
+                    <p class="resource-desc">Consensus &amp; protocol engineering journey</p>
+                    <span class="resource-arrow">→</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="../common/crypto-course-data.js"></script>
+    <script src="../common/navigation.js"></script>
+    <script src="../common/crypto-navigation.js"></script>
+    <script src="../common/glossary.js"></script>
+    <script>
+        initializeCryptoCourseIndex();
+    </script>
+</body>
+</html>

@@ -6,6 +6,45 @@
     <title>Solana Core — Architecture overview</title>
     <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
     <script src="../../common/ensure-styles.js"></script>
+    <style>
+        /* Lane colors: responsibility boundaries (matches Hyperscale tx-flow structure) */
+        .solana-tx-flow .flow-step-lane.solana-client { background: #64748b; }
+        .solana-tx-flow .flow-step.solana-client .flow-step-body {
+            border-color: #64748b;
+            background: #f8fafc;
+        }
+        .solana-tx-flow .flow-step-lane.solana-tpu { background: #0d9488; }
+        .solana-tx-flow .flow-step.solana-tpu .flow-step-body {
+            border-color: #0d9488;
+            background: linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 100%);
+        }
+        .solana-tx-flow .flow-step-lane.solana-record { background: #4f46e5; }
+        .solana-tx-flow .flow-step.solana-record .flow-step-body {
+            border-color: #4f46e5;
+            background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 55%, #fafbff 100%);
+        }
+        .solana-tx-flow .flow-step-lane.solana-net { background: #7c3aed; }
+        .solana-tx-flow .flow-step.solana-net .flow-step-body {
+            border-color: #7c3aed;
+            background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+        }
+        .solana-tx-flow .flow-step-lane.solana-tvu { background: #d97706; }
+        .solana-tx-flow .flow-step.solana-tvu .flow-step-body {
+            border-color: #d97706;
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 45%, #fff 100%);
+        }
+        .solana-tx-flow .flow-step-lane.solana-consensus { background: #2563eb; }
+        .solana-tx-flow .flow-step.solana-consensus .flow-step-body {
+            border-color: #2563eb;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        }
+        .solana-legend-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+    </style>
 </head>
 <body>
     <nav class="site-home-bar">
@@ -20,18 +59,167 @@
                 <span>📊 Solana Core · Level 1</span>
             </div>
         </div>
-        <div class="section">
-            <h2>Reading goals</h2>
-            <ul>
-                <li>Place the major crates (ledger, runtime, gossip, banking) in the validator mental map.</li>
-                <li>Know where to open your local <code>solana</code> clone when this module references paths.</li>
-            </ul>
+
+        <div class="section section-tight module-tight-prose">
+            <p>One path from signed transaction to a settled outcome: which subsystems touch the bytes, and in what order. Hover each step for crate hints. Hard terms link to the <a href="../../common/glossary.html">glossary</a>. Next: <a href="module-02-tpu-gossip-overview.html">TPU &amp; gossip sketch</a>.</p>
         </div>
+
         <div class="section">
-            <h2>Stub content</h2>
-            <p>This page is a scaffold. Replace this section with prose tied to tree paths under your clone (see <code>scripts/check-solana-changes.js</code>). Link forward to <a href="module-02-tpu-gossip-overview.html">TPU &amp; gossip sketch</a> and keep terminology aligned with the <a href="../../common/glossary.html">shared glossary</a>.</p>
+            <h2>Transaction → finalization (validator view)</h2>
+            <div class="tx-flow solana-tx-flow">
+                <div class="tx-flow-legend">
+                    <span><span class="solana-legend-dot" style="border:2px solid #64748b;background:#f8fafc;"></span> Client / wire</span>
+                    <span><span class="solana-legend-dot" style="border:2px solid #0d9488;background:#ecfdf5;"></span> <span data-glossary="tpu">TPU</span> ingress</span>
+                    <span><span class="solana-legend-dot" style="border:2px solid #4f46e5;background:#eef2ff;"></span> Leader record</span>
+                    <span><span class="solana-legend-dot" style="border:2px solid #7c3aed;background:#faf5ff;"></span> Propagation</span>
+                    <span><span class="solana-legend-dot" style="border:2px solid #d97706;background:#fffbeb;"></span> <span data-glossary="tvu">TVU</span> + replay</span>
+                    <span><span class="solana-legend-dot" style="border:2px solid #2563eb;background:#eff6ff;"></span> Consensus</span>
+                </div>
+                <div class="tx-flow-diagram">
+                    <div class="flow-step solana-client">
+                        <div class="flow-step-lane solana-client"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">1. Build &amp; sign</div>
+                            <div class="flow-step-desc">Wallet / program builds a transaction and applies <span data-glossary="digital signature">digital signatures</span>.</div>
+                            <div class="flow-step-popup">
+                                <h4>Responsibility</h4>
+                                <p class="outside-note">Off-chain client; not part of the validator binary.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <div class="flow-step solana-client">
+                        <div class="flow-step-lane solana-client"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">2. Submit</div>
+                            <div class="flow-step-desc">Send to a validator (RPC, QUIC to <span data-glossary="tpu">TPU</span>, or relay). This is still “outside” the core pipeline until packets are ingested.</div>
+                            <div class="flow-step-popup">
+                                <h4>Typical crates / dirs</h4>
+                                <ul>
+                                    <li><code>rpc/</code>, <code>client/</code>, <code>quic-client/</code> — entry surfaces</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <div class="flow-step solana-tpu">
+                        <div class="flow-step-lane solana-tpu"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">3. <span data-glossary="tpu">TPU</span>: fetch → verify → bank</div>
+                            <div class="flow-step-desc">Ingress dedupes packets, verifies signatures in batches, then the banking stage schedules work. If this node is the <span data-glossary="block producer">leader</span> for the <span data-glossary="slot">slot</span>, it executes against the live bank; otherwise it may <strong>forward</strong> toward the leader.</div>
+                            <div class="flow-step-popup">
+                                <h4>Responsibility</h4>
+                                <p>Hot path for acceptance + ordering into entries on the leader.</p>
+                                <ul>
+                                    <li><code>core/src/fetch_stage.rs</code></li>
+                                    <li><code>core/src/sigverify_stage.rs</code></li>
+                                    <li><code>core/src/banking_stage.rs</code></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <div class="flow-step solana-record">
+                        <div class="flow-step-lane solana-record"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">4. <span data-glossary="proof of history">PoH</span> + entries → <span data-glossary="shred">shreds</span></div>
+                            <div class="flow-step-desc">Leader stamps batches on the <span data-glossary="proof of history">PoH</span> sequence, serializes <strong>entries</strong>, then slices them into <span data-glossary="shred">shreds</span> for broadcast.</div>
+                            <div class="flow-step-popup">
+                                <h4>Responsibility</h4>
+                                <p>Deterministic streaming format for what the cluster will replay.</p>
+                                <ul>
+                                    <li><code>ledger/</code>, <code>poh/</code>, <code>entry/</code></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <div class="flow-step solana-net">
+                        <div class="flow-step-lane solana-net"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">5. Propagate</div>
+                            <div class="flow-step-desc"><span data-glossary="shred">Shreds</span> fan out via the turbine tree; <span data-glossary="gossip protocol">gossip</span> carries metadata, peers, and votes—classic <span data-glossary="p2p">P2P</span> overlay work.</div>
+                            <div class="flow-step-popup">
+                                <h4>Typical crates</h4>
+                                <ul>
+                                    <li><code>turbine/</code>, <code>gossip/</code></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <div class="flow-step solana-tvu">
+                        <div class="flow-step-lane solana-tvu"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">6. <span data-glossary="tvu">TVU</span>: ingest &amp; repair</div>
+                            <div class="flow-step-desc">Followers receive <span data-glossary="shred">shreds</span>, fill gaps (<strong>repair</strong>), and assemble per-<span data-glossary="slot">slot</span> windows before replay.</div>
+                            <div class="flow-step-popup">
+                                <h4>Typical crates</h4>
+                                <ul>
+                                    <li><code>core/src/repair/</code>, <code>core/src/window_service.rs</code> (evolving names—verify in your rev)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <div class="flow-step solana-tvu">
+                        <div class="flow-step-lane solana-tvu"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">7. Replay</div>
+                            <div class="flow-step-desc"><strong>Replay</strong> verifies shred coding and runs transactions <span data-glossary="deterministic">deterministically</span> through the VM / bank—same ordered inputs → same state (SMR-style <span data-glossary="state machine replication">replication</span>).</div>
+                            <div class="flow-step-popup">
+                                <h4>Typical crates</h4>
+                                <ul>
+                                    <li><code>ledger/src/blockstore_processor.rs</code></li>
+                                    <li><code>runtime/</code>, <code>programs/</code></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <div class="flow-step solana-consensus">
+                        <div class="flow-step-lane solana-consensus"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">8. <span data-glossary="tower bft">Tower</span> votes</div>
+                            <div class="flow-step-desc">Validators cast fork-choice votes weighted by <span data-glossary="proof of stake">stake</span>; lockouts favor sticking with the replayed fork they already endorsed.</div>
+                            <div class="flow-step-popup">
+                                <h4>Typical crates</h4>
+                                <ul>
+                                    <li><code>core/src/consensus/</code>, <code>vote/</code></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-step-arrow">↓</div>
+
+                    <div class="flow-step solana-consensus">
+                        <div class="flow-step-lane solana-consensus"></div>
+                        <div class="flow-step-body">
+                            <div class="flow-step-title">9. Confirm &amp; root</div>
+                            <div class="flow-step-desc">Supermajority confirmations and advancing <strong>root</strong> mean your transaction’s <span data-glossary="slot">slot</span> is buried under collective votes—practical <span data-glossary="finality">finality</span> for apps (persisted in the ledger / blockstore).</div>
+                            <div class="flow-step-popup">
+                                <h4>Note</h4>
+                                <p class="outside-note">“Optimistic confirmation” vs rooted: different certainty thresholds; both sit after replay + voting.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <div class="info section-tight">
+            <p style="margin:0;font-size:0.92rem;color:var(--text2);"><strong>Memory trick:</strong> <span data-glossary="tpu">TPU</span> produces; <span data-glossary="tvu">TVU</span> verifies and catches up. <span data-glossary="proof of history">PoH</span> orders the leader stream; <span data-glossary="tower bft">Tower</span> picks which fork is real among validators.</p>
+        </div>
+
         <p><a href="../index.html" class="btn btn-secondary">← Back to Solana Core</a></p>
     </div>
+    <script src="../../common/glossary.js"></script>
 </body>
 </html>

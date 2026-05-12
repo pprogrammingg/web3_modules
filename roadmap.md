@@ -25,6 +25,18 @@ High-level milestones across parallel workstreams. Checkboxes track completion s
 
 ---
 
+## 3b. Cryptography track (published)
+
+- [x] Parallel track **`crypto-fintech/`** — 7 levels × 3 modules (`common/crypto-course-data.js`), landing card on `index.html`
+
+---
+
+## 3c. ZK track (published)
+
+- [x] Parallel track **`zk/`** — 7 levels × 3 modules (`common/zk-course-data.js`), landing card on `index.html`
+
+---
+
 ## 4. Hands-on product: privacy for Hyperscale
 
 - [ ] Architecture diagram
@@ -34,3 +46,15 @@ High-level milestones across parallel workstreams. Checkboxes track completion s
 ## 5. Hands-on product: privacy for Solana
 
 - [ ] Architecture diagram
+
+---
+
+## 6. Career & industry reference (local only — `private-docs/`)
+
+All files below are **gitignored**; keep a copy outside the repo if you want backup. They do not ship with clones.
+
+- [ ] **`elite-blockchain-staff-engineering-2026.md`** — role/skill tables, employer culture snapshot, Stripe/Tempo posting notes.
+- [ ] **`engineering-skills.md`** — personal skill tiers / wedge strategy.
+- [ ] **`career-path.md`** — time-bounded career path notes.
+
+Paths: `private-docs/<filename>.md`

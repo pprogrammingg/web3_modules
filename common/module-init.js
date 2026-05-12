@@ -7,10 +7,18 @@
     var el = document.currentScript;
     var mid = el && el.getAttribute('data-module-id');
     if (mid) {
-        if (typeof initializeModulePage === 'function') {
+        if (mid.indexOf('crypto-') === 0 && typeof initializeCryptoModulePage === 'function') {
+            initializeCryptoModulePage(mid);
+        } else if (mid.indexOf('zk-l') === 0 && typeof initializeZkModulePage === 'function') {
+            initializeZkModulePage(mid);
+        } else if (typeof initializeModulePage === 'function') {
             initializeModulePage(mid);
         }
-        if (typeof injectProtocolEngineerPanel === 'function') {
+        if (
+            typeof injectProtocolEngineerPanel === 'function' &&
+            mid.indexOf('crypto-') !== 0 &&
+            mid.indexOf('zk-l') !== 0
+        ) {
             injectProtocolEngineerPanel(mid);
         }
     }

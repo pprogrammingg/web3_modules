@@ -121,14 +121,20 @@ function verifyExternalAnchors(htmlRel) {
 }
 
 function loadCourseModulePaths() {
-    const courseDataPath = path.join(REPO_ROOT, 'common', 'course-data.js');
-    const content = fs.readFileSync(courseDataPath, 'utf8');
-    const regex = /path:\s*'([^']+\.html)'/g;
     const out = [];
-    let x;
-    while ((x = regex.exec(content)) !== null) {
-        out.push(x[1]);
-    }
+    const pushFromFile = (relPath) => {
+        const courseDataPath = path.join(REPO_ROOT, relPath);
+        if (!fs.existsSync(courseDataPath)) return;
+        const content = fs.readFileSync(courseDataPath, 'utf8');
+        const regex = /path:\s*'([^']+\.html)'/g;
+        let x;
+        while ((x = regex.exec(content)) !== null) {
+            out.push(x[1]);
+        }
+    };
+    pushFromFile('common/course-data.js');
+    pushFromFile('common/crypto-course-data.js');
+    pushFromFile('common/zk-course-data.js');
     return [...new Set(out)];
 }
 
@@ -153,10 +159,14 @@ function assertLandingPage() {
     if (!html.includes('track-grid')) fail('index.html: missing .track-grid');
     if (!html.includes('track-card--hyperscale')) fail('index.html: missing Hyperscale card');
     if (!html.includes('track-card--solana')) fail('index.html: missing Solana card');
+    if (!html.includes('track-card--crypto')) fail('index.html: missing Cryptography card');
+    if (!html.includes('track-card--zk')) fail('index.html: missing ZK card');
     if (!html.includes('href="hyperscale/index.html"')) fail('index.html: missing Hyperscale card href');
     if (!html.includes('href="solana-core/index.html"')) fail('index.html: missing Solana card href');
+    if (!html.includes('href="crypto-fintech/index.html"')) fail('index.html: missing Cryptography card href');
+    if (!html.includes('href="zk/index.html"')) fail('index.html: missing ZK card href');
     if (!html.includes('href="common/glossary.html"')) fail('index.html: missing glossary footer link');
-    else ok('Landing: two track cards + glossary link present');
+    else ok('Landing: track cards + glossary link present');
 }
 
 function main() {
@@ -164,7 +174,14 @@ function main() {
 
     assertLandingPage();
 
-    const hubs = ['hyperscale/index.html', 'solana-core/index.html', 'common/glossary.html', 'animations/index.html'];
+    const hubs = [
+        'hyperscale/index.html',
+        'solana-core/index.html',
+        'crypto-fintech/index.html',
+        'zk/index.html',
+        'common/glossary.html',
+        'animations/index.html'
+    ];
     for (const h of hubs) {
         verifyLocalAssets(h);
         verifyExternalAnchors(h);
@@ -178,7 +195,7 @@ function main() {
         verifyExternalAnchors(mp);
         checked++;
     }
-    ok(`Hyperscale modules from course-data (${checked} files)`);
+    ok(`Course modules from course-data + crypto-course-data + zk-course-data (${checked} files)`);
 
     const solanaPages = walkHtmlFiles('solana-core');
     for (const sp of solanaPages) {
@@ -186,6 +203,13 @@ function main() {
         verifyExternalAnchors(sp);
     }
     ok(`Solana Core HTML (${solanaPages.length} files)`);
+
+    const zkPages = walkHtmlFiles('zk');
+    for (const zp of zkPages) {
+        verifyLocalAssets(zp);
+        verifyExternalAnchors(zp);
+    }
+    ok(`ZK track HTML (${zkPages.length} files)`);
 
     console.log('\n' + '='.repeat(56));
     if (errors.length) {

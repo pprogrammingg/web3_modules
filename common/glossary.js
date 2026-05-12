@@ -981,6 +981,68 @@ const GLOSSARY_ENTRIES = [
     subCategory: ['Consensus & Agreement', 'Architecture'],
     competingConcepts: 'Hyperscale-rs vs full nodes: it focuses on consensus only; execution and P2P are separate. Similar in spirit to Tendermint Core or HotStuff implementations used as consensus engines.',
   },
+
+  // ---- Solana (validator architecture) ----
+  {
+    key: 'proof of history',
+    keys: ['proof of history', 'poh'],
+    term: 'Proof of History (PoH)',
+    def: 'A verifiable delay sequence: the leader emits a chain of hashes that proves passage of time between ledger events, before consensus votes.',
+    technicalDef: 'PoH is not a consensus algorithm by itself; it is a cryptographic clock embedded in the ledger stream. The leader sequences SHA-256 hashes so each output feeds the next input, producing a dense record of ordering between transactions or entry batches. Other validators verify the sequence cheaply. It reduces coordination overhead and lets the network agree on ordering inside slots alongside Tower BFT fork choice.',
+    explain10yo: 'Like a tamper-evident flip-book of stamps: each stamp depends on the last one, so everyone can see “this happened before that” without arguing about wall clocks.',
+    subCategory: ['Blockchain & Ledgers', 'Consensus & Agreement'],
+    competingConcepts: 'PoH vs VDF-only clocks: PoH is implemented as a hash chain in Solana’s pipeline; consensus still relies on stake-weighted voting (Tower). PoW uses work for leader election; PoH sequences events within leader-produced streams.',
+  },
+  {
+    key: 'tower bft',
+    keys: ['tower bft', 'tower'],
+    term: 'Tower BFT',
+    def: 'Solana’s fork-choice layer: validators lock votes on a fork with exponentially increasing lockout; mistaken forks become costly to abandon.',
+    technicalDef: 'Tower extends PBFT-style voting with a stake-weighted Voter structure and lockouts: repeated votes on the same fork deepen commitment; switching forks requires waiting out lockout epochs. It works together with replay (correct execution view) and gossip-delivered votes to converge on a single canonical chain under partial synchrony.',
+    explain10yo: 'You keep raising your hand for the same story; if you want to switch stories later, you have to wait longer each time—so flip-flopping is expensive.',
+    subCategory: ['Consensus & Agreement', 'Blockchain & Ledgers'],
+    competingConcepts: 'Tower vs longest-chain PoW: Tower uses stake and lockouts, not cumulative work. Compared to classical BFT rounds per block, Solana pipelines leader production and votes across PoH slots.',
+  },
+  {
+    key: 'tpu',
+    keys: ['tpu', 'transaction processing unit'],
+    term: 'TPU (Transaction Processing Unit)',
+    def: 'The validator path that ingests transactions, verifies signatures, and schedules execution—especially on the leader that produces the next entries.',
+    technicalDef: 'Incoming packets hit fetch → sigverify → banking (and related stages). The banking stage schedules transactions against the current bank when this validator is leader; non-leaders may forward to the expected leader. Outputs feed entry production tied to PoH for serialization into shreds.',
+    explain10yo: 'The assembly line that checks mail and puts valid letters in order before they go on the truck.',
+    subCategory: ['Blockchain & Ledgers', 'Architecture'],
+    competingConcepts: 'TPU vs TVU: TPU is produce/ingress for the leader path; TVU is verify/follow on followers.',
+  },
+  {
+    key: 'tvu',
+    keys: ['tvu', 'transaction verification unit'],
+    term: 'TVU (Transaction Verification Unit)',
+    def: 'The validator path that receives shreds from the network, repairs gaps, and feeds replay.',
+    technicalDef: 'TVU stages ingest turbine-delivered (and gossip-assisted) shreds, window and repair missing pieces, then hand ordered data to replay. Replay verifies erasure coding and execution deterministically.',
+    explain10yo: 'The receiving dock: collect all packages, fill in missing boxes, then unpack in order.',
+    subCategory: ['Blockchain & Ledgers', 'Architecture'],
+    competingConcepts: 'TVU vs TPU: TVU follows the chain others produced; TPU produces when you are leader.',
+  },
+  {
+    key: 'shred',
+    keys: ['shred', 'shreds'],
+    term: 'Shred',
+    def: 'A small signed fragment of the ledger stream; shreds carry entries (transaction batches) and erasure-coded for broadcast.',
+    technicalDef: 'Leaders slice their produced entries into shreds for turbine propagation. Each shred includes metadata linking to the PoH/ledger position; validators reassemble slots from shreds and verify coding. This is the wire format for block data distribution, distinct from the logical entry or blockstore record.',
+    explain10yo: 'Big message chopped into numbered envelopes so many mail carriers can deliver them and you can still rebuild the full letter.',
+    subCategory: ['Networking & Propagation', 'Blockchain & Ledgers'],
+    competingConcepts: 'Shreds vs full blocks: Solana prioritizes pipelined broadcast of fragments; other chains often gossip whole blocks.',
+  },
+  {
+    key: 'solana slot',
+    keys: ['solana slot', 'slot'],
+    term: 'Slot (Solana)',
+    def: 'A coarse time window for one leader schedule segment; many ticks of PoH can occur within a slot.',
+    technicalDef: 'Slots organize leader rotation from the stake-weighted schedule. A slot has at most one block producer at a time; the cluster advances slots whether or not a leader successfully produces. Root and confirmation are expressed in slot heights on the voted fork.',
+    explain10yo: 'A shift at work: only one person is “on duty” to stamp the notebook for that slice of time.',
+    subCategory: ['Blockchain & Ledgers', 'Time Ordering & Race Conditions'],
+    competingConcepts: 'Solana slot vs Eth slot: both schedule proposers; Solana tightly couples slots to PoH ticks and turbine delivery.',
+  },
 ];
 
 const SUBCATEGORY_ORDER = [
@@ -1027,7 +1089,12 @@ GLOSSARY_ENTRIES.forEach((entry) => {
   if (!GLOSSARY[key]) GLOSSARY[key] = obj;
 });
 
-const getGlossaryPath = () => (window.location.pathname.includes('/basic/') || window.location.pathname.includes('/hyperscale-rs/')) ? '../glossary.html' : 'glossary.html';
+const getGlossaryPath = () => {
+  const p = window.location.pathname;
+  if (p.includes('/solana-core/')) return '../../common/glossary.html';
+  if (p.includes('/basic/') || p.includes('/hyperscale-rs/')) return '../glossary.html';
+  return 'glossary.html';
+};
 
 function renderGlossaryPage() {
   const container = document.getElementById('glossary-content');

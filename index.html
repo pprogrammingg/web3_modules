@@ -4,9 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web3 Protocol Modules — Choose a track</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="common/styles.css" id="main-styles">
     <script src="common/ensure-styles.js"></script>
     <style>
+        /* Landing-only typography: warm serif headlines + friendly geometric sans */
+        body.landing-page {
+            font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+            font-weight: 400;
+            font-feature-settings: "kern" 1, "liga" 1;
+        }
+        body.landing-page .site-home-bar,
+        body.landing-page .site-home-link {
+            font-family: inherit;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
         .track-landing {
             min-height: 70vh;
             display: flex;
@@ -16,30 +31,58 @@
             padding: 2rem 1rem 3rem;
         }
         .track-landing h1 {
-            font-size: clamp(1.75rem, 4vw, 2.35rem);
-            margin-bottom: 0.5rem;
+            font-family: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+            font-size: clamp(1.85rem, 4.2vw, 2.55rem);
+            font-weight: 600;
+            font-optical-sizing: auto;
+            letter-spacing: -0.03em;
+            line-height: 1.2;
+            margin-bottom: 0.65rem;
             text-align: center;
+            color: var(--text);
         }
         .track-landing .lede {
             color: var(--text2);
-            max-width: 36rem;
+            max-width: 38rem;
             text-align: center;
             margin-bottom: 2.25rem;
-            line-height: 1.55;
+            line-height: 1.65;
+            font-size: 1.05rem;
+            font-weight: 400;
+            letter-spacing: 0.01em;
+        }
+        .track-landing .lede strong {
+            font-weight: 600;
+            color: var(--text);
+        }
+        .track-landing .lede code {
+            font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, monospace;
+            font-size: 0.9em;
+            font-weight: 500;
         }
         .track-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: 1fr;
             gap: 1.5rem;
-            max-width: 820px;
+            max-width: 1400px;
             width: 100%;
+        }
+        @media (min-width: 640px) {
+            .track-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+        @media (min-width: 1024px) {
+            .track-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
         }
         .track-card {
             display: block;
             border-radius: 14px;
             padding: 1.75rem 1.5rem;
             text-decoration: none;
-            color: inherit;
+            color: rgba(255,255,255,0.92);
             border: 1px solid rgba(255,255,255,0.12);
             box-shadow: 0 12px 40px rgba(0,0,0,0.25);
             transition: transform 0.18s ease, box-shadow 0.18s ease;
@@ -56,23 +99,37 @@
         .track-card--solana {
             background: linear-gradient(145deg, #3d1f5c 0%, #241438 50%, #140a22 100%);
         }
+        .track-card--crypto {
+            background: linear-gradient(145deg, #fb923c 0%, #ea580c 46%, #7c2d12 100%);
+        }
+        .track-card--zk {
+            background: linear-gradient(145deg, #059669 0%, #047857 44%, #064e3b 100%);
+        }
         .track-card-badge {
             display: inline-block;
-            font-size: 0.72rem;
+            font-family: 'Outfit', system-ui, sans-serif;
+            font-size: 0.7rem;
             font-weight: 600;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.1em;
             text-transform: uppercase;
-            opacity: 0.85;
+            color: rgba(255,255,255,0.72);
             margin-bottom: 0.75rem;
         }
         .track-card h2 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+            font-optical-sizing: auto;
+            letter-spacing: -0.02em;
             margin: 0 0 0.65rem;
-            font-size: 1.45rem;
+            font-size: 1.5rem;
+            line-height: 1.25;
+            color: rgba(255,255,255,0.98);
         }
         .track-card p {
             margin: 0;
-            font-size: 0.95rem;
-            line-height: 1.5;
+            font-size: 0.97rem;
+            line-height: 1.58;
+            font-weight: 400;
             color: rgba(255,255,255,0.88);
         }
         .track-card-arrow {
@@ -84,7 +141,9 @@
         }
         .track-footer-links {
             margin-top: 2rem;
-            font-size: 0.9rem;
+            font-size: 0.92rem;
+            font-weight: 500;
+            letter-spacing: 0.02em;
             color: var(--text2);
         }
         .track-footer-links a {
@@ -92,13 +151,13 @@
         }
     </style>
 </head>
-<body>
+<body class="landing-page">
     <nav class="site-home-bar">
         <span class="site-home-link" aria-current="page">Web3 modules</span>
     </nav>
     <div class="track-landing container">
         <h1>Choose your learning track</h1>
-        <p class="lede">Structured web modules for protocol engineering—pick <strong>Hyperscale</strong> (Rust / Radix-style journey) or <strong>Solana Core</strong> (validator and runtime depth). Shared glossary and styles live under <code>common/</code>.</p>
+        <p class="lede">Structured web modules for protocol engineering—<strong>Hyperscale</strong> (Rust / BFT / libp2p), <strong>Solana Core</strong> (validator &amp; runtime), <strong>Cryptography</strong> (primitives &amp; FinTech ops), or <strong>Zero-Knowledge</strong> (proof systems &amp; rollups—parallel seven-level track). Shared glossary and styles live under <code>common/</code>.</p>
         <div class="track-grid">
             <a href="hyperscale/index.html" class="track-card track-card--hyperscale">
                 <span class="track-card-badge">Rust · BFT · libp2p</span>
@@ -112,8 +171,20 @@
                 <p>Parallel track grounded in the Solana monorepo: levels with reading segments (10–25 min), cross-linked modules, and the same glossary.</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </a>
+            <a href="crypto-fintech/index.html" class="track-card track-card--crypto">
+                <span class="track-card-badge">Primitives · keys · FinTech</span>
+                <h2>Cryptography</h2>
+                <p>Blockchains &amp; FinTech: seven levels × three modules—~20–25 min segments per module, hands-on labs, and guided builds that ship small artifacts.</p>
+                <span class="track-card-arrow" aria-hidden="true">→</span>
+            </a>
+            <a href="zk/index.html" class="track-card track-card--zk">
+                <span class="track-card-badge">Proofs · circuits · rollups</span>
+                <h2>Zero-Knowledge</h2>
+                <p>Parallel track: SNARK/STARK literacy, Circom-style tooling, validity rollups, and safe integration—same segment pacing and guided builds as Cryptography.</p>
+                <span class="track-card-arrow" aria-hidden="true">→</span>
+            </a>
         </div>
-        <p class="track-footer-links"><a href="common/glossary.html">📚 Glossary</a> · <a href="animations/index.html">Animations hub</a></p>
+        <p class="track-footer-links"><a href="common/glossary.html">📚 Glossary</a></p>
     </div>
 </body>
 </html>

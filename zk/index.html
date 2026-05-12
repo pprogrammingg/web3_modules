@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zero-Knowledge for Blockchains</title>
+    <link rel="stylesheet" href="../common/styles.css" id="main-styles">
+    <script src="../common/ensure-styles.js"></script>
+</head>
+<body class="zk-track">
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="All tracks">← All tracks</a>
+    </nav>
+    <div class="container">
+        <header>
+            <h1>🧪 Zero-Knowledge for Blockchains</h1>
+            <p class="subtitle">Seven levels — exactly three modules each — focused on <strong>proof systems, rollups, and shipping safely</strong>. Each module is paced as <strong>~20–25 minute segments</strong> (~two hours reading) plus labs. <strong>Levels 2–7</strong> include a <strong>guided build</strong> (jade card) designed as portfolio artifacts—Circom, benchmarks, verifier traces, audits.</p>
+        </header>
+
+        <div class="info elite-course-banner" style="margin: 1.25rem 0 2rem; padding: 1.35rem 1.5rem;">
+            <h3 style="margin-top: 0;">Who this trains</h3>
+            <p>Protocol and backend engineers who must <strong>read ZK roadmaps</strong>, integrate verifiers, or pair with cryptographers—without claiming research credentials. Complements the <a href="../crypto-fintech/index.html">Cryptography</a> track (primitives &amp; FinTech ops) and protocol tracks like <a href="../hyperscale/index.html">Hyperscale</a>.</p>
+            <table class="elite-ladder-table" aria-label="ZK track level overview">
+                <thead>
+                    <tr><th scope="col">Level</th><th scope="col">Focus</th><th scope="col">Build arc</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td>Vocabulary, circuits, fields</td><td>Labs in every module</td></tr>
+                    <tr><td>2</td><td>R1CS &amp; tooling</td><td><strong>Circom compile + verify</strong></td></tr>
+                    <tr><td>3</td><td>Setup vs transparent, PCS</td><td><strong>Benchmark prove/verify</strong></td></tr>
+                    <tr><td>4</td><td>Validity / zkEVM / DA</td><td><strong>Verifier path trace</strong></td></tr>
+                    <tr><td>5</td><td>Privacy &amp; recursion</td><td><strong>Recursion demo or note</strong></td></tr>
+                    <tr><td>6</td><td>Integration &amp; audits</td><td><strong>Audit checklist exercise</strong></td></tr>
+                    <tr><td>7</td><td>Roadmap + PQ framing</td><td><strong>Capstone design review</strong></td></tr>
+                </tbody>
+            </table>
+            <p style="margin-bottom: 0; font-size: 0.92rem; color: var(--text2);">Shared <a href="../common/glossary.html">glossary</a>; pin tool versions in every lab README.</p>
+        </div>
+
+        <div class="progress-section">
+            <h2>Your Progress</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" id="zk-overall-progress"></div>
+            </div>
+            <p id="zk-progress-text">0% Complete</p>
+        </div>
+
+        <div class="info" style="margin: 2rem 0; padding: 1.5rem;">
+            <h3 style="margin-top: 0;">Course structure</h3>
+            <p>Four <strong>segments</strong> per module for focused reading. <strong>Guided build</strong> modules expect a reproducible artifact (script, chart, or doc)—scope small, document assumptions.</p>
+        </div>
+
+        <div class="timeline">
+            <div class="timeline-section">
+                <h2>📚 Level 1</h2>
+                <p class="phase-description">SNARK/STARK map, circuit intuition, fields &amp; curves at API depth.</p>
+                <div id="zk-basic-modules"></div>
+            </div>
+
+            <div class="timeline-section">
+                <h2>🔧 Levels 2–5</h2>
+                <p class="phase-description">Constraints, tooling, proof-system trade-offs, rollups &amp; privacy narratives.</p>
+                <div id="zk-intermediate-modules"></div>
+            </div>
+
+            <div class="timeline-section">
+                <h2>⚡ Levels 6–7</h2>
+                <p class="phase-description">Safe integration, audits, roadmap literacy, capstone.</p>
+                <div id="zk-advanced-modules"></div>
+            </div>
+        </div>
+
+        <div class="resources">
+            <h2>📖 Resources</h2>
+            <div class="resource-grid">
+                <a href="../common/glossary.html" class="resource-card">
+                    <span class="resource-icon" aria-hidden="true">📚</span>
+                    <h3 class="resource-title">Glossary</h3>
+                    <p class="resource-desc">Includes SNARK / hash / Merkle entries</p>
+                    <span class="resource-arrow">→</span>
+                </a>
+                <a href="../crypto-fintech/index.html" class="resource-card">
+                    <span class="resource-icon" aria-hidden="true">🔐</span>
+                    <h3 class="resource-title">Cryptography track</h3>
+                    <p class="resource-desc">Primitives &amp; FinTech ops—pair before deep circuits</p>
+                    <span class="resource-arrow">→</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="../common/zk-course-data.js"></script>
+    <script src="../common/navigation.js"></script>
+    <script src="../common/zk-navigation.js"></script>
+    <script src="../common/glossary.js"></script>
+    <script>
+        initializeZkCourseIndex();
+    </script>
+</body>
+</html>
