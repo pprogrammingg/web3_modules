@@ -120,17 +120,25 @@
             font-weight: 600;
             font-optical-sizing: auto;
             letter-spacing: -0.02em;
-            margin: 0 0 0.65rem;
+            margin: 0 0 0.35rem;
             font-size: 1.5rem;
             line-height: 1.25;
             color: rgba(255,255,255,0.98);
         }
-        .track-card p {
+        .track-card-scope {
             margin: 0;
-            font-size: 0.97rem;
-            line-height: 1.58;
+            font-size: 0.9rem;
+            line-height: 1.35;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            color: rgba(255,255,255,0.82);
+        }
+        .track-card-scope--long {
+            letter-spacing: 0.01em;
             font-weight: 400;
-            color: rgba(255,255,255,0.88);
+            line-height: 1.5;
+            padding-right: 1.75rem;
+            margin-bottom: 0.25rem;
         }
         .track-card-arrow {
             position: absolute;
@@ -162,25 +170,25 @@
             <a href="hyperscale/index.html" class="track-card track-card--hyperscale">
                 <span class="track-card-badge">Rust · BFT · libp2p</span>
                 <h2>Hyperscale</h2>
-                <p>Seven levels, three modules each—foundations through measurement, E2E, and networking. Anchored on the hyperscale-rs workspace and OSS contribution slots.</p>
+                <p class="track-card-scope track-card-scope--long">Get familiar with super scalable, multi-sharded and composable L1</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </a>
             <a href="solana-core/index.html" class="track-card track-card--solana">
                 <span class="track-card-badge">Validator · runtime · BPF</span>
                 <h2>Solana Core</h2>
-                <p>Parallel track grounded in the Solana monorepo: levels with reading segments (10–25 min), cross-linked modules, and the same glossary.</p>
+                <p class="track-card-scope track-card-scope--long">Get familiar with super fast L1 nuts and bolts</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </a>
             <a href="crypto-fintech/index.html" class="track-card track-card--crypto">
                 <span class="track-card-badge">Primitives · keys · FinTech</span>
                 <h2>Cryptography</h2>
-                <p>Blockchains &amp; FinTech: seven levels × three modules—~20–25 min segments per module, hands-on labs, and guided builds that ship small artifacts.</p>
+                <p class="track-card-scope">Keys &amp; primitives</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </a>
             <a href="zk/index.html" class="track-card track-card--zk">
                 <span class="track-card-badge">Proofs · circuits · rollups</span>
                 <h2>Zero-Knowledge</h2>
-                <p>Parallel track: SNARK/STARK literacy, Circom-style tooling, validity rollups, and safe integration—same segment pacing and guided builds as Cryptography.</p>
+                <p class="track-card-scope">Proofs &amp; rollups</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </a>
         </div>
