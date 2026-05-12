@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVM &amp; Ethereum Protocol</title>
+    <link rel="stylesheet" href="../common/styles.css" id="main-styles">
+    <script src="../common/ensure-styles.js"></script>
+</head>
+<body class="evm-track">
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="All tracks">← All tracks</a>
+    </nav>
+    <div class="container">
+        <header>
+            <h1>⛓️ EVM &amp; Ethereum protocol</h1>
+            <p class="subtitle">Execution-layer mental models, gas, storage, rollups, DA, and MEV—paced like other tracks: <strong>four ~20–25 minute segments</strong> per module (~two hours) plus short hands-on checkpoints. This track starts with a single <strong>syllabus module</strong>; more levels will stack on the same cadence.</p>
+        </header>
+
+        <div class="info elite-course-banner" style="margin: 1.25rem 0 2rem; padding: 1.35rem 1.5rem;">
+            <h3 style="margin-top: 0;">Who this trains</h3>
+            <p>Protocol and systems engineers who read <strong>EL specs</strong>, client code (e.g. Rust execution stacks), or L2 bridges—and need crisp interview vocabulary without hand-waving. Pairs with <a href="../zk/index.html">Zero-Knowledge</a> (proofs), <a href="../crypto-fintech/index.html">Cryptography</a> (primitives), and <a href="../hyperscale/index.html">Hyperscale</a> (BFT / sharding).</p>
+            <p style="margin-bottom: 0; font-size: 0.92rem; color: var(--text2);">Shared <a href="../common/glossary.html">glossary</a>. Prefer primary sources: <a href="https://ethereum.github.io/execution-specs/" target="_blank" rel="noopener noreferrer">execution specs</a>, <a href="https://github.com/ethereum/consensus-specs" target="_blank" rel="noopener noreferrer">consensus specs</a>.</p>
+        </div>
+
+        <div class="progress-section">
+            <h2>Your progress</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" id="evm-overall-progress"></div>
+            </div>
+            <p id="evm-progress-text">0% Complete</p>
+        </div>
+
+        <div class="info" style="margin: 2rem 0; padding: 1.5rem;">
+            <h3 style="margin-top: 0;">Course structure</h3>
+            <p>Same rhythm as <strong>ZK</strong> and <strong>Cryptography</strong> tracks: four reading <strong>segments</strong> per module, each with a checkpoint question. Green badges mark modules with hands-on segments (here: guided note-taking + a tiny design sketch).</p>
+        </div>
+
+        <div class="timeline">
+            <div class="timeline-section">
+                <h2>📚 Level 1 — Syllabus</h2>
+                <p class="phase-description">One module today: the full 80/20 map. Future levels will deepen execution internals, client architecture, and L2 bridging.</p>
+                <div id="evm-modules"></div>
+            </div>
+        </div>
+
+        <div class="resources">
+            <h2>📖 Resources</h2>
+            <div class="resource-grid">
+                <a href="../common/glossary.html" class="resource-card">
+                    <span class="resource-icon" aria-hidden="true">📚</span>
+                    <h3 class="resource-title">Glossary</h3>
+                    <p class="resource-desc">Shared terms across tracks</p>
+                    <span class="resource-arrow">→</span>
+                </a>
+                <a href="../zk/index.html" class="resource-card">
+                    <span class="resource-icon" aria-hidden="true">🧪</span>
+                    <h3 class="resource-title">ZK track</h3>
+                    <p class="resource-desc">Validity proofs &amp; rollup vocabulary</p>
+                    <span class="resource-arrow">→</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="../common/evm-course-data.js"></script>
+    <script src="../common/navigation.js"></script>
+    <script src="../common/evm-navigation.js"></script>
+    <script src="../common/glossary.js"></script>
+    <script>
+        initializeEvmCourseIndex();
+    </script>
+</body>
+</html>

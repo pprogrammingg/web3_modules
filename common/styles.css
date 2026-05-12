@@ -21,6 +21,93 @@ body {
     background: var(--bg2);
 }
 
+/*
+ * Polished stone sheen — reusable layered highlights (tinted by hue).
+ * Put this class on a panel that already has position: relative; overflow: hidden; border-radius.
+ *
+ * Hue / accent (iridescence):
+ *   --stone-hue            unitless 0–360, dominant tint for highlights
+ *   --stone-hue-accent     optional second hue (default: calc(var(--stone-hue) + 26))
+ *   --stone-sat, --stone-sat-accent   saturation % for each tone in the sheen
+ *
+ * “Light source” / polish (different stones = different angles + strength):
+ *   --stone-light-angle     primary specular band direction (e.g. 118deg)
+ *   --stone-light-angle-2   secondary glaze direction (e.g. 44deg)
+ *   --stone-shine           0–1 overall specular strength
+ *   --stone-depth-gloss     0–1 secondary overlay strength (pools / edge light)
+ *
+ * Sheen is intentionally soft: wide gradient stops + light blur ≈ cabochon polish, not mirror stripes.
+ */
+.polished-stone-surface {
+    isolation: isolate;
+    --stone-hue: 210;
+    --stone-hue-accent: calc(var(--stone-hue) + 26);
+    --stone-sat: 46%;
+    --stone-sat-accent: 58%;
+    --stone-light-angle: 126deg;
+    --stone-light-angle-2: 48deg;
+    --stone-shine: 0.52;
+    --stone-depth-gloss: 0.45;
+}
+
+.polished-stone-surface > * {
+    position: relative;
+    z-index: 1;
+}
+
+.polished-stone-surface::before,
+.polished-stone-surface::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 0;
+    /* Soft specular = polished cabochon, not a razor highlight */
+    filter: blur(1.1px);
+}
+
+.polished-stone-surface::before {
+    opacity: calc(0.34 + var(--stone-shine) * 0.52);
+    background: linear-gradient(
+        var(--stone-light-angle),
+        hsla(var(--stone-hue), var(--stone-sat), 16%, 0.26) 0%,
+        hsla(var(--stone-hue), var(--stone-sat), 12%, 0.07) 16%,
+        hsla(var(--stone-hue-accent), var(--stone-sat-accent), 58%, 0.1) 30%,
+        hsla(var(--stone-hue-accent), var(--stone-sat-accent), 72%, 0.2) 40%,
+        hsla(var(--stone-hue), calc(var(--stone-sat) + 6%), 90%, 0.26) 50%,
+        hsla(var(--stone-hue-accent), var(--stone-sat), 52%, 0.12) 60%,
+        hsla(var(--stone-hue), var(--stone-sat), 14%, 0.05) 76%,
+        hsla(var(--stone-hue), var(--stone-sat), 8%, 0.3) 100%
+    );
+    mix-blend-mode: soft-light;
+}
+
+.polished-stone-surface::after {
+    opacity: calc(var(--stone-depth-gloss) * (0.22 + var(--stone-shine) * 0.46));
+    filter: blur(1.35px);
+    background: linear-gradient(
+        var(--stone-light-angle-2),
+        hsla(var(--stone-hue), 26%, 96%, 0.12) 0%,
+        hsla(var(--stone-hue), 28%, 62%, 0.06) 22%,
+        transparent 42%,
+        hsla(var(--stone-hue-accent), 30%, 50%, 0.09) 58%,
+        transparent 72%,
+        hsla(var(--stone-hue), 24%, 88%, 0.05) 88%,
+        transparent 100%
+    );
+    mix-blend-mode: overlay;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .polished-stone-surface:hover::before {
+        opacity: calc(0.42 + var(--stone-shine) * 0.62);
+    }
+    .polished-stone-surface:hover::after {
+        opacity: calc(var(--stone-depth-gloss) * (0.3 + var(--stone-shine) * 0.52));
+    }
+}
+
 .site-home-bar {
     padding: 0.5rem 1rem;
     background: var(--bg);
@@ -190,6 +277,61 @@ body.zk-track .badge-contribution {
 }
 body.zk-track .progress-fill {
     background: linear-gradient(90deg, #059669, #34d399);
+}
+
+/* EVM / Ethereum track — aquamarine polished stone (hub + module pages) */
+body.evm-track .module-card.available:not(.completed):not(.in-progress) {
+    border-color: #14b8a6;
+    box-shadow: 0 2px 8px rgba(20, 184, 166, 0.12);
+}
+body.evm-track .module-card.available:not(.completed):not(.in-progress):hover {
+    border-color: #0d9488;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
+    background: #f0fdfa;
+}
+body.evm-track .module-card.available:not(.completed):not(.in-progress) h3 {
+    color: #0f766e;
+}
+body.evm-track .module-card.available:not(.completed):not(.in-progress) .module-time-estimate {
+    background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
+    border-color: rgba(13, 148, 136, 0.22);
+}
+body.evm-track .module-card.available:not(.completed):not(.in-progress) .module-time-value {
+    color: #0d9488;
+}
+body.evm-track .progress-fill {
+    background: linear-gradient(90deg, #0d9488, #2dd4bf);
+}
+
+/* Syllabus hero: aquamarine “polished stone” card (matches landing EVM gem) */
+.evm-polished-hero.course-header {
+    border-bottom: none;
+    padding: 1.5rem 1.35rem 1.35rem;
+    margin-bottom: 1.75rem;
+    border-radius: 14px;
+    color: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+        0 12px 40px rgba(0, 0, 0, 0.12);
+    background: linear-gradient(145deg, #5eead4 0%, #0d9488 42%, #115e59 100%);
+    --stone-hue: 173;
+    --stone-hue-accent: 195;
+    --stone-sat: 72%;
+    --stone-sat-accent: 58%;
+    --stone-light-angle: 122deg;
+    --stone-light-angle-2: 38deg;
+    --stone-shine: 0.56;
+    --stone-depth-gloss: 0.52;
+}
+.evm-polished-hero.course-header h1 {
+    color: rgba(255, 255, 255, 0.98) !important;
+    border-bottom: none;
+}
+.evm-polished-hero .course-meta {
+    color: rgba(255, 255, 255, 0.82);
 }
 
 /* Cryptography track — coral orange accents (hub + module pages) */

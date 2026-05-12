@@ -135,6 +135,7 @@ function loadCourseModulePaths() {
     pushFromFile('common/course-data.js');
     pushFromFile('common/crypto-course-data.js');
     pushFromFile('common/zk-course-data.js');
+    pushFromFile('common/evm-course-data.js');
     return [...new Set(out)];
 }
 
@@ -161,10 +162,12 @@ function assertLandingPage() {
     if (!html.includes('track-card--solana')) fail('index.html: missing Solana card');
     if (!html.includes('track-card--crypto')) fail('index.html: missing Cryptography card');
     if (!html.includes('track-card--zk')) fail('index.html: missing ZK card');
+    if (!html.includes('track-card--evm')) fail('index.html: missing EVM card');
     if (!html.includes('href="hyperscale/index.html"')) fail('index.html: missing Hyperscale card href');
     if (!html.includes('href="solana-core/index.html"')) fail('index.html: missing Solana card href');
     if (!html.includes('href="crypto-fintech/index.html"')) fail('index.html: missing Cryptography card href');
     if (!html.includes('href="zk/index.html"')) fail('index.html: missing ZK card href');
+    if (!html.includes('href="evm/index.html"')) fail('index.html: missing EVM card href');
     if (!html.includes('href="common/glossary.html"')) fail('index.html: missing glossary footer link');
     else ok('Landing: track cards + glossary link present');
 }
@@ -179,6 +182,7 @@ function main() {
         'solana-core/index.html',
         'crypto-fintech/index.html',
         'zk/index.html',
+        'evm/index.html',
         'common/glossary.html',
         'animations/index.html'
     ];
@@ -195,7 +199,7 @@ function main() {
         verifyExternalAnchors(mp);
         checked++;
     }
-    ok(`Course modules from course-data + crypto-course-data + zk-course-data (${checked} files)`);
+    ok(`Course modules from course-data + crypto-course-data + zk-course-data + evm-course-data (${checked} files)`);
 
     const solanaPages = walkHtmlFiles('solana-core');
     for (const sp of solanaPages) {
@@ -210,6 +214,13 @@ function main() {
         verifyExternalAnchors(zp);
     }
     ok(`ZK track HTML (${zkPages.length} files)`);
+
+    const evmPages = walkHtmlFiles('evm');
+    for (const ep of evmPages) {
+        verifyLocalAssets(ep);
+        verifyExternalAnchors(ep);
+    }
+    ok(`EVM track HTML (${evmPages.length} files)`);
 
     console.log('\n' + '='.repeat(56));
     if (errors.length) {

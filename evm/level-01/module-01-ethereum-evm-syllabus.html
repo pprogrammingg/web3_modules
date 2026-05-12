@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Important background &amp; concepts (syllabus) — EVM track</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body class="evm-track">
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="EVM track home">← EVM track</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
+    </nav>
+    <div class="course-content container">
+        <header class="course-header evm-polished-hero polished-stone-surface">
+            <h1>Important background &amp; concepts</h1>
+            <p style="margin:0 0 0.75rem;font-size:1.02rem;line-height:1.55;color:rgba(255,255,255,0.9);max-width:52rem;">EVM / Ethereum protocol — <strong>80/20 interview syllabus</strong> (Rust-aware protocol engineer depth). Claims below are tightened for accuracy; dig into specs for edge cases (gas refunds, warm/cold storage, fork differences).</p>
+            <div class="course-meta">
+                <span>⏱️ ~2 hr (4×25 min)</span>
+                <span>📊 Level 1</span>
+                <span>⛓️ EVM &amp; Ethereum protocol</span>
+            </div>
+        </header>
+
+        <div class="section">
+            <h2>Reading segments (~20–25 min each)</h2>
+            <div class="table-wrap">
+            <table class="flow-steps">
+                <thead>
+                    <tr><th scope="col">#</th><th scope="col">Segment</th><th scope="col">Checkpoint</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td>Replicated state machine · accounts · pipeline</td><td>Explain why the EVM is consensus-constrained, not “just another VM.”</td></tr>
+                    <tr><td>2</td><td>Storage · memory · calldata · transient · gas · atomicity</td><td>Name which resource is Merkle-committed vs frame-local vs tx input.</td></tr>
+                    <tr><td>3</td><td>CALL / DELEGATECALL · proxies · ABI · logs · reentrancy</td><td>One sentence: what storage context does <code>DELEGATECALL</code> use?</td></tr>
+                    <tr><td>4</td><td>Rollups · DA · 4844 · AA · consensus · tries · MEV · Rust stack</td><td>Separate “execution cheap” from “data published to L1” in one rollup sentence.</td></tr>
+                </tbody>
+            </table>
+            </div>
+            <p style="font-size:0.92rem;color:var(--text2);">Pause between segments. Optional deep links: <a href="https://ethereum.github.io/execution-specs/" target="_blank" rel="noopener noreferrer">execution specs</a>, <a href="https://github.com/ethereum/consensus-specs" target="_blank" rel="noopener noreferrer">consensus specs</a>, <a href="https://www.evm.codes/" target="_blank" rel="noopener noreferrer">evm.codes</a>.</p>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Segment 1 — Mental model (most important)</h2>
+            <p><strong>Ethereum execution</strong> is a <strong>deterministic replicated state machine</strong>: every honest node applies the same well-ordered transactions and arrives at the same post-state commitment (state root), modulo specs and sync edge cases.</p>
+            <p><strong>Core pipeline</strong> (conceptual): transaction → mempool / builder economics → inclusion in a block → <strong>EVM execution</strong> + state transition → commitments (Patricia trie roots, receipts, logs bloom in the execution block header tradition).</p>
+            <p><strong>Key insight:</strong> the EVM is not free-form “backend compute.” It is <strong>consensus-constrained computation</strong>: every step must be replicated, metered (<strong>gas</strong>), and committed under tight rules so all nodes agree.</p>
+            <h3>Accounts</h3>
+            <ul>
+                <li><strong>EOA</strong> — controlled by a key; has <code>nonce</code>, <code>balance</code>; no contract bytecode in the account’s code field.</li>
+                <li><strong>Contract account</strong> — holds <strong>bytecode</strong> and persistent <strong>storage</strong>; behavior driven by code.</li>
+                <li>Per-account fields (Yellow Paper / EL view): balance, nonce, code hash, storage root — together they fix what the world trie stores for that address.</li>
+            </ul>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Segment 2 — Storage, memory, calldata, transient storage, gas, atomicity</h2>
+            <h3>Storage (persistent)</h3>
+            <ul>
+                <li><strong>Persistent</strong> across transactions; <strong>Merkle-committed</strong> via per-contract storage trie (conceptually keyed under the account in the state trie).</li>
+                <li><strong>Expensive</strong> — <code>SLOAD</code> / <code>SSTORE</code> dominate many real workloads; pricing includes <strong>warm/cold</strong> distinctions and (where applicable) gas refunds—still treat storage as scarce.</li>
+            </ul>
+            <h3>Memory (frame-local)</h3>
+            <ul>
+                <li><strong>Ephemeral</strong> — expanded by words, zero-initialized on first touch; <strong>not</strong> shared across calls as a single flat buffer. Each activation has its own memory; when the frame returns, that memory is gone.</li>
+                <li>Cheap relative to storage writes, but not free — quadratic pricing on expansion protects against abuse.</li>
+            </ul>
+            <h3>Calldata</h3>
+            <ul>
+                <li>The read-only tx input bytes to a call; cheap per-byte compared to storage; central to <strong>ABI</strong> decoding.</li>
+            </ul>
+            <h3>Transient storage (EIP-1153)</h3>
+            <ul>
+                <li><strong>Transaction-scoped</strong> scratch keyed storage (not committed to the trie). Useful for reentrancy locks, temporary accounting, router patterns — <strong>cheaper than persistent storage</strong> when you only need values for the rest of the tx.</li>
+            </ul>
+            <h3>Gas model</h3>
+            <ul>
+                <li>Gas bounds work and bounds state growth; it is the practical answer to undecidable “will this halt?” — you pay until you run out.</li>
+                <li><strong>Modern EL philosophy:</strong> state growth and I/O to committed state often matter <strong>more than raw arithmetic</strong> — but profile real contracts; hotspots vary.</li>
+            </ul>
+            <h3>Execution model</h3>
+            <ul>
+                <li>Per-tx execution is <strong>single-threaded</strong>, <strong>deterministic</strong>, and <strong>atomic</strong>: on revert, state changes from that transaction are rolled back per the execution spec (always cite the fork you mean if you discuss edge cases).</li>
+            </ul>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Segment 3 — Calls, upgradeability, ABI, logs, reentrancy</h2>
+            <h3><code>CALL</code> vs <code>DELEGATECALL</code> (critical)</h3>
+            <ul>
+                <li><strong><code>CALL</code></strong> — run target’s code in the <strong>target’s</strong> account context (code, storage, balance rules per opcode semantics).</li>
+                <li><strong><code>DELEGATECALL</code></strong> — run <strong>callee bytecode</strong> but keep the <strong>caller’s</strong> storage / address context for storage ops — the “golden sentence”: <strong>delegatecall separates code identity from storage identity.</strong></li>
+                <li>Powers proxies, UUPS / transparent patterns, diamonds (EIP-2535), plugins — all demand <strong>storage layout discipline</strong>.</li>
+            </ul>
+            <h3>Upgradeability patterns (interview framing)</h3>
+            <ul>
+                <li><strong>Transparent proxy</strong> — admin vs user routing; implementation holds logic; proxy holds state.</li>
+                <li><strong>UUPS</strong> — upgrade logic often lives in the implementation with careful slot choices.</li>
+                <li><strong>Diamond</strong> — selector → facet routing; still delegatecall-shaped under the hood.</li>
+                <li><strong>Collision risk</strong> — implementation and proxy must agree on <strong>storage slots</strong> (incl. <strong>EIP-1967</strong> reserved slots), <strong>packed structs</strong>, and <code>keccak256(slot) + n</code> mapping layout.</li>
+            </ul>
+            <h3>ABI encoding</h3>
+            <ul>
+                <li>Function selector: first <strong>4 bytes</strong> of <code>keccak256(canonical_signature)</code> — e.g. <code>transfer(address,uint256)</code>.</li>
+                <li>Dynamic types use <strong>head/tail</strong> (offset + payload) layouts in calldata.</li>
+            </ul>
+            <h3>Events / logs</h3>
+            <ul>
+                <li>Logs are <strong>not readable</strong> by contracts during execution in the obvious way; they are cheap <strong>off-chain observability</strong> signals. Execution headers carry a <strong>logs bloom</strong> for light-client filtering (legacy shape; roadmap work continues elsewhere).</li>
+            </ul>
+            <h3>Reentrancy (classic)</h3>
+            <ul>
+                <li><strong>Cause:</strong> external call before state is settled.</li>
+                <li><strong>Mitigations:</strong> checks-effects-interactions, reentrancy guards, transient locks (EIP-1153), pull payments.</li>
+            </ul>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Segment 4 — Rollups, DA, 4844, AA, consensus, tries, precompiles, MEV, Rust ecosystem, ROI</h2>
+            <h3>Rollups &amp; data availability</h3>
+            <ul>
+                <li><strong>Execution ≠ data availability.</strong> A rollup must publish (or inherit) enough data for others to reconstruct state transitions — otherwise it is not trust-minimized in the usual rollup story.</li>
+                <li><strong>Optimistic rollups</strong> (e.g. Arbitrum, OP Mainnet) — fault/challenge windows for correctness arguments.</li>
+                <li><strong>Validity / ZK-style systems</strong> — cryptographic proofs of correct execution; <strong>zkSync-style</strong> chains target EVM compatibility; <strong>Starknet</strong> is a major validity rollup built around the <strong>Cairo</strong> VM (not “plain EVM bytecode” — place it correctly in interviews).</li>
+            </ul>
+            <h3>EIP-4844 (proto-danksharding)</h3>
+            <ul>
+                <li>Introduced <strong>blob-carrying transactions</strong>: large <strong>blob</strong> sidecars committed with <strong>KZG</strong> commitments — <strong>not exposed as ordinary EVM calldata memory</strong>; proofs use the point-evaluation precompile path.</li>
+                <li><strong>Separate blob gas market</strong> — multidimensional fee market (execution gas vs blob gas).</li>
+                <li>Blobs are <strong>short-lived on the consensus sidecar path</strong> (order of ~4096 epochs ≈ <strong>~18 days</strong> of availability for reconstruction assumptions — verify exact parameter in the consensus spec you ship against).</li>
+                <li><strong>Interview line:</strong> Ethereum is unbundling <strong>execution pricing</strong> from <strong>DA pricing</strong> for rollups.</li>
+            </ul>
+            <h3>Account abstraction</h3>
+            <ul>
+                <li>Classic model: EOAs sign txs. <strong>ERC-4337</strong> adds an <strong>account abstraction</strong> mempool of <code>UserOperation</code>s — bundlers, paymasters, validation hooks.</li>
+                <li><strong>EIP-7702</strong> (Pectra-era framing): EOAs can gain <strong>delegation</strong> to contract code for a transaction — “temporary smart account behavior” for EOAs in one-liner interviews; read the spec for exact semantics.</li>
+            </ul>
+            <h3>Consensus &amp; finality (EL + CL)</h3>
+            <ul>
+                <li>Post-merge: <strong>execution</strong> + <strong>consensus</strong> layers; Gasper combines <strong>Casper FFG</strong> finality with <strong>LMD-GHOST</strong> fork choice.</li>
+                <li>Vocabulary: slots, epochs, validators, attestations, finalized checkpoints.</li>
+                <li><strong>RLP</strong> — historic EL serialization; <strong>SSZ</strong> — consensus-layer typed tree hashing — both show up in Rust client codebases.</li>
+            </ul>
+            <h3>State trie</h3>
+            <ul>
+                <li>Patricia-style tries authenticate accounts and storage; transaction trie / receipt trie roots appear in block headers — enables proofs and light-client models.</li>
+            </ul>
+            <h3>Precompiles</h3>
+            <ul>
+                <li>Native at fixed addresses: <code>ecrecover</code>, <code>sha256</code>, modexp, <strong>alt_bn128</strong> pairing checks, <strong>bls12-381</strong> ops (fork-dependent), <strong>KZG</strong> point evaluation (4844-era) — used by signatures, bridges, and ZK verification paths.</li>
+            </ul>
+            <h3>MEV &amp; PBS</h3>
+            <ul>
+                <li><strong>MEV</strong> — value extractable by reordering / inserting txs.</li>
+                <li>Actors: searchers, builders, relays, validators — <strong>PBS</strong> (proposer–builder separation) makes block construction an <strong>auction-shaped pipeline</strong> in practice.</li>
+                <li>Patterns: sandwiching, arbitrage, liquidations, backruns — know the ethics and engineering mitigations at a high level.</li>
+            </ul>
+            <h3>Rust + Ethereum infra (interview flex, accurate)</h3>
+            <ul>
+                <li>High-impact Rust stacks: <strong>reth</strong> (execution client), <strong>revm</strong> (EVM interpreter), <strong>alloy</strong> (types / RPC), <strong>ethers-rs</strong> (still common in older code; many migrate toward alloy).</li>
+                <li><strong>Paradigm</strong> is the <strong>team / org</strong> behind much of that Rust surface area — name libraries, not “Paradigm” as a crate.</li>
+                <li><strong>Erigon</strong> is a major execution client but <strong>primarily Go</strong> — cite it as ecosystem breadth, not as a Rust flagship.</li>
+                <li><strong>Why Rust here:</strong> performance, memory safety, and concurrency discipline for syncing / state — a defensible interview sentence without claiming exclusivity.</li>
+            </ul>
+            <h3>Rust-specific angles (if they go deep)</h3>
+            <p style="margin-bottom:0.5rem;">Async vs deterministic replay, state DB caching, trie I/O, zero-copy decoding, mempool design, speculative / parallel execution research vs canonical serial replay, interpreter vs JIT — tie each back to <strong>determinism</strong> and <strong>same gas semantics</strong>.</p>
+            <h3>Highest-ROI topics (if you only pick five)</h3>
+            <ol>
+                <li>Rollups + DA</li>
+                <li>EIP-4844 + blob gas</li>
+                <li><code>DELEGATECALL</code> + proxy storage discipline</li>
+                <li>MEV + PBS</li>
+                <li>Storage / gas economics</li>
+            </ol>
+            <h3>One-liners that land (use sparingly, mean them)</h3>
+            <ul>
+                <li>“State growth dominates many workloads more than raw ALU.”</li>
+                <li>“Rollups move bulk execution off L1; L1 specializes in security, settlement, and DA commitments.”</li>
+                <li>“4844 split execution gas from blob data gas.”</li>
+                <li>“Delegatecall decouples who owns storage from who authored the bytecode.”</li>
+            </ul>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Hands-on lab (short)</h2>
+            <p><strong>(1)</strong> Pick one function you have shipped (or a tiny open-source example). Label each line as <strong>check / effect / interaction</strong>. <strong>(2)</strong> Sketch a proxy layout: which slots are reserved (EIP-1967), where the implementation address lives, and one way a sloppy upgrade could brick storage.</p>
+            <p style="font-size:0.92rem;color:var(--text2);margin-bottom:0;">Keep artifacts in your notes repo; no autograder here—honesty with your past self is the point.</p>
+        </div>
+
+        <p><button type="button" class="btn btn-primary" id="complete-module-btn">Mark module complete</button></p>
+        <p><a href="../index.html" class="btn btn-secondary">← Back to EVM track</a></p>
+    </div>
+    <script src="../../common/evm-course-data.js"></script>
+    <script src="../../common/navigation.js"></script>
+    <script src="../../common/evm-navigation.js"></script>
+    <script src="../../common/glossary.js"></script>
+    <script src="../../common/module-init.js" data-module-id="evm-l01-m01"></script>
+</body>
+</html>

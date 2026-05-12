@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Verification script for course module paths.
- * Module lists are derived from common/course-data.js, common/crypto-course-data.js, and common/zk-course-data.js.
+ * Module lists are derived from common/course-data.js, common/crypto-course-data.js, common/zk-course-data.js, and common/evm-course-data.js.
  * Run with: node verify-paths.js
  */
 
@@ -18,9 +18,11 @@ const COMMON_FILES = [
     'course-data.js',
     'crypto-course-data.js',
     'zk-course-data.js',
+    'evm-course-data.js',
     'navigation.js',
     'crypto-navigation.js',
     'zk-navigation.js',
+    'evm-navigation.js',
     'glossary.js',
     'module-init.js',
     'protocol-engineer-track.js',
@@ -67,6 +69,19 @@ function loadModulesFromZkCourseData() {
     return modules;
 }
 
+function loadModulesFromEvmCourseData() {
+    const p = path.join(COMMON_DIR, 'evm-course-data.js');
+    if (!fs.existsSync(p)) return [];
+    const content = fs.readFileSync(p, 'utf8');
+    const regex = /id:\s*'([^']+)'[\s\S]*?path:\s*'([^']+)'/g;
+    const modules = [];
+    let m;
+    while ((m = regex.exec(content)) !== null) {
+        modules.push({ id: m[1], file: m[2] });
+    }
+    return modules;
+}
+
 // Expected CSS path from module file path (e.g. hyperscale/basic/foo.html -> ../../common/)
 function expectedCssPathFor(moduleFile) {
     const dir = path.dirname(moduleFile);
@@ -80,9 +95,11 @@ const COMMON_JS = [
     'course-data.js',
     'crypto-course-data.js',
     'zk-course-data.js',
+    'evm-course-data.js',
     'navigation.js',
     'crypto-navigation.js',
     'zk-navigation.js',
+    'evm-navigation.js',
     'protocol-engineer-track.js',
     'glossary.js',
     'module-init.js',
@@ -114,9 +131,10 @@ COMMON_FILES.forEach(file => {
 
 const MODULES = loadModulesFromCourseData()
     .concat(loadModulesFromCryptoCourseData())
-    .concat(loadModulesFromZkCourseData());
+    .concat(loadModulesFromZkCourseData())
+    .concat(loadModulesFromEvmCourseData());
 console.log(
-    `\nLoaded ${MODULES.length} modules from course-data.js + crypto-course-data.js + zk-course-data.js\nChecking module files...`
+    `\nLoaded ${MODULES.length} modules from course-data.js + crypto-course-data.js + zk-course-data.js + evm-course-data.js\nChecking module files...`
 );
 
 MODULES.forEach(({ id, file }) => {

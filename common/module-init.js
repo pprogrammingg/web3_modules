@@ -11,13 +11,16 @@
             initializeCryptoModulePage(mid);
         } else if (mid.indexOf('zk-l') === 0 && typeof initializeZkModulePage === 'function') {
             initializeZkModulePage(mid);
+        } else if (mid.indexOf('evm-l') === 0 && typeof initializeEvmModulePage === 'function') {
+            initializeEvmModulePage(mid);
         } else if (typeof initializeModulePage === 'function') {
             initializeModulePage(mid);
         }
         if (
             typeof injectProtocolEngineerPanel === 'function' &&
             mid.indexOf('crypto-') !== 0 &&
-            mid.indexOf('zk-l') !== 0
+            mid.indexOf('zk-l') !== 0 &&
+            mid.indexOf('evm-l') !== 0
         ) {
             injectProtocolEngineerPanel(mid);
         }

@@ -37,28 +37,9 @@
             font-optical-sizing: auto;
             letter-spacing: -0.03em;
             line-height: 1.2;
-            margin-bottom: 0.65rem;
+            margin-bottom: 2rem;
             text-align: center;
             color: var(--text);
-        }
-        .track-landing .lede {
-            color: var(--text2);
-            max-width: 38rem;
-            text-align: center;
-            margin-bottom: 2.25rem;
-            line-height: 1.65;
-            font-size: 1.05rem;
-            font-weight: 400;
-            letter-spacing: 0.01em;
-        }
-        .track-landing .lede strong {
-            font-weight: 600;
-            color: var(--text);
-        }
-        .track-landing .lede code {
-            font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, monospace;
-            font-size: 0.9em;
-            font-weight: 500;
         }
         .track-grid {
             display: grid;
@@ -74,7 +55,7 @@
         }
         @media (min-width: 1024px) {
             .track-grid {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             }
         }
         .track-card {
@@ -83,27 +64,78 @@
             padding: 1.75rem 1.5rem;
             text-decoration: none;
             color: rgba(255,255,255,0.92);
-            border: 1px solid rgba(255,255,255,0.12);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.14);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.2),
+                inset 0 -1px 0 rgba(0,0,0,0.18),
+                0 12px 40px rgba(0,0,0,0.25);
             transition: transform 0.18s ease, box-shadow 0.18s ease;
             position: relative;
             overflow: hidden;
         }
         .track-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 18px 48px rgba(0,0,0,0.35);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.26),
+                inset 0 -1px 0 rgba(0,0,0,0.2),
+                0 18px 48px rgba(0,0,0,0.35);
         }
+        /* Stone tint + “light” angles: each track reads as a different polished gem */
         .track-card--hyperscale {
             background: linear-gradient(145deg, #1e3a5f 0%, #0f2744 45%, #0a1628 100%);
+            --stone-hue: 214;
+            --stone-hue-accent: 198;
+            --stone-sat: 40%;
+            --stone-sat-accent: 52%;
+            --stone-light-angle: 118deg;
+            --stone-light-angle-2: 36deg;
+            /* Stronger cabochon shine (diffused in global .polished-stone-surface) */
+            --stone-shine: 0.78;
+            --stone-depth-gloss: 0.66;
         }
         .track-card--solana {
             background: linear-gradient(145deg, #3d1f5c 0%, #241438 50%, #140a22 100%);
+            --stone-hue: 278;
+            --stone-hue-accent: 310;
+            --stone-sat: 48%;
+            --stone-sat-accent: 62%;
+            --stone-light-angle: 154deg;
+            --stone-light-angle-2: 62deg;
+            --stone-shine: 0.8;
+            --stone-depth-gloss: 0.68;
         }
         .track-card--crypto {
             background: linear-gradient(145deg, #fb923c 0%, #ea580c 46%, #7c2d12 100%);
+            --stone-hue: 24;
+            --stone-hue-accent: 8;
+            --stone-sat: 88%;
+            --stone-sat-accent: 72%;
+            --stone-light-angle: 132deg;
+            --stone-light-angle-2: 22deg;
+            --stone-shine: 0.62;
+            --stone-depth-gloss: 0.42;
         }
         .track-card--zk {
             background: linear-gradient(145deg, #059669 0%, #047857 44%, #064e3b 100%);
+            --stone-hue: 158;
+            --stone-hue-accent: 172;
+            --stone-sat: 52%;
+            --stone-sat-accent: 48%;
+            --stone-light-angle: 108deg;
+            --stone-light-angle-2: 214deg;
+            --stone-shine: 0.54;
+            --stone-depth-gloss: 0.48;
+        }
+        .track-card--evm {
+            background: linear-gradient(145deg, #5eead4 0%, #0d9488 46%, #134e4a 100%);
+            --stone-hue: 173;
+            --stone-hue-accent: 195;
+            --stone-sat: 72%;
+            --stone-sat-accent: 58%;
+            --stone-light-angle: 122deg;
+            --stone-light-angle-2: 38deg;
+            --stone-shine: 0.56;
+            --stone-depth-gloss: 0.52;
         }
         .track-card-badge {
             display: inline-block;
@@ -165,30 +197,35 @@
     </nav>
     <div class="track-landing container">
         <h1>Choose your learning track</h1>
-        <p class="lede">Structured web modules for protocol engineering—<strong>Hyperscale</strong> (Rust / BFT / libp2p), <strong>Solana Core</strong> (validator &amp; runtime), <strong>Cryptography</strong> (primitives &amp; FinTech ops), or <strong>Zero-Knowledge</strong> (proof systems &amp; rollups—parallel seven-level track). Shared glossary and styles live under <code>common/</code>.</p>
         <div class="track-grid">
-            <a href="hyperscale/index.html" class="track-card track-card--hyperscale">
+            <a href="hyperscale/index.html" class="track-card track-card--hyperscale polished-stone-surface">
                 <span class="track-card-badge">Rust · BFT · libp2p</span>
                 <h2>Hyperscale</h2>
                 <p class="track-card-scope track-card-scope--long">Get familiar with super scalable, multi-sharded and composable L1</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </a>
-            <a href="solana-core/index.html" class="track-card track-card--solana">
+            <a href="solana-core/index.html" class="track-card track-card--solana polished-stone-surface">
                 <span class="track-card-badge">Validator · runtime · BPF</span>
                 <h2>Solana Core</h2>
                 <p class="track-card-scope track-card-scope--long">Get familiar with super fast L1 nuts and bolts</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </a>
-            <a href="crypto-fintech/index.html" class="track-card track-card--crypto">
+            <a href="crypto-fintech/index.html" class="track-card track-card--crypto polished-stone-surface">
                 <span class="track-card-badge">Primitives · keys · FinTech</span>
                 <h2>Cryptography</h2>
                 <p class="track-card-scope">Keys &amp; primitives</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </a>
-            <a href="zk/index.html" class="track-card track-card--zk">
+            <a href="zk/index.html" class="track-card track-card--zk polished-stone-surface">
                 <span class="track-card-badge">Proofs · circuits · rollups</span>
                 <h2>Zero-Knowledge</h2>
                 <p class="track-card-scope">Proofs &amp; rollups</p>
+                <span class="track-card-arrow" aria-hidden="true">→</span>
+            </a>
+            <a href="evm/index.html" class="track-card track-card--evm polished-stone-surface">
+                <span class="track-card-badge">Execution · gas · rollups</span>
+                <h2>EVM / Ethereum</h2>
+                <p class="track-card-scope track-card-scope--long">Consensus-constrained compute, DA, and MEV—protocol interview depth</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </a>
         </div>
