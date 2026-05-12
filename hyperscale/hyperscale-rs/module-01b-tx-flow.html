@@ -341,6 +341,192 @@
             <p style="margin-top: 1rem;">In <strong>Intermediate</strong>, do <a href="module-01c-crate-groups.html">Crate Groups &amp; Quizzes</a> next (one-liners, code pointers, 10-question quiz per group).</p>
         </div>
 
+        <div class="section" id="messaging-transports-inventory">
+            <h2>Messaging &amp; transports inventory</h2>
+            <p>There is <strong>no</strong> standalone course module titled &ldquo;Messaging and Transports.&rdquo; Messaging and notifications are covered <strong>across</strong> this page (end-to-end path), <a href="../basic/module-04-state-machines.html">State machines &amp; event-driven architecture</a> (how <code>Event</code> / <code>Action</code> and channels compose), the <strong>libp2p</strong> modules in the Hyperscale basic/intermediate/advanced tracks, and the file links in the tables below. Treat these tables as a <strong>reading map</strong>: concrete struct names, lock types (<code>Arc&lt;Mutex&lt;HashSet&lt;…&gt;&gt;&gt;</code> vs alternatives), and exact eviction rules can shift between commits — when in doubt, set breakpoints on the linked paths.</p>
+            <p><strong>How to read the columns.</strong> <em>Message source / destination</em> are logical actors (threads, coordinators, peers). <em>Transport</em> is how bits move (RPC, gossip, in-process call). <em>Lifecycle storage</em> is where the payload or derived state usually sits until the next phase. <em>Pruning / flushing / drainage</em> is what makes that storage go away or become irrelevant.</p>
+            <p><strong>Suggested pacing.</strong> Each subsection is sized for roughly <strong>10–25 minutes</strong> of reading plus clicking into one or two source files. The full inventory is about <strong>55–85 minutes</strong> if you take all four chunks in order; skip chunks you already know.</p>
+            <nav class="messaging-inventory-toc" aria-label="Messaging inventory sections">
+                <ol style="margin: 0.75rem 0 1.25rem 1.25rem; line-height: 1.6;">
+                    <li><a href="#messaging-edge-ioloop">Edge &amp; IoLoop</a> — RPC and gossip into the runner (~12–18 min)</li>
+                    <li><a href="#messaging-node-mempool">Node interior &amp; mempool</a> — pure state machine hop and the tx pool (~12–18 min)</li>
+                    <li><a href="#messaging-bft-persist">BFT mesh, commit, disk</a> — proposals, votes, persistence (~15–22 min)</li>
+                    <li><a href="#messaging-execution-ops">Execution, cross-shard, ops</a> — after commit, timers, sim, sync (~15–22 min)</li>
+                </ol>
+            </nav>
+
+            <h3 id="messaging-edge-ioloop">1. Edge &amp; IoLoop (~12–18 min)</h3>
+            <p>How a transaction first enters the process: user RPC vs peer gossip. Both converge on <a href="#" data-file="crates/node/src/io_loop/mod.rs" target="_blank" rel="noopener">IoLoop</a> before anything synchronous runs in the state machine.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="flow-steps flow-steps-wide-first">
+                    <thead>
+                        <tr>
+                            <th scope="col">Message source</th>
+                            <th scope="col">Message destination</th>
+                            <th scope="col">Transport</th>
+                            <th scope="col">Lifecycle storage (type · location)</th>
+                            <th scope="col">Pruning / flushing / drainage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>User / wallet (signed transaction)</td>
+                            <td>Validator RPC / gateway (<a href="#" data-crate="production" target="_blank" rel="noopener">production</a>)</td>
+                            <td>HTTP / JSON-RPC (or similar); TLS terminates outside the pure state machine</td>
+                            <td>Ephemeral deserialization buffers on the RPC worker thread; decoded <code>NotarizedTransaction</code> (or equivalent) until handoff to the node I/O path</td>
+                            <td>RPC response returned to client; request-scoped allocations dropped. Failed validation returns an error without entering consensus queues.</td>
+                        </tr>
+                        <tr>
+                            <td>RPC or gateway worker</td>
+                            <td><a href="#" data-file="crates/node/src/io_loop/mod.rs" target="_blank" rel="noopener">IoLoop</a> (pinned / dedicated runner thread)</td>
+                            <td>In-process queue: <code>NodeInput</code> (or equivalent) from the production runner — not libp2p</td>
+                            <td>Bounded in-memory queue between &ldquo;network / RPC world&rdquo; and the thread that drives the state machine; backpressure policy is deployment-specific</td>
+                            <td>Drained as IoLoop runs <code>step</code>; on shutdown, remaining items are dropped with teardown. Under overload, policy may drop or reject before enqueue (inspect runner).</td>
+                        </tr>
+                        <tr>
+                            <td>Remote validator (same shard)</td>
+                            <td>IoLoop</td>
+                            <td>libp2p gossipsub → <a href="#" data-file="crates/node/src/io_loop/network_handlers.rs" target="_blank" rel="noopener">network_handlers</a> → <code>NodeInput::TransactionGossipReceived</code></td>
+                            <td>Adapter receive path + validation staging before a <a href="#" data-file="crates/core/src/protocol_event.rs" target="_blank" rel="noopener">ProtocolEvent</a> is emitted; dedupe / &ldquo;already seen&rdquo; structures often live near gossip ingress (pattern: set or map keyed by message id / hash — exact type varies)</td>
+                            <td>Duplicates rejected early (never reach mempool). After acceptance, gossip-derived state may be short-lived; some paths tombstone or remember ids briefly for idempotency — verify in <a href="#" data-file="crates/node/src/io_loop/step/tx_validation.rs" target="_blank" rel="noopener">tx_validation.rs</a>.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 id="messaging-node-mempool">2. Node interior &amp; mempool (~12–18 min)</h3>
+            <p>The synchronous core: one event in, actions out. Validated transactions land in RAM pools that are separate from BFT vote maps and from long-term disk.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="flow-steps flow-steps-wide-first">
+                    <thead>
+                        <tr>
+                            <th scope="col">Message source</th>
+                            <th scope="col">Message destination</th>
+                            <th scope="col">Transport</th>
+                            <th scope="col">Lifecycle storage (type · location)</th>
+                            <th scope="col">Pruning / flushing / drainage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Decoded network / RPC input</td>
+                            <td><a href="#" data-file="crates/node/src/state/mod.rs" target="_blank" rel="noopener">NodeStateMachine</a></td>
+                            <td>Synchronous <code>handle(event) -&gt; Vec&lt;Action&gt;</code> after IoLoop dequeues (see <a href="#" data-file="crates/core/src/traits.rs" target="_blank" rel="noopener">StateMachine</a> trait)</td>
+                            <td>No durable queue inside the pure state machine — only stack-local work and returned actions</td>
+                            <td>Not applicable per event: actions are returned immediately to the runner for side effects.</td>
+                        </tr>
+                        <tr>
+                            <td>Validation pipeline (post-signature / manifest checks)</td>
+                            <td><a href="#" data-crate="mempool" target="_blank" rel="noopener">MempoolCoordinator</a></td>
+                            <td>In-process: <code>ProtocolEvent::TransactionValidated</code> path via <a href="#" data-file="crates/node/src/state/transactions.rs" target="_blank" rel="noopener">state/transactions.rs</a></td>
+                            <td>Per-shard pool structures in <a href="#" data-file="crates/mempool/src/coordinator.rs" target="_blank" rel="noopener">mempool coordinator</a> — typically maps / sets / priority structures keyed by transaction id and account sequence rules</td>
+                            <td>Removed when the transaction is <strong>included</strong> in a committed block, <strong>replaced</strong> under policy (e.g. same sender nonce), or <strong>evicted</strong> when pools exceed size / fee thresholds.</td>
+                        </tr>
+                        <tr>
+                            <td>Mempool (ordered candidates)</td>
+                            <td><a href="#" data-file="crates/bft/src/coordinator.rs" target="_blank" rel="noopener">BftCoordinator</a> (<code>try_propose</code>, proposal build)</td>
+                            <td>Direct calls from node composition into BFT; not a second network hop</td>
+                            <td>Proposal construction buffers (pending txs pulled for the next block header / body)</td>
+                            <td>Superseded when a different proposal wins the round, or when the view advances without committing that candidate.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 id="messaging-bft-persist">3. BFT mesh, commit, and persistence (~15–22 min)</h3>
+            <p>Shard-scoped gossip for headers and votes, then durable commit. This chunk is where &ldquo;messages&rdquo; look most like classical consensus traffic.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="flow-steps flow-steps-wide-first">
+                    <thead>
+                        <tr>
+                            <th scope="col">Message source</th>
+                            <th scope="col">Message destination</th>
+                            <th scope="col">Transport</th>
+                            <th scope="col">Lifecycle storage (type · location)</th>
+                            <th scope="col">Pruning / flushing / drainage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Current round proposer</td>
+                            <td>All validators on the shard</td>
+                            <td>Gossip notifications: block header path (see <a href="#" data-file="crates/messages/src/notification/mod.rs" target="_blank" rel="noopener">messages::notification</a>)</td>
+                            <td>Encode buffers on send; peers hold BFT &ldquo;pending proposal&rdquo; / header caches until QC or timeout</td>
+                            <td>Replaced by higher-round headers or cleared after QC commits the height; view-change paths discard stale pending work.</td>
+                        </tr>
+                        <tr>
+                            <td>Each validator after verifying header</td>
+                            <td>Proposer + peers</td>
+                            <td>Gossip: <code>BlockVote</code> (and related notification variants in <code>messages</code>)</td>
+                            <td>Vote bookkeeping in BFT — e.g. <a href="#" data-file="crates/bft/src/vote_keeper.rs" target="_blank" rel="noopener">vote_keeper.rs</a>, <a href="#" data-file="crates/bft/src/pending.rs" target="_blank" rel="noopener">pending.rs</a>, <a href="#" data-file="crates/bft/src/vote_set.rs" target="_blank" rel="noopener">vote_set.rs</a> for QC formation</td>
+                            <td>Pruned when <strong>QC is built</strong> for the height, or when round / view timers cause cleanup of stale vote maps.</td>
+                        </tr>
+                        <tr>
+                            <td>BFT commit path</td>
+                            <td>Local persistence + optional broadcast follow-ups</td>
+                            <td><a href="#" data-file="crates/core/src/action.rs" target="_blank" rel="noopener">Action::Persist*</a>, <code>CommitBlock</code>, and network actions emitted by the runner</td>
+                            <td>Committed blocks and certificates on disk (blockstore / DB — exact backend is node deployment); in-memory mirrors for hot path</td>
+                            <td><strong>Archival / compaction</strong> is operator policy, not mempool-style eviction. Unlike RAM pools, on-disk data is retained until configured pruning.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 id="messaging-execution-ops">4. Execution, cross-shard, and operational paths (~15–22 min)</h3>
+            <p>What happens after commit, how shards coordinate without a 2PC coordinator, and auxiliary transports (timers, simulation, catch-up sync).</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="flow-steps flow-steps-wide-first">
+                    <thead>
+                        <tr>
+                            <th scope="col">Message source</th>
+                            <th scope="col">Message destination</th>
+                            <th scope="col">Transport</th>
+                            <th scope="col">Lifecycle storage (type · location)</th>
+                            <th scope="col">Pruning / flushing / drainage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Committed block / receipts</td>
+                            <td><a href="#" data-file="crates/execution/src/coordinator.rs" target="_blank" rel="noopener">ExecutionCoordinator</a></td>
+                            <td>Internal protocol events after commit; then calls into <a href="#" data-crate="engine" target="_blank" rel="noopener">engine</a> for Radix semantics</td>
+                            <td>Execution wave state, receipt tiers (<a href="#" data-file="crates/types/src/receipt/mod.rs" target="_blank" rel="noopener">receipt model</a>), coordinator tables until certificates finalize</td>
+                            <td>Drained when the wave completes and transaction / receipt certificates are settled for the affected txs; conflict resolution may drop loser txs per <a href="#" data-file="crates/execution/src/conflict.rs" target="_blank" rel="noopener">ConflictDetector</a> rules.</td>
+                        </tr>
+                        <tr>
+                            <td>Shard A (provisions / receipts)</td>
+                            <td>Peer shards + provision composition in <a href="#" data-crate="node" target="_blank" rel="noopener">node</a></td>
+                            <td>Cross-shard messages over gossip (shard-scoped topics) + in-node <a href="#" data-crate="provisions" target="_blank" rel="noopener">provisions</a> coordination — not a classic 2PC coordinator</td>
+                            <td><strong>ProvisionCoordinator</strong>-style in-memory maps: quorum of <code>StateProvision</code>s per required shard until <code>ProvisioningComplete</code></td>
+                            <td>Drained after deterministic execution in fixed shard order and certificate aggregation, or along deterministic abort / conflict paths (see Cross-Shard module).</td>
+                        </tr>
+                        <tr>
+                            <td>Wall clock / simulated time</td>
+                            <td>Node + BFT timers</td>
+                            <td>Timer driver → <a href="#" data-file="crates/node/src/state/timers.rs" target="_blank" rel="noopener">timers.rs</a> → <a href="#" data-file="crates/core/src/protocol_event.rs" target="_blank" rel="noopener">ProtocolEvent</a></td>
+                            <td>Pending timer registrations keyed by round / phase (view-change, cleanup, proposal retry)</td>
+                            <td>One-shot timers fire then unregister; many are <strong>cancelled on view advance</strong> so stale timeouts cannot commit old rounds.</td>
+                        </tr>
+                        <tr>
+                            <td>Simulator workload driver</td>
+                            <td>IoLoop / fake network</td>
+                            <td>Synthetic events from <a href="#" data-file="crates/simulator/src/runner.rs" target="_blank" rel="noopener">simulator</a> / <a href="#" data-file="crates/simulation/src/runner.rs" target="_blank" rel="noopener">simulation</a> instead of real sockets</td>
+                            <td>Scheduled event lists and in-memory &ldquo;network&rdquo; queues</td>
+                            <td>Emptied per simulation step or at scenario end; use <a href="#" data-file="crates/simulator/src/livelock.rs" target="_blank" rel="noopener">livelock analyzer</a> post-run for stuck txs.</td>
+                        </tr>
+                        <tr>
+                            <td>Sync / fetch protocol (catch-up)</td>
+                            <td>Peer nodes</td>
+                            <td>Request/response over libp2p (see <a href="#" data-file="crates/node/src/io_loop/protocol/mod.rs" target="_blank" rel="noopener">io_loop/protocol</a>) — distinct from mempool gossip</td>
+                            <td>Chunk buffers, block body staging, integrity checks before commit</td>
+                            <td>Temporary buffers freed after successful import; failed sync attempts may retry with backoff (runner-specific).</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="hs-suggested-study-lead" style="margin-top: 1rem;"><strong>Why this is not a single &ldquo;messaging crate&rdquo; story.</strong> User ingress, gossip, BFT notifications, execution sidecars, and persistence each use different transports and lifetimes. The <a href="#" data-crate="messages" target="_blank" rel="noopener">messages</a> crate focuses on <strong>serialization and notification types</strong>; <a href="#" data-crate="node" target="_blank" rel="noopener">node</a> wires them into <code>Event</code>s; <a href="#" data-crate="mempool" target="_blank" rel="noopener">mempool</a> and <a href="#" data-crate="bft" target="_blank" rel="noopener">bft</a> own the longest-lived RAM pools until commit or eviction.</p>
+        </div>
+
         <div class="section">
             <h2>Practical next steps: run the code and debug</h2>
             <p>Use these steps to run Hyperscale and follow a transaction with a debugger. They assume you have the repo cloned and <code>cargo build</code> works.</p>
@@ -348,7 +534,7 @@
                 <li><strong>Read <code>Event</code> and <code>Action</code> first.</strong> The flow is “event in → state machine → actions out; runner performs actions and feeds back events.” Skim the core event and action modules (see <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a>) so you know what to break on.</li>
                 <li><strong>Run a node or the simulator.</strong> Follow the repo README to run a single node or the sim (e.g. <code>cargo run</code> for the production runner or sim binary). Submit one transaction and note its hash (from logs or RPC).</li>
                 <li><strong>Follow one tx with a debugger.</strong> In your IDE, set breakpoints on: <code>SubmitTransaction</code> / <code>TransactionGossipReceived</code> (ingress + validation) and <code>ProtocolEvent::TransactionValidated</code> (mempool), then BFT commit paths, then execution wave/certificate handling. Step through to see which crates handle each step.</li>
-                <li><strong>Use the crate table.</strong> The production runner is large. Use the table above to jump to “first contact” (RPC handler, submit path, gossip) and “actions to network” (e.g. <code>BroadcastToShard</code> handling) instead of reading the production crate top to bottom.</li>
+                <li><strong>Use the messaging inventory tables.</strong> The production runner is large. Use the <a href="#messaging-transports-inventory">split tables above</a> (edge → mempool → BFT → execution) to jump to “first contact” (RPC handler, submit path, gossip) and “actions to network” (e.g. <code>BroadcastToShard</code> handling) instead of reading the production crate top to bottom.</li>
                 <li><strong>When things go wrong:</strong> tx stuck in <strong>Pending</strong> → check mempool and gossip (did the tx reach all involved shards?). Block not <strong>committing</strong> → BFT and QC (round/timeout, vote collection). Cross-shard tx stuck after <strong>Executed</strong> → certificates and inclusion in a later block (provisions, certificate aggregation).</li>
             </ol>
         </div>

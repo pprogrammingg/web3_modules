@@ -19,4 +19,4 @@ This verifies:
 - Every module listed in **`common/course-data.js`**, **`common/crypto-course-data.js`**, **`common/zk-course-data.js`**, and **`common/evm-course-data.js`**: same asset checks; **`http(s)`** links use **`target="_blank"`** and **`rel`** including **`noopener`**.
 - All **`solana-core/**/*.html`** and **`evm/**/*.html`** pages: same checks.
 
-Use alongside **`node verify-paths.js`** (path contract) and **`bash test-all.sh`** for broader checks.
+Use alongside **`node verify-paths.js`** (path contract), **`./tests/run-all.sh`** (full suite), and **`bash test-all.sh`** (same as `tests/run-all.sh`).

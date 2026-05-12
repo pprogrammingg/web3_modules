@@ -4,6 +4,17 @@ All notable changes to the web3_modules course are listed here. **Entries are gr
 
 ---
 
+## 2026-05-12
+
+- **Tests:** `tests/run-all.sh` is the canonical suite (`verify-paths` → `sanity-pages` → `js-syntax-check` → `render-contracts` → quiz contracts → mobile-test presence). `test-all.sh` delegates to it. `tests/README.md` documents order and when to run each stage; `TESTING.md` points there.
+- **New checks:** `tests/js-syntax-check.js` (`node --check` on shared JS), `tests/render-contracts.js` (HTML skeleton markers for landing + hubs + glossary).
+- **Removed bloat:** Dropped redundant `test-all.sh` grep steps (file/CSS/JS string greps); quiz checks live under `tests/test-quiz.js` only.
+- **`common/module-init.js`:** Table-driven dispatch for crypto / ZK / EVM module pages + protocol panel skip logic.
+- **`scripts/sanity-pages.js`:** Course data file list + parallel track HTML walks consolidated into small loops.
+- **Hub links:** `courseModuleHrefForHub` in `common/navigation.js` + parallel track navigations — course `path` values stay repo-root-relative for `verify-paths`, but hub cards now use track-relative `href`s so `/evm/index.html` no longer points at `/evm/evm/...`. Regression guard: `tests/hub-href-contract.js`.
+
+---
+
 ## 2026-02-17
 
 - Crate Groups: Quick Test and repo reading links added.

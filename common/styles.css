@@ -166,6 +166,32 @@ h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.2rem; }
     margin-bottom: 0.25rem;
 }
 
+/*
+ * Hub module cards (Hyperscale, Solana, ZK/crypto/EVM index grids): same vertical rhythm.
+ * Solana was shorter because it omitted module-meta + shorter blurbs — flex + min-height aligns rows.
+ */
+.module-grid .module-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 18.5rem;
+    box-sizing: border-box;
+}
+.module-grid .module-card > p {
+    flex: 1 1 auto;
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    color: var(--text2);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+.module-grid .module-card > .module-time-estimate {
+    margin-top: auto;
+}
+.module-grid .module-card > .module-meta {
+    flex-shrink: 0;
+}
+
 /* Global course levels (1…N) on index; palette cycles every 5 levels via --1…--5 */
 .course-level-band {
     margin: 1.5rem 0 2rem;

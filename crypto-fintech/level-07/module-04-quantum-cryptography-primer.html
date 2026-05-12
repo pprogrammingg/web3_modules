@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum cryptography — small primer — Cryptography track</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body class="crypto-track">
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Cryptography track home">← Cryptography track</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
+    </nav>
+    <div class="course-content container">
+        <div class="course-header">
+            <h1>Quantum cryptography — small primer</h1>
+            <div class="course-meta">
+                <span>⏱️ ~1.5 hr (4×20 min)</span>
+                <span>📊 Level 7 · Primer</span>
+                <span>🔐 Cryptography for Blockchains &amp; FinTech</span>
+            </div>
+        </div>
+
+        <p style="font-size:0.95rem;color:var(--text2);margin:-0.5rem 0 1.25rem;">Companion to <a href="module-02-post-quantum.html">Post-quantum for architects</a> (PQC migration). This page is about <strong>quantum-assisted key agreement</strong> and vocabulary—<strong>not</strong> a physics course.</p>
+
+        <div class="section">
+            <h2>Reading segments (~20 min each)</h2>
+            <div class="table-wrap">
+            <table class="flow-steps">
+                <thead>
+                    <tr><th scope="col">#</th><th scope="col">Segment</th><th scope="col">Checkpoint</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td>Disambiguate “quantum cryptography”</td><td>Name two different things people label “quantum crypto” and which layer of a stack each touches.</td></tr>
+                    <tr><td>2</td><td>Quantum key distribution (QKD)</td><td>One sentence: what assumption does QKD replace compared to DH/ECDH?</td></tr>
+                    <tr><td>3</td><td>Chains, FinTech, and reality</td><td>Why L1 validators do not “switch to QKD” as a drop-in for signatures tomorrow.</td></tr>
+                    <tr><td>4</td><td>Limits, trust boundaries, further reading</td><td>List one engineering limit (rate, distance, device trust) you would put in an architecture review.</td></tr>
+                </tbody>
+            </table>
+            </div>
+            <p style="font-size:0.92rem;color:var(--text2);">Optional: NIST and ETSI publish high-level roadmaps; treat vendor decks as marketing until mapped to your threat model.</p>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Segment 1 — What people mean by “quantum cryptography”</h2>
+            <p>Journalists and sales decks overload the phrase. In practice, distinguish at least:</p>
+            <ul>
+                <li><strong>Quantum key distribution (QKD)</strong> — physical-layer protocols (often photons) to agree symmetric keys with detection of many eavesdropping attempts. Still needs <strong>authenticated classical channels</strong> (pre-shared keys or post-quantum / classical signatures) to defeat person-in-the-middle.</li>
+                <li><strong>Post-quantum cryptography (PQC)</strong> — classical algorithms conjectured resistant to quantum computers (signatures, KEMs). Software-only, runs on existing CPUs—this is what <a href="module-02-post-quantum.html">your PQC module</a> targets.</li>
+                <li><strong>Quantum random number generators (QRNG)</strong> — harvest entropy from quantum processes for seeding; useful operationally, not a replacement for protocols.</li>
+            </ul>
+            <p>Blockchains and most FinTech APIs live in the <strong>PQC + classical</strong> world for integrity and key agreement at scale. QKD shows up in <strong>metro links, defense, regulated backhaul</strong>—different procurement and threat model.</p>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Segment 2 — QKD in one architectural pass</h2>
+            <p><strong>BB84-style intuition:</strong> Alice encodes bits in randomly chosen bases; Bob measures in random bases; they publicly compare bases (not bits), discard mismatches, estimate error rate, then run error correction and privacy amplification to distill a key. If Eve couples strongly to the quantum channel, error rates spike—many designs abort or shrink key rate.</p>
+            <p><strong>Security story:</strong> security is often argued from physical principles <em>conditional on</em> device and channel models. Implementations worry about <strong>detector blinding</strong>, <strong>side channels</strong>, <strong>trusted relays</strong> (quantum repeaters are hard), and <strong>finite-size effects</strong> (not asymptotic proofs).</p>
+            <p>Compared to ECDH, QKD tries to move some assurance from <strong>computational hardness</strong> to <strong>physics + correct lab hardware</strong>—trading math assumptions for engineering and distance constraints.</p>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Segment 3 — Why this matters to protocol engineers (without magic)</h2>
+            <ul>
+                <li><strong>Not a replacement for consensus or signatures.</strong> Validators still need digital signatures and hash links; QKD does not give you global ordering or Sybil resistance.</li>
+                <li><strong>Hybrid stacks.</strong> A bank might explore QKD for a fixed fiber between two data centers <em>and</em> run Kyber/Dilithium-class algorithms on servers—orthogonal layers.</li>
+                <li><strong>Harvest-now / decrypt-later</strong> still pushes you toward PQC for long-lived ciphertext; QKD secures <em>new</em> key material on a link, not retroactively hardening old TLS records.</li>
+            </ul>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Segment 4 — Limits and sane reading order</h2>
+            <ul>
+                <li><strong>Distance &amp; rate</strong> — attenuation kills key rate; trusted nodes or satellites change the trust model.</li>
+                <li><strong>Authentication gap</strong> — QKD alone does not authenticate endpoints; you still need credentials or signatures.</li>
+                <li><strong>Cost &amp; ops</strong> — spare parts, calibration, monitoring—different from shipping a Rust binary with a PQC KEM.</li>
+            </ul>
+            <p>Skim <a href="https://csrc.nist.gov/projects/post-quantum-cryptography" target="_blank" rel="noopener noreferrer">NIST PQC</a> for software migration; for QKD, ETSI / ITU-T industry specs are the usual starting point when a customer mandates it.</p>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Hands-on lab (short)</h2>
+            <p>In one page of notes: (1) draw a box diagram for “app → TLS → WAN → QKD link → HSM” and mark where PQC still appears. (2) Write three bullets: when you would <strong>reject</strong> QKD as scope creep in a chain project.</p>
+        </div>
+
+        <p><button type="button" class="btn btn-primary" id="complete-module-btn">Mark module complete</button></p>
+        <p><a href="../index.html" class="btn btn-secondary">← Back to Cryptography track</a></p>
+    </div>
+    <script src="../../common/crypto-course-data.js"></script>
+    <script src="../../common/navigation.js"></script>
+    <script src="../../common/crypto-navigation.js"></script>
+    <script src="../../common/glossary.js"></script>
+    <script src="../../common/module-init.js" data-module-id="crypto-l07-m04"></script>
+</body>
+</html>

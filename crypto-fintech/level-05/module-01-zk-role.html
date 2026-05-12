@@ -41,6 +41,13 @@
         </div>
 
         <div class="section section-tight module-tight-prose">
+            <h2>Background — homomorphic encryption (FHE)</h2>
+            <p><strong>Not required for ZK rollup interviews</strong>, but you will hear it in the same sentence as “private chains.” Homomorphic encryption lets certain computations run on <strong>ciphertexts</strong> so that, after decryption, the result matches what you would have obtained on the plaintexts. Fully homomorphic schemes support general circuits (with noise management / bootstrapping); leveled schemes cap depth.</p>
+            <p><strong>How it differs from ZK here:</strong> ZK proofs convince a verifier that a computation obeyed rules, often <strong>without revealing inputs</strong>—the emphasis is <strong>integrity / succinct verification</strong>. FHE emphasizes <strong>confidentiality during outsourced compute</strong> on encrypted data. SNARKs do not magically give you FHE; product teams sometimes conflate the two in slides.</p>
+            <p><strong>On-chain reality:</strong> FHE today is usually <strong>too slow and too key-heavy</strong> for L1 execution; you may see hybrids (MPC, TEEs, narrow homomorphic ops). Treat homomorphic claims like any other: ask for <strong>threat model, latency, who holds keys, and failure modes</strong>. Glossary: <span class="glossary-term" data-glossary="homomorphic encryption">homomorphic encryption</span>.</p>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
             <h2>Hands-on lab</h2>
             <p>Replace this placeholder with a tiny reproducible artifact (script, test, or notebook) and link your repo or gist in your notes. Prefer one clear success criterion over scope creep.</p>
         </div>

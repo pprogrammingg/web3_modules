@@ -93,7 +93,7 @@ function renderEvmModuleCard(module, status) {
     const cardClass = isAvailable
         ? 'module-card available ' + cfg.class + contribCardClass
         : 'module-card unavailable ' + cfg.class + contribCardClass;
-    const href = isAvailable ? module.path : '#';
+    const href = isAvailable ? courseModuleHrefForHub(module.path, 'evm') : '#';
     const onClick = isAvailable ? '' : 'onclick="event.preventDefault(); return false;"';
 
     const timeEstimateHtml = module.duration

@@ -23,10 +23,12 @@ Static HTML/CSS/JS courses: open **`index.html`** for the track picker (**Hypers
 
 **To run checks (optional):**
 ```bash
-node verify-paths.js       # Module paths vs course-data
-node scripts/sanity-pages.js   # Landing cards, hubs, local CSS/JS, external links
-./test-all.sh              # Includes both above plus quiz/CSS/JS smoke checks
+./tests/run-all.sh          # Full suite: paths, sanity, JS syntax, HTML contracts, quiz markers
+# or
+node verify-paths.js       # Module paths vs course-data only
+node scripts/sanity-pages.js   # Landing, hubs, assets, external links
 ```
+See **[tests/README.md](tests/README.md)** for stage order and when to run each check.
 
 ## Quick Start
 
@@ -54,9 +56,7 @@ The site deploys from the `main` branch (Settings → Pages → “Deploy from a
 ## Testing
 
 ```bash
-node verify-paths.js  # Verify all paths
-open test-modules.html  # Browser tests
-./test-all.sh  # Run all tests
+./tests/run-all.sh
 ```
 
-See [TESTING.md](TESTING.md) for details.
+Details: **[tests/README.md](tests/README.md)** · stub pointer: **[TESTING.md](TESTING.md)**

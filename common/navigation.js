@@ -1,5 +1,17 @@
 // Navigation and course rendering utilities
 
+/**
+ * Course `path` values are repo-root-relative (e.g. `evm/level-01/x.html`).
+ * On a track hub at `/evm/index.html`, linking to `evm/level-01/x.html` wrongly resolves to `/evm/evm/level-01/x.html`.
+ * Strip `trackFolder/` so hub cards use paths relative to the track directory.
+ */
+function courseModuleHrefForHub(modulePath, trackFolder) {
+    if (!modulePath || !trackFolder) return modulePath;
+    var prefix = trackFolder + '/';
+    if (modulePath.indexOf(prefix) === 0) return modulePath.slice(prefix.length);
+    return modulePath;
+}
+
 // List of modules that are actually available (have HTML files)
 const AVAILABLE_MODULES = [
     'basic-01',
@@ -166,7 +178,7 @@ function renderModuleCard(module, status) {
     const cardClass = isAvailable
         ? `module-card available ${statusClass}${projectCardClass}${contribCardClass}`
         : `module-card unavailable ${statusClass}${projectCardClass}${contribCardClass}`;
-    const href = isAvailable ? module.path : '#';
+    const href = isAvailable ? courseModuleHrefForHub(module.path, 'hyperscale') : '#';
     const onClick = isAvailable ? '' : 'onclick="event.preventDefault(); return false;"';
     
     const timeEstimateHtml = module.duration

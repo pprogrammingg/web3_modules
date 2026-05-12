@@ -629,6 +629,26 @@ const GLOSSARY_ENTRIES = [
     subCategory: ['Cryptography & Hashing'],
     competingConcepts: 'SNARK vs STARK: SNARK smaller/faster verify, often trusted setup; STARK transparent, larger. Both used in rollups and privacy.',
   },
+  {
+    key: 'homomorphic encryption',
+    keys: ['homomorphic encryption', 'fhe', 'fully homomorphic'],
+    term: 'Homomorphic encryption',
+    def: 'Encryption that lets you compute on ciphertexts so that decrypting the result matches what you would get on the plaintexts.',
+    technicalDef: 'A homomorphic encryption scheme supports operations on ciphertexts that commute with decryption (e.g. add ciphertexts → decrypt to sum of plaintexts). “Somewhat” or leveled schemes support bounded-depth circuits; fully homomorphic (FHE) supports arbitrary circuits via bootstrapping (noise management). Very different goal from zero-knowledge: FHE aims at confidentiality of data during outsourced compute; ZK aims at verifiability without revealing secrets. On-chain today, FHE is mostly research / specialized systems (cost, latency, key management)—architects should not conflate it with “ZK rollups.”',
+    explain10yo: 'Locked boxes where you can add or combine what’s inside without opening them—then when you finally unlock, the answer matches what you would have gotten if you had worked on the open numbers.',
+    subCategory: ['Cryptography & Hashing'],
+    competingConcepts: 'FHE vs ZK proofs: FHE hides intermediate values during compute; ZK convinces a verifier a computation was correct (often without revealing inputs). FHE vs MPC: MPC splits trust across parties; FHE trusts math + one ciphertext holder. FHE vs TEEs: TEEs rely on hardware enclaves; FHE relies on math assumptions.',
+  },
+  {
+    key: 'quantum key distribution',
+    keys: ['quantum key distribution', 'qkd', 'quantum cryptography'],
+    term: 'Quantum key distribution (QKD)',
+    def: 'Using quantum signals (and classical follow-up) to grow shared secret keys between two parties with security backed by physics assumptions, not only computational hardness.',
+    technicalDef: 'Protocols such as BB84 encode bits in quantum states (e.g. photon polarization); eavesdropping perturbs the channel in detectable ways with high probability, bounding information leaked to an adversary. After sifting and error correction, parties derive a symmetric key for use with standard AEAD. QKD secures the key agreement layer; it does not by itself replace digital signatures or blockchain consensus. Distance, rate, trusted-device assumptions, and side channels matter in deployment.',
+    explain10yo: 'Sending secret dice rolls using single photons: if someone tries to peek, they mess up the rolls and you notice—so you only keep rounds where nobody was snooping.',
+    subCategory: ['Cryptography & Hashing', 'Fault Models & Security'],
+    competingConcepts: 'QKD vs post-quantum (PQC) algorithms: QKD needs specialized hardware and links; PQC is software-only drop-in for classical channels (KEMs, signatures). Chains today standardize on classical and PQC migration paths; QKD is niche (government, metro networks). “Quantum cryptography” in press often mixes QKD, QRNG, and PQC—disambiguate in design reviews.',
+  },
 
   // ---- Blockchain & Ledgers ----
   {

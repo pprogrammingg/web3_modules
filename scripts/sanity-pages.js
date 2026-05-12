@@ -132,10 +132,13 @@ function loadCourseModulePaths() {
             out.push(x[1]);
         }
     };
-    pushFromFile('common/course-data.js');
-    pushFromFile('common/crypto-course-data.js');
-    pushFromFile('common/zk-course-data.js');
-    pushFromFile('common/evm-course-data.js');
+    const courseDataFiles = [
+        'common/course-data.js',
+        'common/crypto-course-data.js',
+        'common/zk-course-data.js',
+        'common/evm-course-data.js'
+    ];
+    courseDataFiles.forEach(pushFromFile);
     return [...new Set(out)];
 }
 
@@ -199,28 +202,21 @@ function main() {
         verifyExternalAnchors(mp);
         checked++;
     }
-    ok(`Course modules from course-data + crypto-course-data + zk-course-data + evm-course-data (${checked} files)`);
+    ok(`Course modules from course-data files (${checked} files)`);
 
-    const solanaPages = walkHtmlFiles('solana-core');
-    for (const sp of solanaPages) {
-        verifyLocalAssets(sp);
-        verifyExternalAnchors(sp);
+    const trackHtmlDirs = [
+        { dir: 'solana-core', label: 'Solana Core HTML' },
+        { dir: 'zk', label: 'ZK track HTML' },
+        { dir: 'evm', label: 'EVM track HTML' }
+    ];
+    for (const { dir, label } of trackHtmlDirs) {
+        const pages = walkHtmlFiles(dir);
+        for (const p of pages) {
+            verifyLocalAssets(p);
+            verifyExternalAnchors(p);
+        }
+        ok(`${label} (${pages.length} files)`);
     }
-    ok(`Solana Core HTML (${solanaPages.length} files)`);
-
-    const zkPages = walkHtmlFiles('zk');
-    for (const zp of zkPages) {
-        verifyLocalAssets(zp);
-        verifyExternalAnchors(zp);
-    }
-    ok(`ZK track HTML (${zkPages.length} files)`);
-
-    const evmPages = walkHtmlFiles('evm');
-    for (const ep of evmPages) {
-        verifyLocalAssets(ep);
-        verifyExternalAnchors(ep);
-    }
-    ok(`EVM track HTML (${evmPages.length} files)`);
 
     console.log('\n' + '='.repeat(56));
     if (errors.length) {

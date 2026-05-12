@@ -12,7 +12,7 @@ const AVAILABLE_CRYPTO_MODULES = [
     'crypto-l04-m01', 'crypto-l04-m02', 'crypto-l04-m03',
     'crypto-l05-m01', 'crypto-l05-m02', 'crypto-l05-m03',
     'crypto-l06-m01', 'crypto-l06-m02', 'crypto-l06-m03',
-    'crypto-l07-m01', 'crypto-l07-m02', 'crypto-l07-m03'
+    'crypto-l07-m01', 'crypto-l07-m02', 'crypto-l07-m03', 'crypto-l07-m04'
 ];
 
 function isCryptoModuleAvailable(moduleId) {
@@ -102,7 +102,7 @@ function renderCryptoModuleCard(module, status) {
     const cardClass = isAvailable
         ? 'module-card available ' + cfg.class + contribCardClass
         : 'module-card unavailable ' + cfg.class + contribCardClass;
-    const href = isAvailable ? module.path : '#';
+    const href = isAvailable ? courseModuleHrefForHub(module.path, 'crypto-fintech') : '#';
     const onClick = isAvailable ? '' : 'onclick="event.preventDefault(); return false;"';
 
     const timeEstimateHtml = module.duration

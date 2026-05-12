@@ -1,5 +1,5 @@
 /**
- * Cryptography for Blockchains & FinTech — parallel track (7 levels × 3 modules).
+ * Cryptography for Blockchains & FinTech — parallel track (7 levels; three core modules per level plus optional Level 7 quantum primer).
  * Consumed by crypto-navigation.js and verify-paths.js.
  */
 const CRYPTO_COURSE_DATA = {
@@ -51,7 +51,7 @@ const CRYPTO_COURSE_DATA = {
             title: 'Hardening & horizon',
             careerBand: 'Staff / principal-shaped review',
             description:
-                'Side channels, post-quantum awareness for architects, and a written capstone threat model—communication-heavy.'
+                'Side channels, post-quantum awareness for architects, optional quantum-crypto primer (QKD vs PQC), and a written capstone threat model—communication-heavy.'
         }
     ],
     modules: [
@@ -313,6 +313,18 @@ const CRYPTO_COURSE_DATA = {
                 'Pick a realistic wallet/custody/Rollup verifier scenario—document threats, crypto controls, residual risk.',
             codingLab: false,
             contributionModule: true
+        },
+        {
+            courseLevel: 7,
+            id: 'crypto-l07-m04',
+            title: 'Quantum cryptography — small primer',
+            duration: '~1.5 hr (4×20 min)',
+            difficulty: 'Level 7 · Primer',
+            path: 'crypto-fintech/level-07/module-04-quantum-cryptography-primer.html',
+            description:
+                'QKD vs PQC vs “quantum hype”: vocabulary for architects—what breaks, what does not, and how this sits next to post-quantum migration.',
+            codingLab: true,
+            contributionModule: false
         }
     ]
 };
