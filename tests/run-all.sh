@@ -24,6 +24,18 @@ echo "== 4. render-contracts (HTML skeleton markers) =="
 node tests/render-contracts.js
 
 echo ""
+echo "== 4b. module-page-contract (curriculum module shell + no deprecated inline) =="
+node tests/module-page-contract.js
+
+echo ""
+echo "== 4c. mobile-contract (viewport, table-wrap, shared CSS mobile rules) =="
+node tests/mobile-contract.js
+
+echo ""
+echo "== 4d. module-surface-contract (CSS cascade: no grey/white module patchwork) =="
+node tests/module-surface-contract.js
+
+echo ""
 echo "== 5. quiz highlight contract =="
 node tests/test-quiz.js
 

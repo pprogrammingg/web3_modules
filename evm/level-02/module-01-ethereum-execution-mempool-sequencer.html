@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethereum execution, mempool &amp; sequencer mental models — EVM track</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body class="evm-track">
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="EVM track home">← EVM track</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
+    </nav>
+    <div class="course-content container">
+        <div class="course-header evm-polished-hero polished-stone-surface">
+            <h1>Ethereum execution, mempool &amp; sequencer mental models</h1>
+            <p class="course-header-lede">If you only know “high-throughput monolithic L1” patterns, L2 / rollup interviews will feel foreign. This module maps <strong>Ethereum’s execution path</strong>, <strong>mempool economics</strong>, and <strong>sequencer-shaped L2 systems</strong>—with hooks toward settlement, DA, and reorgs. Fact-checked against current EL specs and post-Dencun fee markets; always name the fork when you cite numbers.</p>
+            <div class="course-meta">
+                <span>⏱️ ~2 hr (4×25 min)</span>
+                <span>📊 Level 2</span>
+                <span>⛓️ EVM &amp; Ethereum protocol</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Reading segments (~20–25 min each)</h2>
+            <div class="table-wrap">
+            <table class="flow-steps">
+                <thead>
+                    <tr><th scope="col">#</th><th scope="col">Segment</th><th scope="col">Checkpoint</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td>Tx lifecycle · mempool · inclusion</td><td>Draw the path from signed tx → block → execution in five boxes.</td></tr>
+                    <tr><td>2</td><td>EVM pipeline · reorgs · state roots</td><td>What commits to the trie vs what is only in a block body?</td></tr>
+                    <tr><td>3</td><td>Calldata · EIP-4844 · L2 settlement · DA</td><td>One sentence: why rollups care about blobs separately from execution gas.</td></tr>
+                    <tr><td>4</td><td>Sequencer mental models · security inheritance</td><td>Fill the “inherits Ethereum vs optimized offchain” table for one L2 claim.</td></tr>
+                </tbody>
+            </table>
+            </div>
+            <p class="module-footnote">Primary sources: <a href="https://ethereum.github.io/execution-specs/" target="_blank" rel="noopener noreferrer">execution specs</a>, <a href="https://github.com/ethereum/consensus-specs" target="_blank" rel="noopener noreferrer">consensus specs</a>, <a href="https://eips.ethereum.org/EIPS/eip-4844" target="_blank" rel="noopener noreferrer">EIP-4844</a>. Next module: <a href="module-02-arbitrum-nitro-architecture.html">Arbitrum Nitro architecture</a>.</p>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Segment 1 — Transaction lifecycle &amp; mempool dynamics</h2>
+            <h3>End-to-end lifecycle (L1 mental model)</h3>
+            <ol>
+                <li><strong>Construct &amp; sign</strong> — user or bot builds a typed transaction (legacy or EIP-1559 envelope): nonce, gas limits, to/data/value, chain id.</li>
+                <li><strong>Broadcast</strong> — tx enters the <strong>transaction pool</strong> of EL nodes (public gossip, private relays, builder networks—landscape is fragmented post-MEV).</li>
+                <li><strong>Ordering &amp; inclusion</strong> — under proof-of-stake Ethereum, <strong>block builders</strong> (often via MEV-Boost-style flows) propose execution payloads; the validator signs the consensus block that carries that payload.</li>
+                <li><strong>Execution</strong> — EL runs the block: for each tx, deduct gas, run EVM, update accounts/storage, emit logs/receipts.</li>
+                <li><strong>Commitment</strong> — block header carries roots (state, transactions, receipts) that anchor what light clients and bridges believe about post-state.</li>
+            </ol>
+            <h3>Mempool dynamics (what interviewers probe)</h3>
+            <ul>
+                <li><strong>Not a single global queue.</strong> Each node has local policy (fee thresholds, pool limits, replacement rules under EIP-1559).</li>
+                <li><strong>Ordering is economic.</strong> Effective priority fee + block space + builder preferences determine inclusion, not FIFO fairness.</li>
+                <li><strong>Private order flow</strong> — large share of volume never hits the public mempool; protocol engineers still need the <em>interfaces</em> (bundles, builders, relays) because they shape latency and reorg risk.</li>
+                <li><strong>Pending ≠ final.</strong> Users and apps must reason about <strong>inclusion probability</strong> and <strong>reorg depth</strong>, not only “submitted.”</li>
+            </ul>
+            <h3>Sequencer-shaped systems (preview)</h3>
+            <p>Rollups often add a <strong>sequencer</strong> that orders L2 txs before data is posted to L1. The mental model differs from L1:</p>
+            <ul>
+                <li><strong>Soft ordering</strong> — fast pre-confirmation from the sequencer feed (trust / policy).</li>
+                <li><strong>Hard ordering</strong> — data actually available on L1 (calldata or blobs) so anyone can reproduce execution.</li>
+            </ul>
+            <p>Segment 4 expands the security split; <a href="module-02-arbitrum-nitro-architecture.html">Arbitrum Nitro</a> is a concrete instance.</p>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Segment 2 — EVM execution pipeline, reorgs, state roots</h2>
+            <h3>EVM execution pipeline (inside one block)</h3>
+            <p>For each transaction, conceptually:</p>
+            <ol>
+                <li><strong>Intrinsic validation</strong> — signature, nonce, balance for max fee, chain rules.</li>
+                <li><strong>Gas metering</strong> — charge for calldata, access lists (EIP-2930), execution opcodes, memory expansion, storage warm/cold (EIP-2929), refunds capped per spec.</li>
+                <li><strong>Message call execution</strong> — top-level call into contract or transfer; internal <code>CALL</code> / <code>DELEGATECALL</code> tree with depth and stipend limits.</li>
+                <li><strong>State transition</strong> — update account balances, nonces, code hashes, storage trie; revert rolls back that tx’s changes.</li>
+                <li><strong>Receipt &amp; logs</strong> — status, gas used, logs for indexers (not readable on-chain during execution).</li>
+            </ol>
+            <p><strong>Key insight:</strong> execution is <strong>deterministic given inputs</strong>—the hard part is agreeing on <strong>ordering</strong> and <strong>available data</strong> (DA), not opcode semantics.</p>
+            <h3>Reorg implications</h3>
+            <ul>
+                <li>Post-merge Ethereum targets short, shallow reorgs under normal conditions—but <strong>never zero</strong> for apps at tip.</li>
+                <li><strong>Reorg</strong> = chain switches to a fork with higher weight; txs from discarded blocks may return to mempool or disappear if underpriced.</li>
+                <li>Engineering responses: wait <em>N</em> confirmations, track <code>blockHash</code> in contract logic carefully (use <code>block.number</code> for logic, not trust in hash after EIP-2935 nuances), design bridges with challenge periods.</li>
+                <li><strong>Rollups add another layer:</strong> L2 sequencer reorgs (rare policy-wise) vs L1 reorgs affecting batch inclusion.</li>
+            </ul>
+            <h3>State roots (what “settlement” points at)</h3>
+            <ul>
+                <li><strong>World state trie</strong> — commitment to all accounts after block execution.</li>
+                <li><strong>Receipts trie</strong> — per-tx outcomes.</li>
+                <li>Bridges and light clients care that the <strong>claimed L2 state root</strong> matches what you get by executing all inputs since genesis (or since a trusted checkpoint).</li>
+            </ul>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Segment 3 — Calldata, blobspace (EIP-4844), L2 settlement assumptions</h2>
+            <h3>Calldata costs (still matter)</h3>
+            <ul>
+                <li>Before blobs, rollups mostly paid L1 <strong>calldata gas</strong> for compressed batch bytes—often the dominant fee.</li>
+                <li>Calldata is ephemeral on L1 execution (not stored in state) but <strong>published in block data</strong>—consensus/EL clients must retain per policy.</li>
+                <li>Fallback paths still exist when blob markets are expensive or unavailable.</li>
+            </ul>
+            <h3>EIP-4844 blobspace</h3>
+            <ul>
+                <li><strong>Proto-danksharding (4844)</strong> — separate <strong>blob gas</strong> market for large, ephemeral data with KZG commitments in the beacon chain.</li>
+                <li>Rollups post batch data as <strong>type-3 (blob-carrying) txs</strong> when economical; execution gas and blob gas are <strong>priced independently</strong>.</li>
+                <li><strong>Interview line:</strong> “4844 decouples ‘execute on L1’ from ‘publish bulk data for L2 DA’—rollups optimize for blob fee, not only gas.”</li>
+            </ul>
+            <h3>L2 settlement assumptions (generic)</h3>
+            <p>When an L2 says it “settles on Ethereum,” ask what is actually posted:</p>
+            <div class="table-wrap">
+            <table class="flow-steps flow-steps-wide-first">
+                <thead>
+                    <tr>
+                        <th scope="col">Posted to L1</th>
+                        <th scope="col">What honest nodes need</th>
+                        <th scope="col">Typical security story</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Batch data (calldata / blob)</td>
+                        <td>Inputs to replay L2 execution</td>
+                        <td><strong>DA</strong> — anyone can reconstruct if they have the STF</td>
+                    </tr>
+                    <tr>
+                        <td>State / output root claim</td>
+                        <td>Commitment to L2 result</td>
+                        <td><strong>Validity</strong> (ZK proof) or <strong>fraud/challenge</strong> (optimistic)</td>
+                    </tr>
+                    <tr>
+                        <td>Bridge messages</td>
+                        <td>Ordered inbox of L1→L2 or proofs for L2→L1</td>
+                        <td><strong>Asset safety</strong> separate from pure execution correctness</td>
+                    </tr>
+                </tbody>
+            </table>
+            </div>
+            <h3>Data availability vs execution</h3>
+            <ul>
+                <li><strong>Valid execution + missing data</strong> — useless for permissionless replay.</li>
+                <li><strong>Data available + wrong execution</strong> — needs fraud proof, validity proof, or trusted prover.</li>
+                <li>Some L2s use <strong>committee DA</strong> (e.g. AnyTrust-style) — weaker than full L1 DA; know the trust model.</li>
+            </ul>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Segment 4 — Sequencer mental models &amp; “inherit vs optimize”</h2>
+            <h3>Three clocks</h3>
+            <ol>
+                <li><strong>User clock</strong> — wallet sees RPC / sequencer feed confirmation.</li>
+                <li><strong>L2 clock</strong> — nodes execute ordered batches against L2 state.</li>
+                <li><strong>L1 clock</strong> — batches and assertions land on Ethereum; challenge windows run on L1 time.</li>
+            </ol>
+            <h3>What must inherit Ethereum security vs what can be optimized offchain</h3>
+            <div class="table-wrap">
+            <table class="flow-steps flow-steps-wide-first">
+                <thead>
+                    <tr>
+                        <th scope="col">Topic</th>
+                        <th scope="col">Usually inherit / anchor on L1</th>
+                        <th scope="col">Often optimized offchain</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>EVM opcode semantics</td>
+                        <td>Same rules if “EVM-equivalent” (modulo fork sync)</td>
+                        <td>Faster scheduling, parallel hints (implementation-specific)</td>
+                    </tr>
+                    <tr>
+                        <td>Transaction ordering</td>
+                        <td>Eventually constrained by published batch order</td>
+                        <td>Sequencer feed, private mempool, Timeboost-style auctions</td>
+                    </tr>
+                    <tr>
+                        <td>Data availability</td>
+                        <td>Rollup mode: blobs/calldata on L1 (or explicit alt-DA trust)</td>
+                        <td>Compression, batching, committee certs (AnyTrust)</td>
+                    </tr>
+                    <tr>
+                        <td>Correctness of state transition</td>
+                        <td>Fraud/validity game on L1 (rollup-specific)</td>
+                        <td>Native execution speed, WASM/Stylus paths</td>
+                    </tr>
+                    <tr>
+                        <td>Finality latency</td>
+                        <td>Hard finality tied to L1 inclusion + proof windows</td>
+                        <td>Soft finality in milliseconds–seconds</td>
+                    </tr>
+                    <tr>
+                        <td>Censorship resistance</td>
+                        <td>Forced-inclusion queues (delayed inbox patterns)</td>
+                        <td>Happy-path sequencer RPC</td>
+                    </tr>
+                </tbody>
+            </table>
+            </div>
+            <h3>Future/advanced pointers (read later)</h3>
+            <ul>
+                <li><strong>PBS / MEV</strong> — proposer–builder separation on L1; analogs on L2 (e.g. ordering auctions).</li>
+                <li><strong>Account abstraction (ERC-4337)</strong> — separate mempool for user operations; still settles through L1 execution eventually.</li>
+                <li><strong>Statelessness / Verkle</strong> — changes witness costs, not the high-level sequencer story.</li>
+            </ul>
+            <h3>Interview one-liners</h3>
+            <ul>
+                <li>“Mempool is economic ordering, not FIFO—builders and private flow dominate at the tip.”</li>
+                <li>“Reorgs punish apps that treat pending as final.”</li>
+                <li>“4844 gave rollups a DA lane; execution gas is a different knob.”</li>
+                <li>“Sequencer soft finality is UX; L1-posted data + proofs are security.”</li>
+            </ul>
+        </div>
+
+        <div class="section section-tight module-tight-prose">
+            <h2>Hands-on lab (short)</h2>
+            <p><strong>(1)</strong> Trace one mainnet tx on a block explorer: note type-2 fields, position in block, gas used, logs. <strong>(2)</strong> Sketch two columns—“inherits L1” vs “optimized L2”—for a rollup you care about (Arbitrum, Base, etc.). <strong>(3)</strong> Optional: compare blob base fee vs base fee on a day with heavy rollup traffic (explorer or client metrics).</p>
+        </div>
+
+        <nav class="navigation module-nav">
+            <a href="../level-01/module-01-ethereum-evm-syllabus.html" class="btn btn-secondary">← Previous: Syllabus</a>
+            <a href="module-02-arbitrum-nitro-architecture.html" class="btn btn-primary">Next: Arbitrum Nitro →</a>
+        </nav>
+        <div class="module-actions"><button type="button" class="btn btn-primary" id="complete-module-btn">Mark module complete</button></div>
+    </div>
+    <script src="../../common/evm-course-data.js"></script>
+    <script src="../../common/navigation.js"></script>
+    <script src="../../common/evm-navigation.js"></script>
+    <script src="../../common/glossary.js"></script>
+    <script src="../../common/module-init.js" data-module-id="evm-l02-m01"></script>
+</body>
+</html>

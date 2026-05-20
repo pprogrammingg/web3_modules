@@ -129,7 +129,18 @@ body {
 }
 
 .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-.course-content { max-width: 900px; margin: 0 auto; padding: 2rem; background: var(--bg); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+/* Module shell: shared by hyperscale, solana, zk, crypto, evm (body.{track} only styles hub/cards) */
+.course-content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem;
+    background: var(--bg);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.course-content.container {
+    max-width: 900px;
+}
 
 header { text-align: center; margin-bottom: 3rem; padding: 2rem; background: var(--bg); border-radius: 8px; }
 h1 { font-size: 2.5rem; color: var(--primary); margin-bottom: 0.5rem; }
@@ -159,6 +170,76 @@ h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.2rem; }
 
 .section { margin: 2rem 0; padding: 1.5rem; background: var(--bg2); border-radius: 8px; }
 .section h2 { margin-top: 0; }
+
+/*
+ * Module pages: single white reading surface (no grey panels / table striping).
+ * Sections are dividers only; table cells override global th { bg2 } — see block after th, td rules.
+ */
+body.zk-track:has(.course-content),
+body.crypto-track:has(.course-content),
+body.evm-track:has(.course-content) {
+    background: var(--bg);
+}
+.course-content .section {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    margin: 0;
+    padding: 1.5rem 0;
+}
+.course-content .section:last-child {
+    border-bottom: none;
+}
+.course-content .section-tight {
+    margin-top: 0;
+    padding-top: 1rem;
+}
+.course-content .table-wrap {
+    background: var(--bg);
+    border-radius: 6px;
+}
+.course-content .evm-polished-hero.polished-stone-surface::before,
+.course-content .evm-polished-hero.polished-stone-surface::after {
+    mix-blend-mode: normal;
+}
+.course-header-lede {
+    margin: 0 0 0.75rem;
+    font-size: 1.02rem;
+    line-height: 1.55;
+    max-width: 52rem;
+    color: var(--text2);
+}
+.evm-polished-hero .course-header-lede {
+    color: rgba(255, 255, 255, 0.9);
+}
+.course-content .section .table-wrap > table {
+    margin: 0;
+}
+.course-content blockquote {
+    border-left: 4px solid var(--primary);
+    padding-left: 1rem;
+    margin: 1rem 0;
+    color: var(--text2);
+}
+
+/* Module page utilities (use classes — avoid inline layout/color on curriculum pages) */
+.module-footnote {
+    font-size: 0.92rem;
+    color: var(--text2);
+}
+.module-footnote--tight {
+    margin-bottom: 0;
+}
+.module-prose-note {
+    margin-bottom: 0.5rem;
+}
+.module-nav {
+    margin-top: 2rem;
+}
+.module-actions {
+    margin-top: 1rem;
+}
 
 .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
 .module-grid--in-phase {
@@ -935,9 +1016,43 @@ body.crypto-track .progress-fill {
 .btn-secondary { background: var(--bg2); color: var(--text); border: 2px solid var(--border); }
 .btn-secondary:hover { background: var(--border); }
 
+/* Curriculum + hubs: narrow screens (one block — mobile-contract.js asserts these exist) */
 @media (max-width: 640px) {
-    .navigation { flex-direction: column; align-items: stretch; }
-    .navigation .btn { width: 100%; min-height: 48px; white-space: nowrap; }
+    .container,
+    .course-content {
+        padding: 1rem;
+    }
+    .course-content {
+        border-radius: 0;
+        box-shadow: none;
+    }
+    .site-home-bar {
+        padding: 0.5rem 0.75rem;
+    }
+    .course-header h1 {
+        font-size: 1.5rem;
+        line-height: 1.25;
+    }
+    .course-meta {
+        flex-wrap: wrap;
+        gap: 0.35rem 1rem;
+    }
+    .module-grid {
+        grid-template-columns: 1fr;
+    }
+    .module-actions .btn {
+        width: 100%;
+        min-height: 48px;
+    }
+    .navigation {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .navigation .btn {
+        width: 100%;
+        min-height: 48px;
+        white-space: nowrap;
+    }
 }
 
 /* In-content links (not nav or buttons) */
@@ -1098,6 +1213,13 @@ p { margin: 1rem 0; }
 table { width: 100%; border-collapse: collapse; margin: 1rem 0; min-width: 0; }
 th, td { padding: 0.5rem; border: 1px solid var(--border); }
 th { background: var(--bg2); }
+/* Module card tables: uniform white cells (must follow global th — fixes grey header / white body rows) */
+.course-content table th,
+.course-content table td,
+.course-content .table-wrap th,
+.course-content .table-wrap td {
+    background-color: var(--bg);
+}
 /* Table wrapper: default = horizontal scroll if table is wider than container */
 .table-wrap { overflow-x: auto; margin: 1rem 0; -webkit-overflow-scrolling: touch; }
 .table-wrap > table { margin: 0; min-width: 640px; }
@@ -1163,6 +1285,22 @@ th { background: var(--bg2); }
 /* When first column has long labels (e.g. "Initialized genesis block"), add class flow-steps-wide-first */
 .flow-steps-wide-first th:first-child,
 .flow-steps-wide-first td:first-child { width: auto; min-width: 11em; white-space: normal; }
+
+/* Messaging inventory (module-01b): six-column flow tables + handler lists */
+.messaging-inventory-table.flow-steps th:nth-child(5),
+.messaging-inventory-table.flow-steps td:nth-child(5) { min-width: 11em; }
+.messaging-inventory-table.flow-steps th:nth-child(6),
+.messaging-inventory-table.flow-steps td:nth-child(6) {
+    min-width: 17em;
+    max-width: 28rem;
+    font-size: 0.86rem;
+    line-height: 1.45;
+}
+.messaging-inventory-table .handler-detail-list {
+    margin: 0;
+    padding-left: 1.15em;
+}
+.messaging-inventory-table .handler-detail-list li { margin: 0.2em 0; }
 
 .content-table { table-layout: auto; }
 .content-table th,

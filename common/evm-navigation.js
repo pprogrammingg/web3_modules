@@ -5,7 +5,7 @@
 
 const EVM_PROGRESS_KEY = 'evm-track-course-progress';
 
-const AVAILABLE_EVM_MODULES = ['evm-l01-m01'];
+const AVAILABLE_EVM_MODULES = ['evm-l01-m01', 'evm-l02-m01', 'evm-l02-m02'];
 
 function isEvmModuleAvailable(moduleId) {
     return AVAILABLE_EVM_MODULES.includes(moduleId);

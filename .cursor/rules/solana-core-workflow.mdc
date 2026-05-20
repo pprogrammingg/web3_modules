@@ -1,13 +1,13 @@
 ---
 description: Solana Core modules — diff local monorepo like hyperscale; glossary in common/
-globs: solana-core/**/*.html, scripts/check-solana-changes.js, scripts/solana-repo.config.js, common/glossary.*
+globs: solana-core/**/*.html, scripts/reflect-changes.js, scripts/check-solana-changes.js, scripts/solana-repo.config.js, common/glossary.*
 alwaysApply: false
 ---
 
 # Solana Core workflow
 
-- **Source of truth for code:** Local clone path in **`scripts/solana-repo.config.js`** (default **`../other-projects/solana`**). Override with **`LOCAL_REPO_PATH`** when running **`node scripts/check-solana-changes.js`**.
-- **After pulling Solana:** Run **`node scripts/check-solana-changes.js`** (no args) to see changed paths since **`common/solana-last-synced.txt`** (or `main`). Re-read affected **`solana-core/**/*.html`** prose and links; extend **`PREFIX_HINTS`** in the script as modules specialize.
-- **Baseline:** After edits, **`node scripts/check-solana-changes.js --save`** stores current Solana HEAD for the next diff — same pattern as hyperscale-rs.
+- **Source of truth for code:** Local clone path in **`scripts/solana-repo.config.js`** (default **`../other-projects/solana`**). Override with **`LOCAL_REPO_PATH`** when running **`node scripts/reflect-changes.js solana-core`**.
+- **After pulling Solana:** Run **`node scripts/reflect-changes.js solana-core`** (no args) to see changed paths since **`common/solana-last-synced.txt`** (or `main`). Re-read affected **`solana-core/**/*.html`** prose and links; extend **`PREFIX_HINTS`** in **`scripts/reflect-changes.js`** as modules specialize.
+- **Baseline:** After edits, **`node scripts/reflect-changes.js solana-core --save`** stores current Solana HEAD for the next diff — same pattern as hyperscale-rs. Legacy: `check-solana-changes.js`.
 - **Glossary:** Link **`../../common/glossary.html`** (or **`../common/glossary.html`** from nested folders). Shared styles/scripts live under **`common/`**.
 - **Course layout:** Three modules per level. **Level 1** is reading-only. **Levels 2+** mirror Hyperscale: **two reading modules + one OSS contribution module** per level (purple card on `solana-core/index.html`).

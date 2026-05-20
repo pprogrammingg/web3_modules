@@ -344,10 +344,12 @@
         <div class="section" id="messaging-transports-inventory">
             <h2>Messaging &amp; transports inventory</h2>
             <p>There is <strong>no</strong> standalone course module titled &ldquo;Messaging and Transports.&rdquo; Messaging and notifications are covered <strong>across</strong> this page (end-to-end path), <a href="../basic/module-04-state-machines.html">State machines &amp; event-driven architecture</a> (how <code>Event</code> / <code>Action</code> and channels compose), the <strong>libp2p</strong> modules in the Hyperscale basic/intermediate/advanced tracks, and the file links in the tables below. Treat these tables as a <strong>reading map</strong>: concrete struct names, lock types (<code>Arc&lt;Mutex&lt;HashSet&lt;…&gt;&gt;&gt;</code> vs alternatives), and exact eviction rules can shift between commits — when in doubt, set breakpoints on the linked paths.</p>
-            <p><strong>How to read the columns.</strong> <em>Message source / destination</em> are logical actors (threads, coordinators, peers). <em>Transport</em> is how bits move (RPC, gossip, in-process call). <em>Lifecycle storage</em> is where the payload or derived state usually sits until the next phase. <em>Pruning / flushing / drainage</em> is what makes that storage go away or become irrelevant.</p>
-            <p><strong>Suggested pacing.</strong> Each subsection is sized for roughly <strong>10–25 minutes</strong> of reading plus clicking into one or two source files. The full inventory is about <strong>55–85 minutes</strong> if you take all four chunks in order; skip chunks you already know.</p>
+            <p><strong>How to read the columns.</strong> <em>Message source / destination</em> are logical actors (threads, coordinators, peers). <em>Transport</em> is how bits move (RPC, gossip, in-process call). <em>Lifecycle storage</em> is where the payload or derived state usually sits until the next phase. <em>Pruning / flushing / drainage</em> is what makes that storage go away or become irrelevant. The last column, <strong>Handlers · registration · done</strong>, answers: (a) which functions / traits / closures participate, (b) when they are wired (skip the row if it is always the same boring answer), and (c) how the callee signals completion back into the pinned <code>IoLoop</code> / state machine.</p>
+            <p><strong>Verifying names on disk.</strong> Default local clone path for the <strong>hyperscale-rs</strong> checkout (used to confirm symbol names) is set in <a href="../../scripts/hyperscale-repo.config.js">scripts/hyperscale-repo.config.js</a> (<code>DEFAULT_LOCAL_REPO_PATH</code>, overridable with <code>LOCAL_REPO_PATH</code>). Handler tables below match <a href="#" data-file="crates/node/src/io_loop/network_handlers.rs" target="_blank" rel="noopener">network_handlers.rs</a> and <a href="#" data-file="crates/node/src/io_loop/init.rs" target="_blank" rel="noopener">init.rs</a> in that tree.</p>
+            <p><strong>Suggested pacing.</strong> Each subsection is sized for roughly <strong>8–25 minutes</strong>. The full inventory is about <strong>65–95 minutes</strong> if you read the registry plus all four flow chunks in order; skip what you already know.</p>
             <nav class="messaging-inventory-toc" aria-label="Messaging inventory sections">
                 <ol style="margin: 0.75rem 0 1.25rem 1.25rem; line-height: 1.6;">
+                    <li><a href="#messaging-network-registry">Typed network inbound registry</a> — every <code>register_*</code> in one place (~8–12 min)</li>
                     <li><a href="#messaging-edge-ioloop">Edge &amp; IoLoop</a> — RPC and gossip into the runner (~12–18 min)</li>
                     <li><a href="#messaging-node-mempool">Node interior &amp; mempool</a> — pure state machine hop and the tx pool (~12–18 min)</li>
                     <li><a href="#messaging-bft-persist">BFT mesh, commit, disk</a> — proposals, votes, persistence (~15–22 min)</li>
@@ -355,10 +357,43 @@
                 </ol>
             </nav>
 
+            <h3 id="messaging-network-registry">0. Typed network inbound registry (~8–12 min)</h3>
+            <p>Every <strong>typed</strong> inbound path registered on the <code>Network</code> trait is wired in <a href="#" data-file="crates/node/src/io_loop/network_handlers.rs" target="_blank" rel="noopener">network_handlers.rs</a> and invoked from <a href="#" data-file="crates/node/src/io_loop/init.rs" target="_blank" rel="noopener"><code>IoLoop::register_inbound_handlers</code></a> → <code>register_request_handler</code>, <code>register_gossip_handlers</code>, <code>register_notification_handlers</code>. Registration happens <strong>once per node</strong> before the main loop processes traffic — on both <strong>genesis and resume</strong> paths (see comments in <code>init.rs</code>); it is not repeated each round.</p>
+            <p>The <code>Network</code> trait (<a href="#" data-file="crates/network/src/traits.rs" target="_blank" rel="noopener">crates/network/src/traits.rs</a>) names the dispatch hooks: <code>GossipHandler::on_message</code>, <code>NotificationHandler::on_notification</code>, <code>RequestHandler::handle_request</code>. Outbound <code>Network::request(..., on_response)</code> uses a <strong>per-call</strong> <code>FnOnce(Result&lt;R::Response, RequestError&gt;) -&gt; ResponseVerdict</code> (not listed row-by-row here); that callback is typically registered at fetch time and completes by pushing a <code>NodeInput</code> onto the same <code>event_sender</code> channel as gossip.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="hs-suggested-study-table messaging-registry-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Registration API</th>
+                            <th scope="col">Wire type</th>
+                            <th scope="col">Trait dispatch</th>
+                            <th scope="col">When registered</th>
+                            <th scope="col">How “done” is signaled</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>register_gossip_handler::&lt;TransactionGossip&gt;</code></td><td><code>TransactionGossip</code></td><td><code>GossipHandler::on_message</code></td><td>Once in <code>register_inbound_handlers</code> (before loop)</td><td>Returns <code>GossipVerdict::Accept</code> / <code>Reject</code> to the network stack; closure also <code>send(NodeInput::TransactionGossipReceived)</code> per tx.</td></tr>
+                        <tr><td><code>register_gossip_handler::&lt;CommittedBlockHeaderGossip&gt;</code></td><td><code>CommittedBlockHeaderGossip</code></td><td><code>GossipHandler::on_message</code></td><td>Same</td><td><code>GossipVerdict</code>; may <code>send(NodeInput::CommittedBlockGossipReceived)</code> after filters.</td></tr>
+                        <tr><td><code>register_notification_handler::&lt;BlockVoteNotification&gt;</code></td><td><code>BlockVoteNotification</code></td><td><code>NotificationHandler::on_notification</code></td><td>Same</td><td>No return value; <code>send(NodeInput::Protocol(BlockVoteReceived …))</code>.</td></tr>
+                        <tr><td><code>register_notification_handler::&lt;BlockHeaderNotification&gt;</code></td><td><code>BlockHeaderNotification</code></td><td><code>NotificationHandler::on_notification</code></td><td>Same</td><td>Verify then <code>send(ProtocolEvent::BlockHeaderReceived …)</code> wrapped in <code>NodeInput::Protocol</code>; drop on bad sig.</td></tr>
+                        <tr><td><code>register_notification_handler::&lt;ProvisionsNotification&gt;</code></td><td><code>ProvisionsNotification</code></td><td><code>NotificationHandler::on_notification</code></td><td>Same</td><td>Verify shard + sig; <code>send(ProtocolEvent::ProvisionsReceived …)</code> or return early.</td></tr>
+                        <tr><td><code>register_notification_handler::&lt;ExecutionVotesNotification&gt;</code></td><td><code>ExecutionVotesNotification</code></td><td><code>NotificationHandler::on_notification</code></td><td>Same</td><td>Per-vote <code>send(ProtocolEvent::ExecutionVoteReceived …)</code>.</td></tr>
+                        <tr><td><code>register_notification_handler::&lt;ExecutionCertificatesNotification&gt;</code></td><td><code>ExecutionCertificatesNotification</code></td><td><code>NotificationHandler::on_notification</code></td><td>Same</td><td><code>send(ProtocolEvent::ExecutionCertificatesReceived …)</code>.</td></tr>
+                        <tr><td><code>register_request_handler::&lt;GetBlockRequest&gt;</code></td><td><code>GetBlockRequest</code></td><td><code>RequestHandler::handle_request</code></td><td>Same</td><td>Returns <code>GetBlockResponse</code> synchronously to the requester (may run on blocking pool per adapter).</td></tr>
+                        <tr><td><code>register_request_handler::&lt;GetTransactionsRequest&gt;</code></td><td><code>GetTransactionsRequest</code></td><td><code>RequestHandler::handle_request</code></td><td>Same</td><td>Returns <code>GetTransactionsResponse</code>.</td></tr>
+                        <tr><td><code>register_request_handler::&lt;GetProvisionsRequest&gt;</code></td><td><code>GetProvisionsRequest</code></td><td><code>RequestHandler::handle_request</code></td><td>Same</td><td>Returns <code>GetProvisionResponse</code>; producer path uses mutex + <code>Condvar</code> for single-flight dedup.</td></tr>
+                        <tr><td><code>register_request_handler::&lt;GetLocalProvisionsRequest&gt;</code></td><td><code>GetLocalProvisionsRequest</code></td><td><code>RequestHandler::handle_request</code></td><td>Same</td><td>Returns <code>GetLocalProvisionsResponse</code>.</td></tr>
+                        <tr><td><code>register_request_handler::&lt;GetFinalizedWavesRequest&gt;</code></td><td><code>GetFinalizedWavesRequest</code></td><td><code>RequestHandler::handle_request</code></td><td>Same</td><td>Returns <code>GetFinalizedWavesResponse</code>.</td></tr>
+                        <tr><td><code>register_request_handler::&lt;GetExecutionCertsRequest&gt;</code></td><td><code>GetExecutionCertsRequest</code></td><td><code>RequestHandler::handle_request</code></td><td>Same</td><td>Returns <code>GetExecutionCertsResponse</code>.</td></tr>
+                        <tr><td><code>register_request_handler::&lt;GetRemoteHeadersRequest&gt;</code></td><td><code>GetRemoteHeadersRequest</code></td><td><code>RequestHandler::handle_request</code></td><td>Same</td><td>Returns remote-header sync payload.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
             <h3 id="messaging-edge-ioloop">1. Edge &amp; IoLoop (~12–18 min)</h3>
             <p>How a transaction first enters the process: user RPC vs peer gossip. Both converge on <a href="#" data-file="crates/node/src/io_loop/mod.rs" target="_blank" rel="noopener">IoLoop</a> before anything synchronous runs in the state machine.</p>
             <div class="table-wrap table-wrap--reflow">
-                <table class="flow-steps flow-steps-wide-first">
+                <table class="flow-steps flow-steps-wide-first messaging-inventory-table">
                     <thead>
                         <tr>
                             <th scope="col">Message source</th>
@@ -366,6 +401,7 @@
                             <th scope="col">Transport</th>
                             <th scope="col">Lifecycle storage (type · location)</th>
                             <th scope="col">Pruning / flushing / drainage</th>
+                            <th scope="col">Handlers · registration · done</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -375,6 +411,13 @@
                             <td>HTTP / JSON-RPC (or similar); TLS terminates outside the pure state machine</td>
                             <td>Ephemeral deserialization buffers on the RPC worker thread; decoded <code>NotarizedTransaction</code> (or equivalent) until handoff to the node I/O path</td>
                             <td>RPC response returned to client; request-scoped allocations dropped. Failed validation returns an error without entering consensus queues.</td>
+                            <td>
+                                <ul class="handler-detail-list">
+                                    <li><strong>Symbols:</strong> Framework route / handler in <code>crates/production</code> (not a <code>Network::register_*</code> hook).</li>
+                                    <li><strong>Registered:</strong> When the RPC server is started (node bring-up); independent of <code>register_inbound_handlers</code>.</li>
+                                    <li><strong>Done:</strong> Completes to the client with an HTTP response; any enqueue to <code>IoLoop</code> is an internal follow-up in the production crate.</li>
+                                </ul>
+                            </td>
                         </tr>
                         <tr>
                             <td>RPC or gateway worker</td>
@@ -382,6 +425,13 @@
                             <td>In-process queue: <code>NodeInput</code> (or equivalent) from the production runner — not libp2p</td>
                             <td>Bounded in-memory queue between &ldquo;network / RPC world&rdquo; and the thread that drives the state machine; backpressure policy is deployment-specific</td>
                             <td>Drained as IoLoop runs <code>step</code>; on shutdown, remaining items are dropped with teardown. Under overload, policy may drop or reject before enqueue (inspect runner).</td>
+                            <td>
+                                <ul class="handler-detail-list">
+                                    <li><strong>Symbols:</strong> Production code sends <code>NodeInput::SubmitTransaction</code> (see <code>IoLoop</code> match arms); channel pair with <code>event_sender</code> / receiver.</li>
+                                    <li><strong>Registered:</strong> Channel endpoints created when the runner builds <code>IoLoop</code>, before <code>run()</code>.</li>
+                                    <li><strong>Done:</strong> <code>send</code> on the crossbeam channel; consumer marks work complete when that input is processed in <code>step</code> and any follow-on actions for that turn are dispatched.</li>
+                                </ul>
+                            </td>
                         </tr>
                         <tr>
                             <td>Remote validator (same shard)</td>
@@ -389,6 +439,13 @@
                             <td>libp2p gossipsub → <a href="#" data-file="crates/node/src/io_loop/network_handlers.rs" target="_blank" rel="noopener">network_handlers</a> → <code>NodeInput::TransactionGossipReceived</code></td>
                             <td>Adapter receive path + validation staging before a <a href="#" data-file="crates/core/src/protocol_event.rs" target="_blank" rel="noopener">ProtocolEvent</a> is emitted; dedupe / &ldquo;already seen&rdquo; structures often live near gossip ingress (pattern: set or map keyed by message id / hash — exact type varies)</td>
                             <td>Duplicates rejected early (never reach mempool). After acceptance, gossip-derived state may be short-lived; some paths tombstone or remember ids briefly for idempotency — verify in <a href="#" data-file="crates/node/src/io_loop/step/tx_validation.rs" target="_blank" rel="noopener">tx_validation.rs</a>.</td>
+                            <td>
+                                <ul class="handler-detail-list">
+                                    <li><strong>Symbols:</strong> <code>register_gossip_handler::&lt;TransactionGossip&gt;</code> closure (<code>GossipHandler::on_message</code>); then <code>handle_gossip_received_tx_for_validation</code> → <code>queue_validation</code> → <code>flush_validation_batch</code> spawns <code>DispatchPool::TxValidation</code> closure (<code>tx_validation.rs</code>).</li>
+                                    <li><strong>Registered:</strong> Gossip closure: table §0 (once before loop). Validation pool: bound when <code>IoLoop</code> / dispatch is constructed.</li>
+                                    <li><strong>Done:</strong> Gossip path returns <code>GossipVerdict::Accept</code> to the network layer. Validation worker <code>send(NodeInput::TransactionValidated { … })</code> or <code>TransactionValidationsFailed</code>; <code>handle_transaction_validated</code> then <code>feed_event(ProtocolEvent::TransactionValidated …)</code>.</li>
+                                </ul>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -397,7 +454,7 @@
             <h3 id="messaging-node-mempool">2. Node interior &amp; mempool (~12–18 min)</h3>
             <p>The synchronous core: one event in, actions out. Validated transactions land in RAM pools that are separate from BFT vote maps and from long-term disk.</p>
             <div class="table-wrap table-wrap--reflow">
-                <table class="flow-steps flow-steps-wide-first">
+                <table class="flow-steps flow-steps-wide-first messaging-inventory-table">
                     <thead>
                         <tr>
                             <th scope="col">Message source</th>
@@ -405,6 +462,7 @@
                             <th scope="col">Transport</th>
                             <th scope="col">Lifecycle storage (type · location)</th>
                             <th scope="col">Pruning / flushing / drainage</th>
+                            <th scope="col">Handlers · registration · done</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -414,6 +472,13 @@
                             <td>Synchronous <code>handle(event) -&gt; Vec&lt;Action&gt;</code> after IoLoop dequeues (see <a href="#" data-file="crates/core/src/traits.rs" target="_blank" rel="noopener">StateMachine</a> trait)</td>
                             <td>No durable queue inside the pure state machine — only stack-local work and returned actions</td>
                             <td>Not applicable per event: actions are returned immediately to the runner for side effects.</td>
+                            <td>
+                                <ul class="handler-detail-list">
+                                    <li><strong>Symbols:</strong> <code>StateMachine::handle</code> / <code>NodeStateMachine::handle</code> (not a libp2p callback).</li>
+                                    <li><strong>Registered:</strong> Trait impl bound when the state machine struct is built — not at <code>register_inbound_handlers</code> time.</li>
+                                    <li><strong>Done:</strong> Synchronous return of <code>Vec&lt;Action&gt;</code>; <code>IoLoop::process_actions</code> runs immediately in the caller thread (no channel round-trip for the pure step).</li>
+                                </ul>
+                            </td>
                         </tr>
                         <tr>
                             <td>Validation pipeline (post-signature / manifest checks)</td>
@@ -421,6 +486,13 @@
                             <td>In-process: <code>ProtocolEvent::TransactionValidated</code> path via <a href="#" data-file="crates/node/src/state/transactions.rs" target="_blank" rel="noopener">state/transactions.rs</a></td>
                             <td>Per-shard pool structures in <a href="#" data-file="crates/mempool/src/coordinator.rs" target="_blank" rel="noopener">mempool coordinator</a> — typically maps / sets / priority structures keyed by transaction id and account sequence rules</td>
                             <td>Removed when the transaction is <strong>included</strong> in a committed block, <strong>replaced</strong> under policy (e.g. same sender nonce), or <strong>evicted</strong> when pools exceed size / fee thresholds.</td>
+                            <td>
+                                <ul class="handler-detail-list">
+                                    <li><strong>Symbols:</strong> <code>MempoolCoordinator::on_transaction_gossip</code> (and related admission helpers from the <code>TransactionValidated</code> routing in <code>transactions.rs</code>).</li>
+                                    <li><strong>Registered:</strong> Coordinator owned by <code>NodeStateMachine</code> at construction — not a network <code>register_*</code> call.</li>
+                                    <li><strong>Done:</strong> Admission runs synchronously inside <code>handle</code>; further work is expressed as new <code>Action</code>s returned from the state machine, not a thread callback.</li>
+                                </ul>
+                            </td>
                         </tr>
                         <tr>
                             <td>Mempool (ordered candidates)</td>
@@ -428,6 +500,13 @@
                             <td>Direct calls from node composition into BFT; not a second network hop</td>
                             <td>Proposal construction buffers (pending txs pulled for the next block header / body)</td>
                             <td>Superseded when a different proposal wins the round, or when the view advances without committing that candidate.</td>
+                            <td>
+                                <ul class="handler-detail-list">
+                                    <li><strong>Symbols:</strong> <code>BftCoordinator::try_propose</code>, <code>on_proposal_built</code>, <code>on_qc_formed</code>, … (see <code>coordinator.rs</code>); node glue in <a href="#" data-file="crates/node/src/state/proposal.rs" target="_blank" rel="noopener">state/proposal.rs</a> / <a href="#" data-file="crates/node/src/state/bft.rs" target="_blank" rel="noopener">state/bft.rs</a>.</li>
+                                    <li><strong>Registered:</strong> BFT struct is composed into the node state at init; methods run when events/timers schedule them — same for genesis and resume.</li>
+                                    <li><strong>Done:</strong> Returns <code>Vec&lt;Action&gt;</code> inline; heavy crypto / build work is delegated separately (next section).</li>
+                                </ul>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -436,7 +515,7 @@
             <h3 id="messaging-bft-persist">3. BFT mesh, commit, and persistence (~15–22 min)</h3>
             <p>Shard-scoped gossip for headers and votes, then durable commit. This chunk is where &ldquo;messages&rdquo; look most like classical consensus traffic.</p>
             <div class="table-wrap table-wrap--reflow">
-                <table class="flow-steps flow-steps-wide-first">
+                <table class="flow-steps flow-steps-wide-first messaging-inventory-table">
                     <thead>
                         <tr>
                             <th scope="col">Message source</th>
@@ -444,6 +523,7 @@
                             <th scope="col">Transport</th>
                             <th scope="col">Lifecycle storage (type · location)</th>
                             <th scope="col">Pruning / flushing / drainage</th>
+                            <th scope="col">Handlers · registration · done</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -453,6 +533,13 @@
                             <td>Gossip notifications: block header path (see <a href="#" data-file="crates/messages/src/notification/mod.rs" target="_blank" rel="noopener">messages::notification</a>)</td>
                             <td>Encode buffers on send; peers hold BFT &ldquo;pending proposal&rdquo; / header caches until QC or timeout</td>
                             <td>Replaced by higher-round headers or cleared after QC commits the height; view-change paths discard stale pending work.</td>
+                            <td>
+                                <ul class="handler-detail-list">
+                                    <li><strong>Symbols:</strong> Sender side: <code>BftCoordinator::on_proposal_built</code> + delegated actions (<code>Action::BroadcastBlockHeader</code>, …) handled by <code>handle_bft_action</code> in <a href="#" data-file="crates/node/src/io_loop/actions.rs" target="_blank" rel="noopener">io_loop/actions.rs</a>. Receivers: <code>register_notification_handler::&lt;BlockHeaderNotification&gt;</code> (§0).</li>
+                                    <li><strong>Registered:</strong> Inbound notification closure: once (§0). Delegated spawn: each time matching <code>Action</code>s are emitted.</li>
+                                    <li><strong>Done:</strong> Delegated work uses <code>ActionContext::notify</code> → <code>event_sender.send(NodeInput::…)</code>; libp2p send itself is async, but the app callback finishes when the <code>send</code> enqueues the next input.</li>
+                                </ul>
+                            </td>
                         </tr>
                         <tr>
                             <td>Each validator after verifying header</td>
@@ -460,6 +547,13 @@
                             <td>Gossip: <code>BlockVote</code> (and related notification variants in <code>messages</code>)</td>
                             <td>Vote bookkeeping in BFT — e.g. <a href="#" data-file="crates/bft/src/vote_keeper.rs" target="_blank" rel="noopener">vote_keeper.rs</a>, <a href="#" data-file="crates/bft/src/pending.rs" target="_blank" rel="noopener">pending.rs</a>, <a href="#" data-file="crates/bft/src/vote_set.rs" target="_blank" rel="noopener">vote_set.rs</a> for QC formation</td>
                             <td>Pruned when <strong>QC is built</strong> for the height, or when round / view timers cause cleanup of stale vote maps.</td>
+                            <td>
+                                <ul class="handler-detail-list">
+                                    <li><strong>Symbols:</strong> <code>register_notification_handler::&lt;BlockVoteNotification&gt;</code> → <code>NodeInput::Protocol(BlockVoteReceived …)</code>; state routes to <code>BftCoordinator::on_block_vote</code>.</li>
+                                    <li><strong>Registered:</strong> Notification table §0 (same timing for all rows there — not repeated below).</li>
+                                    <li><strong>Done:</strong> Notification closure completes synchronously after <code>send</code>; vote aggregation &ldquo;finishes&rdquo; when the later <code>handle</code> pass returns the next <code>Action</code>s (e.g. toward QC).</li>
+                                </ul>
+                            </td>
                         </tr>
                         <tr>
                             <td>BFT commit path</td>
@@ -467,6 +561,13 @@
                             <td><a href="#" data-file="crates/core/src/action.rs" target="_blank" rel="noopener">Action::Persist*</a>, <code>CommitBlock</code>, and network actions emitted by the runner</td>
                             <td>Committed blocks and certificates on disk (blockstore / DB — exact backend is node deployment); in-memory mirrors for hot path</td>
                             <td><strong>Archival / compaction</strong> is operator policy, not mempool-style eviction. Unlike RAM pools, on-disk data is retained until configured pruning.</td>
+                            <td>
+                                <ul class="handler-detail-list">
+                                    <li><strong>Symbols:</strong> <code>IoLoop::process_action</code> for inline effects; <code>dispatch_delegated_action</code> + <code>handle_bft_action</code> / crypto verify actions for heavy paths; <code>feed_event</code> from commit pipeline (e.g. <code>ProtocolEvent::BlockPersisted</code> in <a href="#" data-file="crates/node/src/io_loop/step/protocol_event.rs" target="_blank" rel="noopener">step/protocol_event.rs</a>).</li>
+                                    <li><strong>Registered:</strong> Delegated pool wiring at <code>IoLoop</code> construction; per-action spawn is dynamic.</li>
+                                    <li><strong>Done:</strong> Inline arms finish before <code>process_action</code> returns. Delegated arms call <code>notify</code> to enqueue <code>NodeInput</code> for a later <code>step</code>; block-commit batching uses <code>feed_event</code> / flush per module docs.</li>
+                                </ul>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -475,7 +576,7 @@
             <h3 id="messaging-execution-ops">4. Execution, cross-shard, and operational paths (~15–22 min)</h3>
             <p>What happens after commit, how shards coordinate without a 2PC coordinator, and auxiliary transports (timers, simulation, catch-up sync).</p>
             <div class="table-wrap table-wrap--reflow">
-                <table class="flow-steps flow-steps-wide-first">
+                <table class="flow-steps flow-steps-wide-first messaging-inventory-table">
                     <thead>
                         <tr>
                             <th scope="col">Message source</th>
@@ -483,6 +584,7 @@
                             <th scope="col">Transport</th>
                             <th scope="col">Lifecycle storage (type · location)</th>
                             <th scope="col">Pruning / flushing / drainage</th>
+                            <th scope="col">Handlers · registration · done</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -492,6 +594,13 @@
                             <td>Internal protocol events after commit; then calls into <a href="#" data-crate="engine" target="_blank" rel="noopener">engine</a> for Radix semantics</td>
                             <td>Execution wave state, receipt tiers (<a href="#" data-file="crates/types/src/receipt/mod.rs" target="_blank" rel="noopener">receipt model</a>), coordinator tables until certificates finalize</td>
                             <td>Drained when the wave completes and transaction / receipt certificates are settled for the affected txs; conflict resolution may drop loser txs per <a href="#" data-file="crates/execution/src/conflict.rs" target="_blank" rel="noopener">ConflictDetector</a> rules.</td>
+                            <td>
+                                <ul class="handler-detail-list">
+                                    <li><strong>Symbols:</strong> <code>handle_execution_action</code> (<code>io_loop/actions.rs</code> → <code>dispatch_delegated_action</code>); execution crate <code>on_*</code> routines driven by <code>ProtocolEvent</code>s after commit.</li>
+                                    <li><strong>Registered:</strong> Delegated pool at <code>IoLoop</code> build; work is scheduled when <code>ExecuteTransactions</code> / verify-cert <code>Action</code>s appear.</li>
+                                    <li><strong>Done:</strong> Worker calls the same <code>notify</code> closure → <code>NodeInput</code> on <code>event_sender</code>; often <code>Action::Continuation(…)</code> / follow-up <code>ProtocolEvent</code> pattern — see execution action handlers.</li>
+                                </ul>
+                            </td>
                         </tr>
                         <tr>
                             <td>Shard A (provisions / receipts)</td>
@@ -499,6 +608,13 @@
                             <td>Cross-shard messages over gossip (shard-scoped topics) + in-node <a href="#" data-crate="provisions" target="_blank" rel="noopener">provisions</a> coordination — not a classic 2PC coordinator</td>
                             <td><strong>ProvisionCoordinator</strong>-style in-memory maps: quorum of <code>StateProvision</code>s per required shard until <code>ProvisioningComplete</code></td>
                             <td>Drained after deterministic execution in fixed shard order and certificate aggregation, or along deterministic abort / conflict paths (see Cross-Shard module).</td>
+                            <td>
+                                <ul class="handler-detail-list">
+                                    <li><strong>Symbols:</strong> <code>register_notification_handler::&lt;ProvisionsNotification&gt;</code> (§0); <code>handle_provisions_action</code> for delegated provision fetches; node routes <code>ProtocolEvent::ProvisionsReceived</code> into the provision coordinator.</li>
+                                    <li><strong>Registered:</strong> Notification row §0; provision action handler registered via the same dispatch / <code>IoLoop</code> wiring as other delegated actions.</li>
+                                    <li><strong>Done:</strong> Inbound: synchronous <code>send</code> after verify. Coordinator progress: synchronous state-machine steps plus delegated <code>notify</code> for async verify/fetch legs.</li>
+                                </ul>
+                            </td>
                         </tr>
                         <tr>
                             <td>Wall clock / simulated time</td>
@@ -506,6 +622,13 @@
                             <td>Timer driver → <a href="#" data-file="crates/node/src/state/timers.rs" target="_blank" rel="noopener">timers.rs</a> → <a href="#" data-file="crates/core/src/protocol_event.rs" target="_blank" rel="noopener">ProtocolEvent</a></td>
                             <td>Pending timer registrations keyed by round / phase (view-change, cleanup, proposal retry)</td>
                             <td>One-shot timers fire then unregister; many are <strong>cancelled on view advance</strong> so stale timeouts cannot commit old rounds.</td>
+                            <td>
+                                <ul class="handler-detail-list">
+                                    <li><strong>Symbols:</strong> State machine emits <code>Action::SetTimer</code> / <code>CancelTimer</code>; <code>IoLoop</code> buffers <code>TimerOp</code> in <code>pending_timer_ops</code> (<code>mod.rs</code>); runner installs OS / logical timers.</li>
+                                    <li><strong>Registered:</strong> Runner-specific: production binds wall-clock callbacks that enqueue timer <code>NodeInput</code>s; sim injects timer events — both are <strong>after</strong> loop start, not part of §0.</li>
+                                    <li><strong>Done:</strong> Firing is modeled as a normal <code>NodeInput</code> / <code>ProtocolEvent</code> into <code>step</code>; cancellation clears the op without a callback.</li>
+                                </ul>
+                            </td>
                         </tr>
                         <tr>
                             <td>Simulator workload driver</td>
@@ -513,6 +636,13 @@
                             <td>Synthetic events from <a href="#" data-file="crates/simulator/src/runner.rs" target="_blank" rel="noopener">simulator</a> / <a href="#" data-file="crates/simulation/src/runner.rs" target="_blank" rel="noopener">simulation</a> instead of real sockets</td>
                             <td>Scheduled event lists and in-memory &ldquo;network&rdquo; queues</td>
                             <td>Emptied per simulation step or at scenario end; use <a href="#" data-file="crates/simulator/src/livelock.rs" target="_blank" rel="noopener">livelock analyzer</a> post-run for stuck txs.</td>
+                            <td>
+                                <ul class="handler-detail-list">
+                                    <li><strong>Symbols:</strong> Sim harness schedules <code>NodeInput</code> (e.g. <code>schedule_initial_event</code>); <code>SyncDispatch</code> runs delegated closures inline so ordering is deterministic.</li>
+                                    <li><strong>Registered:</strong> Per-scenario setup in sim runner — not network §0.</li>
+                                    <li><strong>Done:</strong> Harness observes empty queues / step output; no libp2p verdict.</li>
+                                </ul>
+                            </td>
                         </tr>
                         <tr>
                             <td>Sync / fetch protocol (catch-up)</td>
@@ -520,6 +650,13 @@
                             <td>Request/response over libp2p (see <a href="#" data-file="crates/node/src/io_loop/protocol/mod.rs" target="_blank" rel="noopener">io_loop/protocol</a>) — distinct from mempool gossip</td>
                             <td>Chunk buffers, block body staging, integrity checks before commit</td>
                             <td>Temporary buffers freed after successful import; failed sync attempts may retry with backoff (runner-specific).</td>
+                            <td>
+                                <ul class="handler-detail-list">
+                                    <li><strong>Symbols:</strong> <code>Network::request(..., on_response: Box&lt;dyn FnOnce(Result&lt;…&gt;) -&gt; ResponseVerdict + Send&gt;)</code> per fetch (<code>traits.rs</code>); server side uses §0 request handlers.</li>
+                                    <li><strong>Registered:</strong> A new <code>on_response</code> closure each outbound fetch (not the one-time §0 table).</li>
+                                    <li><strong>Done:</strong> Callback runs on a network thread and usually <code>send</code>s a <code>NodeInput</code> carrying fetch results; returns <code>ResponseVerdict</code> for peer health scoring.</li>
+                                </ul>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -534,7 +671,7 @@
                 <li><strong>Read <code>Event</code> and <code>Action</code> first.</strong> The flow is “event in → state machine → actions out; runner performs actions and feeds back events.” Skim the core event and action modules (see <a href="#suggested-crates-files-to-study">Suggested crates / files to study</a>) so you know what to break on.</li>
                 <li><strong>Run a node or the simulator.</strong> Follow the repo README to run a single node or the sim (e.g. <code>cargo run</code> for the production runner or sim binary). Submit one transaction and note its hash (from logs or RPC).</li>
                 <li><strong>Follow one tx with a debugger.</strong> In your IDE, set breakpoints on: <code>SubmitTransaction</code> / <code>TransactionGossipReceived</code> (ingress + validation) and <code>ProtocolEvent::TransactionValidated</code> (mempool), then BFT commit paths, then execution wave/certificate handling. Step through to see which crates handle each step.</li>
-                <li><strong>Use the messaging inventory tables.</strong> The production runner is large. Use the <a href="#messaging-transports-inventory">split tables above</a> (edge → mempool → BFT → execution) to jump to “first contact” (RPC handler, submit path, gossip) and “actions to network” (e.g. <code>BroadcastToShard</code> handling) instead of reading the production crate top to bottom.</li>
+                <li><strong>Use the messaging inventory tables.</strong> The production runner is large. Use the <a href="#messaging-transports-inventory">tables above</a> — start with <a href="#messaging-network-registry">the full <code>register_*</code> registry</a>, then the edge → mempool → BFT → execution chunks — to jump to “first contact” (RPC handler, submit path, gossip) and “actions to network” (e.g. <code>BroadcastToShard</code> handling) instead of reading the production crate top to bottom.</li>
                 <li><strong>When things go wrong:</strong> tx stuck in <strong>Pending</strong> → check mempool and gossip (did the tx reach all involved shards?). Block not <strong>committing</strong> → BFT and QC (round/timeout, vote collection). Cross-shard tx stuck after <strong>Executed</strong> → certificates and inclusion in a later block (provisions, certificate aggregation).</li>
             </ol>
         </div>

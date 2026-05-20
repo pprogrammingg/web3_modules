@@ -37,10 +37,10 @@
         <div class="section">
             <h2>Suggested workflow</h2>
             <ol>
-                <li>Run <code>node scripts/check-solana-changes.js</code> so you know what moved upstream since your last baseline.</li>
+                <li>Run <code>node scripts/reflect-changes.js solana-core</code> so you know what moved upstream since your last baseline.</li>
                 <li>Search issues for <strong>good first issue</strong> or ask in Discord/Matrix after reading CONTRIBUTING in the repo root.</li>
                 <li>Keep the diff under ~300 lines unless maintainers agreed on scope.</li>
-                <li>After merge (or actionable review): run <code>node scripts/check-solana-changes.js --save</code> to refresh your teaching baseline.</li>
+                <li>After merge (or actionable review): run <code>node scripts/reflect-changes.js solana-core --save</code> to refresh your teaching baseline.</li>
             </ol>
         </div>
 

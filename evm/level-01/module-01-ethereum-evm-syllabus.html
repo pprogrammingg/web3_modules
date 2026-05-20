@@ -13,15 +13,15 @@
         <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
     </nav>
     <div class="course-content container">
-        <header class="course-header evm-polished-hero polished-stone-surface">
+        <div class="course-header evm-polished-hero polished-stone-surface">
             <h1>Important background &amp; concepts</h1>
-            <p style="margin:0 0 0.75rem;font-size:1.02rem;line-height:1.55;color:rgba(255,255,255,0.9);max-width:52rem;">EVM / Ethereum protocol — <strong>80/20 interview syllabus</strong> (Rust-aware protocol engineer depth). Claims below are tightened for accuracy; dig into specs for edge cases (gas refunds, warm/cold storage, fork differences).</p>
+            <p class="course-header-lede">EVM / Ethereum protocol — <strong>80/20 interview syllabus</strong> (Rust-aware protocol engineer depth). Claims below are tightened for accuracy; dig into specs for edge cases (gas refunds, warm/cold storage, fork differences).</p>
             <div class="course-meta">
                 <span>⏱️ ~2 hr (4×25 min)</span>
                 <span>📊 Level 1</span>
                 <span>⛓️ EVM &amp; Ethereum protocol</span>
             </div>
-        </header>
+        </div>
 
         <div class="section">
             <h2>Reading segments (~20–25 min each)</h2>
@@ -38,7 +38,7 @@
                 </tbody>
             </table>
             </div>
-            <p style="font-size:0.92rem;color:var(--text2);">Pause between segments. Optional deep links: <a href="https://ethereum.github.io/execution-specs/" target="_blank" rel="noopener noreferrer">execution specs</a>, <a href="https://github.com/ethereum/consensus-specs" target="_blank" rel="noopener noreferrer">consensus specs</a>, <a href="https://www.evm.codes/" target="_blank" rel="noopener noreferrer">evm.codes</a>.</p>
+            <p class="module-footnote">Pause between segments. Optional deep links: <a href="https://ethereum.github.io/execution-specs/" target="_blank" rel="noopener noreferrer">execution specs</a>, <a href="https://github.com/ethereum/consensus-specs" target="_blank" rel="noopener noreferrer">consensus specs</a>, <a href="https://www.evm.codes/" target="_blank" rel="noopener noreferrer">evm.codes</a>.</p>
         </div>
 
         <div class="section section-tight module-tight-prose">
@@ -164,7 +164,7 @@
                 <li><strong>Why Rust here:</strong> performance, memory safety, and concurrency discipline for syncing / state — a defensible interview sentence without claiming exclusivity.</li>
             </ul>
             <h3>Rust-specific angles (if they go deep)</h3>
-            <p style="margin-bottom:0.5rem;">Async vs deterministic replay, state DB caching, trie I/O, zero-copy decoding, mempool design, speculative / parallel execution research vs canonical serial replay, interpreter vs JIT — tie each back to <strong>determinism</strong> and <strong>same gas semantics</strong>.</p>
+            <p class="module-prose-note">Async vs deterministic replay, state DB caching, trie I/O, zero-copy decoding, mempool design, speculative / parallel execution research vs canonical serial replay, interpreter vs JIT — tie each back to <strong>determinism</strong> and <strong>same gas semantics</strong>.</p>
             <h3>Highest-ROI topics (if you only pick five)</h3>
             <ol>
                 <li>Rollups + DA</li>
@@ -185,10 +185,10 @@
         <div class="section section-tight module-tight-prose">
             <h2>Hands-on lab (short)</h2>
             <p><strong>(1)</strong> Pick one function you have shipped (or a tiny open-source example). Label each line as <strong>check / effect / interaction</strong>. <strong>(2)</strong> Sketch a proxy layout: which slots are reserved (EIP-1967), where the implementation address lives, and one way a sloppy upgrade could brick storage.</p>
-            <p style="font-size:0.92rem;color:var(--text2);margin-bottom:0;">Keep artifacts in your notes repo; no autograder here—honesty with your past self is the point.</p>
+            <p class="module-footnote module-footnote--tight">Keep artifacts in your notes repo; no autograder here—honesty with your past self is the point.</p>
         </div>
 
-        <p><button type="button" class="btn btn-primary" id="complete-module-btn">Mark module complete</button></p>
+        <div class="module-actions"><button type="button" class="btn btn-primary" id="complete-module-btn">Mark module complete</button></div>
         <p><a href="../index.html" class="btn btn-secondary">← Back to EVM track</a></p>
     </div>
     <script src="../../common/evm-course-data.js"></script>

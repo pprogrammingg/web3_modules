@@ -1,4 +1,4 @@
-// Course data — Levels 1–7 with exactly three modules per level.
+// Course data — Levels 1–7: three modules per level by default; Level 6 adds one extra Hyperscale-rs reading module (Rust optimizations).
 // Global courseLevel is the level number on the index. Each level includes one
 // contributionModule (purple card) mapped to real hyperscale-rs OSS issues.
 //
@@ -42,10 +42,10 @@ const COURSE_DATA = {
         },
         {
             level: 6,
-            title: 'Measurement, E2E tests & lab project',
+            title: 'Measurement, Rust idioms, E2E & lab project',
             careerBand: 'Staff → measurement & reliability leader',
             description:
-                'Performance views, tracing tests through the harness, then a guided lab—plus expanding transaction/substate tests.'
+                'Performance views, Rust idioms in the node, tracing tests through the harness, then a guided lab—plus expanding transaction/substate tests.'
         },
         {
             level: 7,
@@ -320,7 +320,7 @@ const COURSE_DATA = {
         },
         advanced: {
             title: 'Levels 6–7',
-            description: 'Perf + tests + lab, then libp2p depth with infra contribution.',
+            description: 'Perf + Rust idioms + tests + lab, then libp2p depth with infra contribution.',
             modules: [
                 {
                     courseLevel: 6,
@@ -334,6 +334,23 @@ const COURSE_DATA = {
                         'Interpret metrics tables from sim and prod',
                         'List gaps sim cannot see',
                         'Design one additional measurement experiment'
+                    ],
+                    hyperscaleSpecific: true,
+                    contributionModule: false
+                },
+                {
+                    courseLevel: 6,
+                    id: 'intermediate-rust-optimization',
+                    title: 'Rust Optimizations in Hyperscale-rs',
+                    duration: '~1.5–2 hours',
+                    difficulty: 'Level 6',
+                    path: 'hyperscale/hyperscale-rs/module-12-rust-optimizations.html',
+                    description:
+                        'Where Rust strengths match the codebase (types, ownership, sync core + pools)—and only material improvement ideas; pairs with performance measurement.',
+                    objectives: [
+                        'Relate enums, traits, and ownership to node + consensus boundaries',
+                        'Contrast with managed/OO pitfalls without micro-benchmark hype',
+                        'Propose improvements only when profiling or semantics justify them'
                     ],
                     hyperscaleSpecific: true,
                     contributionModule: false

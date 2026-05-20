@@ -38,14 +38,15 @@
         'crates/bft/src/pending.rs': { lineHint: 'PendingBlock', note: 'BFT flow' },
         'crates/bft/src/vote_keeper.rs': { lineHint: 'voted_heights, received_votes_by_height', note: 'BFT votes' },
         'crates/node/src/io_loop/mod.rs': { lineHint: 'IoLoop::step, SubmitTransaction, TransactionValidated, validation pipeline', note: 'Tx ingress, overview, E2E' },
-        'crates/node/src/io_loop/step/tx_validation.rs': { lineHint: 'TransactionGossipReceived queue_validation; TransactionValidated feed_event', note: 'Tx ingress, overview' },
+        'crates/node/src/io_loop/step/protocol_event.rs': { lineHint: 'feed_event continuations after persist', note: 'Messaging inventory' },
         'crates/node/src/state/mod.rs': { lineHint: 'NodeStateMachine::handle, composition, try_event_driven_proposal', note: 'Tx flow, BFT, overview' },
         'crates/node/src/state/transactions.rs': { lineHint: 'ProtocolEvent::TransactionValidated → mempool', note: 'Tx flow' },
         'crates/node/src/state/proposal.rs': { lineHint: 'gather_proposal_inputs, try_event_driven_proposal', note: 'BFT proposal retry' },
         'crates/node/src/state/bft.rs': { lineHint: 'handle_bft, on_qc_formed orchestration', note: 'Node BFT dispatch' },
         'crates/node/src/state/timers.rs': { lineHint: 'ViewChangeTimer, CleanupTimer, check_round_timeout', note: 'Timing module-09' },
         'crates/node/src/io_loop/protocol/mod.rs': { lineHint: 'fetch/sync/block serve protocol wiring', note: 'Overview flow 1' },
-        'crates/node/src/io_loop/network_handlers.rs': { lineHint: 'transaction.gossip → NodeInput::TransactionGossipReceived', note: 'Tx ingress, overview' },
+        'crates/node/src/io_loop/network_handlers.rs': { lineHint: 'register_* handlers: gossip, notification, request → NodeInput / responses', note: 'Tx ingress, messaging inventory' },
+        'crates/node/src/io_loop/init.rs': { lineHint: 'register_inbound_handlers, handle_actions, install_engine_genesis', note: 'Handler registration timing (genesis + resume)' },
         'crates/node/src/io_loop/actions.rs': { lineHint: 'Action::BuildProposal and runner dispatch', note: 'BFT build' },
         'crates/core/src/action.rs': { lineHint: 'Action::PersistAndBroadcastVote, VerifyAndBuildQuorumCertificate, CommitBlock', note: 'Tx flow step 10, 11' },
         'crates/core/src/protocol_event.rs': { lineHint: 'ProtocolEvent types', note: 'Tx flow' },
@@ -67,7 +68,7 @@
         'crates/network-libp2p/src/adapter/identity.rs': { lineHint: 'generate_random_keypair (libp2p Ed25519)', note: 'Module-08 crypto' },
         'crates/network-libp2p/src/validator_bind.rs': { lineHint: 'validator-bind protocol, BLS signature over PeerId', note: 'Module-08 crypto' },
         'crates/messages/src/notification/mod.rs': { lineHint: 'block_header, block_vote, execution_*', note: 'Messages: gossip → notification (module-04, tx flow)' },
-        'crates/network-libp2p/src/adapter/core.rs': { lineHint: 'network adapter', note: 'Network' },
+        'crates/network/src/traits.rs': { lineHint: 'Network trait: register_* handlers, GossipHandler, NotificationHandler, request on_response', note: 'Messaging inventory' },
     };
 
     /**
@@ -163,13 +164,13 @@
             'hyperscale/hyperscale-rs/module-01-overview.html',
             'hyperscale/hyperscale-rs/module-08-cryptography.html',
         ],
-        'timing': [
-            'hyperscale/hyperscale-rs/module-09-timing.html',
+        'rust-optimization-module': [
+            'hyperscale/hyperscale-rs/module-12-rust-optimizations.html',
         ],
     };
 
     /**
-     * All paths referenced by flow data (crates + file refs). Used by check-hyperscale-changes.js
+     * All paths referenced by flow data (crates + file refs). Used by scripts/reflect-changes.js hyperscale
      * to match git diff output.
      */
     function getAllReferencedPaths() {

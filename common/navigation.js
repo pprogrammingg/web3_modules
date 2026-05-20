@@ -30,6 +30,7 @@ const AVAILABLE_MODULES = [
     'intermediate-timing',
     'intermediate-08',
     'intermediate-performance',
+    'intermediate-rust-optimization',
     'intermediate-e2e-tests',
     'intermediate-project-01',
     'basic-07',

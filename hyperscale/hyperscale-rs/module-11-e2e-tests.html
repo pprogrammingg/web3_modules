@@ -263,7 +263,7 @@
                 <li><strong>Simulation — <code>flush_all_batches()</code></strong> flushes <em>all</em> pending batches and related paths every time, ignoring whether a deadline has arrived. The runner is <strong>single-threaded</strong> and fully owns <strong>simulated</strong> time. Flushing aggressively makes the state after each <code>step</code> “fully settled,” which simplifies assertions and avoids subtle ordering bugs when <code>run_until</code> jumps the clock—work is not left sitting in a batch whose expiry might fall awkwardly between synthetic events. Throughput of the fake network is not a goal, so paying the cost of an immediate flush every step is cheap and predictable.</li>
                 <li><strong>Production — <code>flush_expired_batches(now)</code></strong> only calls <code>flush_validation_batch</code> / <code>flush_committed_header_verifications</code> when <code>now</code> has passed each batch’s deadline. <strong>Reason:</strong> real validators see bursty traffic (gossip, RPC); <strong>batching until a short deadline amortizes verification work</strong>, reduces spikes on the pinned thread and worker pools, and acts as a form of <strong><a href="../basic/module-04-state-machines.html">backpressure</a></strong>—the pipeline does not have to react to every packet edge individually. The same file exposes <code>nearest_batch_deadline()</code> so <code>run_pinned_loop</code> can set the <code><span data-glossary="crossbeam">crossbeam</span>::select!</code> timeout: the loop wakes when a batch <em>must</em> flush even if no new <code>NodeInput</code> arrived, keeping latency bounded without flushing blindly after every event.</li>
             </ul>
-            <p style="font-size:0.92rem;color:var(--text2);"><code>flush_all_batches()</code> still exists on <code>IoLoop</code> for paths that need an immediate drain (e.g. shutdown); production’s steady-state path prefers deadline-driven flushes.</p>
+            <p class="module-footnote"><code>flush_all_batches()</code> still exists on <code>IoLoop</code> for paths that need an immediate drain (e.g. shutdown); production’s steady-state path prefers deadline-driven flushes.</p>
 
             <div class="bft-design-callout">
                 <span class="callout-label">Correcting a common mental model</span>
@@ -568,7 +568,7 @@
         </div>
 
         <div class="navigation">
-            <a href="module-10-performance-measurement.html" class="btn btn-secondary">← Previous Module</a>
+            <a href="module-12-rust-optimizations.html" class="btn btn-secondary">← Previous Module</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
             <a href="project-01-e2e-observability.html" class="btn btn-primary">Next: Hands-On Project 1 →</a>
             <a href="../index.html" class="btn btn-primary">Back to Course</a>

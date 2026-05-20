@@ -21,6 +21,7 @@ function collectJsFiles(dirRel) {
 const files = [
     ...collectJsFiles('common'),
     'scripts/sanity-pages.js',
+    'scripts/reflect-changes.js',
     'scripts/check-hyperscale-changes.js',
     'scripts/check-solana-changes.js',
     'verify-paths.js',

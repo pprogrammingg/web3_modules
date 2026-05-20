@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rust Optimizations in Hyperscale-rs</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Rust Optimizations in Hyperscale-rs</h1>
+            <div class="course-meta">
+                <span>⏱️ Duration: ~1.5–2 hours</span>
+                <span>📊 Difficulty: Level 6 (with <a href="module-10-performance-measurement.html">Performance Measurement</a>)</span>
+                <span>🎯 Hyperscale-rs Specific</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Learning objectives</h2>
+            <ul>
+                <li>Point to concrete crates where Rust's model (types, ownership, concurrency split) matches the protocol design.</li>
+                <li>Contrast those wins with what is usually harder in typical <strong>managed</strong> or <strong>inheritance-heavy OO</strong> stacks—without claiming Rust is faster in every micro-benchmark.</li>
+                <li>List <strong>only material</strong> improvement ideas: clearer code, fewer locks, or language features where the benefit is structural—not hypothetical single-digit percent gains.</li>
+            </ul>
+            <p><strong>How this module is scoped.</strong> Examples lean on patterns visible in the public hyperscale-rs tree (e.g. synchronous <code>StateMachine</code>, <code>IoLoop</code> + channels, typed network registration, dispatch pools). Treat every “could improve” row as a <strong>hypothesis</strong> until you profile your branch. If time or memory deltas are lost in noise, skip the change.</p>
+            <p><strong>Pacing.</strong> Four chunks of roughly <strong>12–22 minutes</strong> each; use the table of contents to jump.</p>
+            <nav aria-label="Rust optimizations sections">
+                <ol style="margin: 0.75rem 0 1.25rem 1.25rem; line-height: 1.55;">
+                    <li><a href="#rust-opt-types-sm">Types, enums &amp; the core state machine</a></li>
+                    <li><a href="#rust-opt-ownership-io">Ownership at the node / I/O boundary</a></li>
+                    <li><a href="#rust-opt-concurrency">Concurrency: sync core + delegated work</a></li>
+                    <li><a href="#rust-opt-network-data">Network typing, batches &amp; data paths</a></li>
+                </ol>
+            </nav>
+        </div>
+
+        <div class="section" id="rust-opt-types-sm">
+            <h2>1. Types, enums &amp; the core state machine (~12–18 min)</h2>
+            <p>The consensus / node <strong>core</strong> is deliberately synchronous and allocation-conscious: <code>StateMachine::handle(event) -&gt; Vec&lt;Action&gt;</code> (see <a href="../basic/module-04-state-machines.html">State machines</a>). Large <code>enum</code>s for <code>ProtocolEvent</code> and <code>Action</code> give <strong>exhaustive pattern matching</strong> at compile time—adding a variant forces every handler to acknowledge it. That is a reliability win that in many OO languages becomes stringly-typed events or deep inheritance trees that are easy to extend incorrectly.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="flow-steps flow-steps-wide-first messaging-inventory-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Code locus (crate · pattern)</th>
+                            <th scope="col">Where Rust helps (vs typical managed / OO)</th>
+                            <th scope="col">Sharpen / alternatives (material only)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>crates/core</code> — <code>ProtocolEvent</code> / <code>Action</code> as rich enums</td>
+                            <td>One type carries variants with different payloads; no common superclass; compiler checks coverage when routing BFT, mempool, execution.</td>
+                            <td>If a variant group grows unwieldy, consider <strong>nested enums</strong> or small helper types—cosmetic refactors unless hot-path size affects instruction cache (measure).</td>
+                        </tr>
+                        <tr>
+                            <td><code>StateMachine</code> trait — pure <code>handle</code></td>
+                            <td>No hidden <code>this</code> mutation across layers; explicit <code>&amp;mut self</code> and return value make dataflow obvious for audits.</td>
+                            <td>Other languages: linear / affine types (research features) can encode “use once” resources more strongly than Rust defaults for some protocols—<strong>not</strong> a mainstream production switch today; document invariants instead if needed.</td>
+                        </tr>
+                        <tr>
+                            <td>BFT / node composition — generic storage <code>S: Storage</code></td>
+                            <td>Monomorphized paths for hot storage access; static dispatch vs pervasive virtual calls in OO designs.</td>
+                            <td>Binary size trade-off: if too many monomorphizations, selective <strong>dyn Trait</strong> at cold boundaries can help—only after <code>cargo bloaty</code> or similar shows a real issue.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section" id="rust-opt-ownership-io">
+            <h2>2. Ownership at the node / I/O boundary (~15–20 min)</h2>
+            <p><code>IoLoop</code> owns the bridge between network threads and the pinned state-machine thread: <code>Arc</code> for shared storage/topology, channels for <code>NodeInput</code>, and careful <code>Send</code> / <code>Sync</code> bounds on what crosses threads. That maps cleanly to “one writer to the state machine” reasoning—something GC languages can do with discipline but cannot encode as strongly in the type system.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="flow-steps flow-steps-wide-first messaging-inventory-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Code locus (crate · pattern)</th>
+                            <th scope="col">Where Rust helps (vs typical managed / OO)</th>
+                            <th scope="col">Sharpen / alternatives (material only)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>crates/node/io_loop</code> — <code>event_sender</code> + <code>NodeInput</code></td>
+                            <td>Cross-thread handoff is explicit; failed <code>send</code> usually means shutdown—no implicit cross-thread garbage of graph edges.</td>
+                            <td>Watch for <strong>lock order</strong> when combining <code>Mutex</code> with channel backpressure (e.g. provision dedup); document ordering or shrink critical sections if contention shows up in prod metrics.</td>
+                        </tr>
+                        <tr>
+                            <td>Shared topology snapshot (<code>Arc</code> / atomic load patterns)</td>
+                            <td>Readers can use consistent configuration without copying whole topology each event—fits read-mostly validator sets.</td>
+                            <td>If snapshot refresh becomes frequent, compare <strong>RCU-style</strong> swap vs finer-grained updates—only if profiling shows cache line bouncing.</td>
+                        </tr>
+                        <tr>
+                            <td>RPC / production runner → <code>IoLoop</code></td>
+                            <td>Clear boundary: HTTP/async world enqueues into the deterministic loop instead of calling <code>handle</code> re-entrantly.</td>
+                            <td>Other stacks (e.g. Go) unify with goroutines; Rust’s split is <strong>by design</strong> here—not a missing feature unless you need simpler mental model for a tiny service (different cost model for a full node).</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p>For handler names and registration timing, see <a href="module-01b-tx-flow.html#messaging-network-registry">Transaction flow → Typed network inbound registry</a>.</p>
+        </div>
+
+        <div class="section" id="rust-opt-concurrency">
+            <h2>3. Concurrency: sync core + delegated work (~15–22 min)</h2>
+            <p>Heavy crypto, execution, and some verification run off the hot path via <strong>dispatch pools</strong>; results return through the same channel as gossip (<code>notify</code> closure in <code>dispatch_delegated_action</code>). Simulation can run delegated work <strong>inline</strong> (<code>SyncDispatch</code>) for determinism—an optimization of <em>semantics</em>, not just speed.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="flow-steps flow-steps-wide-first messaging-inventory-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Code locus (crate · pattern)</th>
+                            <th scope="col">Where Rust helps (vs typical managed / OO)</th>
+                            <th scope="col">Sharpen / alternatives (material only)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>dispatch_delegated_action</code> + pool selection per <code>Action</code></td>
+                            <td>Typed actions route to known worker pools; avoids “async all the way” inside the pure state machine while still using threads for CPU-bound work.</td>
+                            <td>Ensure pool sizes and queue depths are observable (production metrics already expose many queue gauges)—tune when <strong>backpressure</strong> is systemic, not preemptively.</td>
+                        </tr>
+                        <tr>
+                            <td>Tx validation batch + <code>DispatchPool::TxValidation</code></td>
+                            <td>Batches amortize per-tx overhead; Rust makes batch ownership (<code>Vec</code> moved into closure) explicit.</td>
+                            <td>Very large batches can hurt tail latency; <strong>adaptive batch caps</strong> only if P99 regresses in traces.</td>
+                        </tr>
+                        <tr>
+                            <td>Deterministic simulation harness</td>
+                            <td>Same logical code paths without hidden scheduler reordering—easier replay than typical threaded + GC nondeterminism.</td>
+                            <td>“Full language” effect systems or async colors—<strong>not</strong> proven wins for this codebase; keep determinism story in tests/sim unless requirements change.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section" id="rust-opt-network-data">
+            <h2>4. Network typing, batches &amp; data paths (~15–22 min)</h2>
+            <p>Typed <code>register_*_handler</code> methods decode SBOR once, dispatch to closures, and return <code>GossipVerdict</code> / responses—reducing whole classes of wire-format bugs compared to string-keyed handlers. Batch accumulators (tx gossip, validation windows) trade memory for fewer messages.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="flow-steps flow-steps-wide-first messaging-inventory-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Code locus (crate · pattern)</th>
+                            <th scope="col">Where Rust helps (vs typical managed / OO)</th>
+                            <th scope="col">Sharpen / alternatives (material only)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>hyperscale_network::Network</code> trait + registry</td>
+                            <td>Per-message-type registration is type-checked; failures tend to be compile-time rather than runtime “wrong string id”.</td>
+                            <td>Adding a new wire type still requires discipline in SBOR schemas—Rust cannot verify cross-repo compatibility; rely on tests and staging.</td>
+                        </tr>
+                        <tr>
+                            <td>Provision request dedup (<code>Mutex</code> + <code>Condvar</code> single-flight)</td>
+                            <td>Protects CPU from redundant Merkle work under fan-out; <code>Drop</code> guard pattern wakes waiters on panic paths—explicit resource pairing.</td>
+                            <td>If waiter latency spikes, revisit <strong>timeout budgets</strong> and caps (already documented in code comments)—not a language deficiency.</td>
+                        </tr>
+                        <tr>
+                            <td><code>Network::request</code> + <code>on_response</code> + <code>ResponseVerdict</code></td>
+                            <td>Integrates peer-health scoring with application-level accept/reject of payloads—typed <code>Result</code> on the wire path.</td>
+                            <td>Deep async/await stacks in other languages can read cleaner for chained retries; Rust uses closures here—<strong>ergonomic</strong> difference, not a proven large perf gap for this path; refactor only for clarity if a maintainer agrees.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p><strong>Language features Rust does not have (and why we barely mention them).</strong> True <strong>algebraic effects</strong> (as in some research languages) could theoretically simplify certain callback-heavy network flows; there is no standard, production-ready effects system in Rust today, and migrating a consensus node for ergonomics alone would be unjustified. <strong>JIT</strong> from VMs can win on specific micro-benchmarks; consensus hot paths here are dominated by crypto, I/O, and protocol logic—chasing a “better JIT” is not a verified lever compared to algorithmic and batching improvements (see <a href="module-10-performance-measurement.html">Performance Measurement</a>).</p>
+        </div>
+
+        <div class="section">
+            <h2>How to use this with the rest of Level 6</h2>
+            <ol>
+                <li>Read <a href="module-10-performance-measurement.html">Performance Measurement</a> first so “material win” has a quantitative meaning.</li>
+                <li>Skim this module, then pick <strong>one</strong> code path (e.g. gossip ingress or delegated QC build) and profile it before proposing a Rust-style change.</li>
+                <li>Continue to <a href="module-11-e2e-tests.html">E2E tests</a>—tests guard the semantics these patterns rely on.</li>
+            </ol>
+        </div>
+
+        <div class="navigation">
+            <a href="module-10-performance-measurement.html" class="btn btn-secondary">← Previous Module</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="module-11-e2e-tests.html" class="btn btn-primary">Next Module →</a>
+        </div>
+    </div>
+
+    <script src="../../common/course-data.js"></script>
+    <script src="../../common/navigation.js"></script>
+    <script src="../../common/protocol-engineer-track.js"></script>
+    <script src="../../common/glossary.js"></script>
+    <script src="../../common/module-init.js" data-module-id="intermediate-rust-optimization"></script>
+</body>
+</html>
