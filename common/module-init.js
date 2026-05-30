@@ -26,10 +26,18 @@
         initializeModulePage(mid);
     }
 
-    var skipProtocolPanel = trackInits.some(function (t) {
-        return mid.indexOf(t.prefix) === 0;
-    });
-    if (!skipProtocolPanel && typeof injectProtocolEngineerPanel === 'function') {
-        injectProtocolEngineerPanel(mid);
+    function runRustHighlight() {
+        if (typeof highlightRustSnippets === 'function') {
+            highlightRustSnippets();
+        }
+    }
+
+    if (typeof highlightRustSnippets === 'function') {
+        runRustHighlight();
+    } else if (el && el.src) {
+        var hl = document.createElement('script');
+        hl.src = el.src.replace(/\/[^/]+$/, '/') + 'rust-highlight.js';
+        hl.onload = runRustHighlight;
+        document.head.appendChild(hl);
     }
 })();

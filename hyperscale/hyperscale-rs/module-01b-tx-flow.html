@@ -9,7 +9,8 @@
 </head>
 <body>
     <nav class="site-home-bar">
-        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
     </nav>
     <div class="course-content">
         <div class="course-header">
@@ -35,7 +36,7 @@
         <div class="section">
             <h2>Why This Diagram?</h2>
             <p>Hyperscale-rs is a <strong>consensus layer</strong>, not a full blockchain stack. This diagram shows the end-to-end path of a transaction from the user to finality, and which parts Hyperscale touches versus which are outside (e.g. wallet, Radix Engine semantics, network client). Hover over each step to see which crates implement it.</p>
-            <p><strong>Level 1 placement:</strong> You’ve done Blockchain and Consensus in generic web3 modules; this module gives a single-shard Hyperscale map before systems theory. Next in the course: <strong>Distributed Systems</strong> and <strong>State Machines</strong>, then <strong>First Contribution (OSS)</strong>, then Hyperscale Overview, Codebase Exploration, and Crate Groups.</p>
+            <p><strong>Level 1 placement:</strong> You’ve done Blockchain and Consensus in generic web3 modules; this module gives a single-shard Hyperscale map before systems theory. <strong>Deep dives:</strong> after this map, optional <strong>phase modules</strong> zoom into step groups (start with <a href="module-phase-01-submit-to-mempool.html">Phase 1: Submit → Mempool</a>). Then: <strong>Distributed Systems</strong>, <strong>State Machines</strong>, OSS first PR, Overview, Crate Groups.</p>
             <p><strong>Where BFT comes in:</strong> Steps 1–6 get the tx into the system (user, network, node, cross-shard determination, <span data-glossary="mempool">mempool</span>, and for cross-shard txs, travel to involved <span data-glossary="sharding">shards</span>). <strong>BFT consensus runs from step 7</strong> (proposer selection) through step 11 (block committed) <em>per <span data-glossary="sharding">shard</span></em>. Steps 12–14 are execution, then (for cross-shard) coordination &amp; composition, then finality.</p>
             <div class="info section-tight">
                 <p><strong>Single-shard vs multi-shard (canonical split):</strong> Steps 1–6 are the same. From step 7 onward, <strong>BFT runs per shard</strong> (each shard has its own proposer, block, votes, QC, commit). <strong>Single-shard:</strong> After step 11 (block committed), step 12 (execution) runs immediately—no provisioning. <strong>Multi-shard:</strong> After step 11, the execution crate <strong>registers</strong> the tx with ProvisionCoordinator and waits for <strong>ProvisioningComplete</strong> (quorum of StateProvisions from each required shard); then it runs the five-phase protocol (State Provisioning → Provision Verification → Deterministic Execution → Vote Aggregation → Finalization). There is <strong>no 2PC coordinator</strong> in hyperscale-rs; atomicity is provision-based. See <a href="module-05-cross-shard.html">Cross-Shard Transactions</a> for detail.</p>
@@ -118,7 +119,7 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">5. <span data-glossary="mempool">Mempool</span> (per <span data-glossary="sharding">shard</span>)</div>
-                            <div class="flow-step-desc"><strong>Single-<span data-glossary="sharding">shard</span>:</strong> tx goes into that shard's <span data-glossary="mempool">mempool</span>. <strong>Cross-shard:</strong> the receiving node enqueues the tx in <strong>its own shard’s mempool</strong> (if the tx touches that shard). For other involved shards, the tx is sent in step 6 and nodes there enqueue it in their mempools — so the tx ends up in the mempool of every involved shard.</div>
+                            <div class="flow-step-desc"><strong>Single-<span data-glossary="sharding">shard</span>:</strong> tx goes into that shard's <span data-glossary="mempool">mempool</span>. <strong>Cross-shard:</strong> the receiving node enqueues the tx in <strong>its own shard’s mempool</strong> (if the tx touches that shard). For other involved shards, the tx is sent in step 6 and nodes there enqueue it in their mempools — so the tx ends up in the mempool of every involved shard. <a href="module-phase-01-submit-to-mempool.html">Deep dive Phase 1</a> (steps 1–5, production path).</div>
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
@@ -136,7 +137,7 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">6. (Cross-shard) Tx travels to each involved shard</div>
-                            <div class="flow-step-desc">For cross-shard txs, the receiving node (or the routing layer) <strong>sends</strong> the tx (or sub-transactions) to the nodes of every other involved <span data-glossary="sharding">shard</span>. Those nodes enqueue it in <strong>their</strong> shard’s mempool. Each shard then runs steps 7–12 for its part. Cross-shard atomicity is <strong>provision-based</strong> (StateProvision, <span data-glossary="provisioncoordinator">ProvisionCoordinator</span>, step 13)—there is no 2PC coordinator or prepare/commit/abort.</div>
+                            <div class="flow-step-desc">For cross-shard txs, the receiving node (or the routing layer) <strong>sends</strong> the tx (or sub-transactions) to the nodes of every other involved <span data-glossary="sharding">shard</span>. Those nodes enqueue it in <strong>their</strong> shard’s mempool. Each shard then runs steps 7–12 for its part. Cross-shard atomicity is <strong>provision-based</strong> (StateProvision, <span data-glossary="provisioncoordinator">ProvisionCoordinator</span>, step 13)—there is no 2PC coordinator or prepare/commit/abort. <a href="module-phase-04-cross-shard-tx.html">Deep dive Phase 4</a> (after Phase 1 gossip path).</div>
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
@@ -156,7 +157,7 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">7. Proposer selection (per <span data-glossary="sharding">shard</span>, per round)</div>
-                            <div class="flow-step-desc">BFT starts here. Each <span data-glossary="sharding">shard</span> runs its own BFT instance with its own <span data-glossary="view">view/round</span>. The proposer (block leader) is chosen deterministically from the shard's validator set (e.g. round-robin by <strong>validator identity</strong> or <span data-glossary="view">view number</span> modulo validator count).</div>
+                            <div class="flow-step-desc">BFT starts here. Each <span data-glossary="sharding">shard</span> runs its own BFT instance with its own <span data-glossary="view">view/round</span>. The proposer (block leader) is chosen deterministically from the shard's validator set (e.g. round-robin by <strong>validator identity</strong> or <span data-glossary="view">view number</span> modulo validator count). <a href="module-phase-02-propose-vote-commit.html">Deep dive Phase 2</a> (steps 7–11).</div>
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
@@ -174,7 +175,7 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">8. Block proposal</div>
-                            <div class="flow-step-desc">Proposer builds block (header + txs from <span data-glossary="mempool">mempool</span>), broadcasts header; validators receive it.</div>
+                            <div class="flow-step-desc">Proposer builds block (header + txs from <span data-glossary="mempool">mempool</span>), broadcasts header; validators receive it. <a href="module-phase-02-propose-vote-commit.html">Phase 2</a> — <code>try_propose</code> / <code>BuildProposal</code>.</div>
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
@@ -192,7 +193,7 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">9. Validators vote</div>
-                            <div class="flow-step-desc">Validators in this <span data-glossary="sharding">shard</span>'s BFT instance <strong>validate</strong> the block (e.g. check it extends from the parent QC, payload and hashes are valid, and it obeys consensus rules) and, if valid, sign a vote. 2f+1 votes are required for a quorum (BFT fault model: n = 3f+1 nodes per <span data-glossary="sharding">shard</span>).</div>
+                            <div class="flow-step-desc">Validators in this <span data-glossary="sharding">shard</span>'s BFT instance <strong>validate</strong> the block (e.g. check it extends from the parent QC, payload and hashes are valid, and it obeys consensus rules) and, if valid, sign a vote. 2f+1 votes are required for a quorum (BFT fault model: n = 3f+1 nodes per <span data-glossary="sharding">shard</span>). <a href="module-phase-02-propose-vote-commit.html">Phase 2</a> — BLS votes &amp; <code>VoteSet</code>.</div>
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
@@ -209,7 +210,7 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">10. Quorum certificate (QC) formed</div>
-                            <div class="flow-step-desc">How a QC is formed: <strong>(i)</strong> Proposer for H built and broadcast the block header (step 8). <strong>(ii)</strong> Validators validated and voted; votes are broadcast to the shard (step 9). <strong>(iii)</strong> When any validator has 2f+1 valid votes, it requests QC build; that node’s <code>latest_qc</code> is set to the new QC. <strong>(iv)</strong> The QC is not sent as a separate message—the next proposer has it by forming it from votes or from a received block header. <strong>(v)</strong> The next proposer builds block H+1 with <code>parent_qc</code> = QC(H) and broadcasts H+1; everyone then sees QC(H) in H+1’s header.</div>
+                            <div class="flow-step-desc">How a QC is formed: <strong>(i)</strong> Proposer for H built and broadcast the block header (step 8). <strong>(ii)</strong> Validators validated and voted; votes are broadcast to the shard (step 9). <strong>(iii)</strong> When any validator has 2f+1 valid votes, it requests QC build; that node’s <code>latest_qc</code> is set to the new QC. <strong>(iv)</strong> The QC is not sent as a separate message—the next proposer has it by forming it from votes or from a received block header. <strong>(v)</strong> The next proposer builds block H+1 with <code>parent_qc</code> = QC(H) and broadcasts H+1; everyone then sees QC(H) in H+1’s header. <a href="module-phase-02-propose-vote-commit.html">Phase 2</a> — QC &amp; two-chain lead-in.</div>
                             <div class="flow-step-popup">
                                 <h4>Crates &amp; code</h4>
                                 <ul>
@@ -228,7 +229,7 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">11. Block committed</div>
-                            <div class="flow-step-desc"><strong>Who:</strong> Every validator <strong>node</strong> in the shard (not only the proposer). Once the commit rule is satisfied (e.g. two-chain: this block and the next have QCs), each node commits. <strong>Commit mechanics:</strong> (1) accept the block as final, (2) append it to the local chain, (3) trigger execution (run the transactions in the block), (4) trigger persistence (write to storage). All honest nodes do this in sync with the agreed order.</div>
+                            <div class="flow-step-desc"><strong>Who:</strong> Every validator <strong>node</strong> in the shard (not only the proposer). Once the commit rule is satisfied (e.g. two-chain: this block and the next have QCs), each node commits. <strong>Commit mechanics:</strong> (1) accept the block as final, (2) append it to the local chain, (3) trigger execution (run the transactions in the block), (4) trigger persistence (write to storage). All honest nodes do this in sync with the agreed order. <a href="module-phase-02-propose-vote-commit.html">Phase 2</a> — commit &amp; mempool transitions.</div>
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
@@ -247,7 +248,7 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">12. Execution</div>
-                            <div class="flow-step-desc">Transactions in the block are executed (per <span data-glossary="sharding">shard</span>). Hyperscale runs the execution state machine; semantics (e.g. Radix Engine) may be external.</div>
+                            <div class="flow-step-desc">Transactions in the block are executed (per <span data-glossary="sharding">shard</span>). Hyperscale runs the execution state machine; semantics (e.g. Radix Engine) may be external. <a href="module-phase-03-execution-waves.html">Deep dive Phase 3</a> (single-shard waves).</div>
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
@@ -266,7 +267,7 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">13. (Cross-shard) Coordination &amp; composition</div>
-                            <div class="flow-step-desc">For <strong>cross-shard</strong> txs, <strong>atomic composability</strong> is achieved by a <strong>provision-based protocol</strong> (no 2PC). After a shard commits its block, validators produce <strong>StateProvisions</strong> (signed proofs) and send them to other shards. <strong>ProvisionCoordinator</strong> on each node tracks quorum of provisions from each required shard; when it has provisions from every required shard it emits <strong>ProvisioningComplete</strong>. Execution then runs in a fixed protocol order (e.g. by shard ID); vote aggregation and <strong>TransactionCertificate</strong> follow. There is no prepare/commit/abort—only StateProvision → ProvisionCoordinator checklist → execution and certificate aggregation. Single-shard txs skip this.</div>
+                            <div class="flow-step-desc">For <strong>cross-shard</strong> txs, <strong>atomic composability</strong> is achieved by a <strong>provision-based protocol</strong> (no 2PC). After a shard commits its block, validators produce <strong>StateProvisions</strong> (signed proofs) and send them to other shards. <strong>ProvisionCoordinator</strong> on each node tracks quorum of provisions from each required shard; when it has provisions from every required shard it emits <strong>ProvisioningComplete</strong>. Execution then runs in a fixed protocol order (e.g. by shard ID); vote aggregation and <strong>TransactionCertificate</strong> follow. There is no prepare/commit/abort—only StateProvision → ProvisionCoordinator checklist → execution and certificate aggregation. Single-shard txs skip this. <a href="module-phase-04-cross-shard-tx.html">Deep dive Phase 4</a>.</div>
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
@@ -286,7 +287,7 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">14. Finality &amp; persistence</div>
-                            <div class="flow-step-desc">BFT gives one-round finality (no reorg after QC). State/storage may be in-node or external.</div>
+                            <div class="flow-step-desc">BFT gives one-round finality (no reorg after QC). State/storage may be in-node or external. Cross-shard finality ties to Phase 4; persistence ops tie to <a href="module-hs-production-e2e-harness.html">Phase 6</a>.</div>
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
@@ -338,14 +339,14 @@
                     </tbody>
                 </table>
             </div>
-            <p style="margin-top: 1rem;">In <strong>Intermediate</strong>, do <a href="module-01c-crate-groups.html">Crate Groups &amp; Quizzes</a> next (one-liners, code pointers, 10-question quiz per group).</p>
+            <p style="margin-top: 1rem;">Use the crate-groups table above as your workspace map; phase deep-dives and harness modules come next on the course index.</p>
         </div>
 
         <div class="section" id="messaging-transports-inventory">
             <h2>Messaging &amp; transports inventory</h2>
             <p>There is <strong>no</strong> standalone course module titled &ldquo;Messaging and Transports.&rdquo; Messaging and notifications are covered <strong>across</strong> this page (end-to-end path), <a href="../basic/module-04-state-machines.html">State machines &amp; event-driven architecture</a> (how <code>Event</code> / <code>Action</code> and channels compose), the <strong>libp2p</strong> modules in the Hyperscale basic/intermediate/advanced tracks, and the file links in the tables below. Treat these tables as a <strong>reading map</strong>: concrete struct names, lock types (<code>Arc&lt;Mutex&lt;HashSet&lt;…&gt;&gt;&gt;</code> vs alternatives), and exact eviction rules can shift between commits — when in doubt, set breakpoints on the linked paths.</p>
             <p><strong>How to read the columns.</strong> <em>Message source / destination</em> are logical actors (threads, coordinators, peers). <em>Transport</em> is how bits move (RPC, gossip, in-process call). <em>Lifecycle storage</em> is where the payload or derived state usually sits until the next phase. <em>Pruning / flushing / drainage</em> is what makes that storage go away or become irrelevant. The last column, <strong>Handlers · registration · done</strong>, answers: (a) which functions / traits / closures participate, (b) when they are wired (skip the row if it is always the same boring answer), and (c) how the callee signals completion back into the pinned <code>IoLoop</code> / state machine.</p>
-            <p><strong>Verifying names on disk.</strong> Default local clone path for the <strong>hyperscale-rs</strong> checkout (used to confirm symbol names) is set in <a href="../../scripts/hyperscale-repo.config.js">scripts/hyperscale-repo.config.js</a> (<code>DEFAULT_LOCAL_REPO_PATH</code>, overridable with <code>LOCAL_REPO_PATH</code>). Handler tables below match <a href="#" data-file="crates/node/src/io_loop/network_handlers.rs" target="_blank" rel="noopener">network_handlers.rs</a> and <a href="#" data-file="crates/node/src/io_loop/init.rs" target="_blank" rel="noopener">init.rs</a> in that tree.</p>
+            <p><strong>Source alignment.</strong> Handler tables below match <a href="#" data-file="crates/node/src/io_loop/network_handlers.rs" target="_blank" rel="noopener">network_handlers.rs</a> and <a href="#" data-file="crates/node/src/io_loop/init.rs" target="_blank" rel="noopener">init.rs</a> in the <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> repo (<code>data-file</code> links open the cited crate paths).</p>
             <p><strong>Suggested pacing.</strong> Each subsection is sized for roughly <strong>8–25 minutes</strong>. The full inventory is about <strong>65–95 minutes</strong> if you read the registry plus all four flow chunks in order; skip what you already know.</p>
             <nav class="messaging-inventory-toc" aria-label="Messaging inventory sections">
                 <ol style="margin: 0.75rem 0 1.25rem 1.25rem; line-height: 1.6;">
@@ -436,9 +437,9 @@
                         <tr>
                             <td>Remote validator (same shard)</td>
                             <td>IoLoop</td>
-                            <td>libp2p gossipsub → <a href="#" data-file="crates/node/src/io_loop/network_handlers.rs" target="_blank" rel="noopener">network_handlers</a> → <code>NodeInput::TransactionGossipReceived</code></td>
+                            <td>libp2p gossipsub over QUIC (validator mesh, separate from wallet HTTP) → <a href="#" data-file="crates/node/src/io_loop/network_handlers.rs" target="_blank" rel="noopener">network_handlers</a> → <code>NodeInput::TransactionGossipReceived</code></td>
                             <td>Adapter receive path + validation staging before a <a href="#" data-file="crates/core/src/protocol_event.rs" target="_blank" rel="noopener">ProtocolEvent</a> is emitted; dedupe / &ldquo;already seen&rdquo; structures often live near gossip ingress (pattern: set or map keyed by message id / hash — exact type varies)</td>
-                            <td>Duplicates rejected early (never reach mempool). After acceptance, gossip-derived state may be short-lived; some paths tombstone or remember ids briefly for idempotency — verify in <a href="#" data-file="crates/node/src/io_loop/step/tx_validation.rs" target="_blank" rel="noopener">tx_validation.rs</a>.</td>
+                            <td>Duplicates rejected early (never reach mempool). After acceptance, gossip-derived state may be short-lived; some paths <span data-glossary="tombstone">tombstone</span> or remember ids briefly for idempotency — verify in <a href="#" data-file="crates/node/src/io_loop/step/tx_validation.rs" target="_blank" rel="noopener">tx_validation.rs</a>.</td>
                             <td>
                                 <ul class="handler-detail-list">
                                     <li><strong>Symbols:</strong> <code>register_gossip_handler::&lt;TransactionGossip&gt;</code> closure (<code>GossipHandler::on_message</code>); then <code>handle_gossip_received_tx_for_validation</code> → <code>queue_validation</code> → <code>flush_validation_batch</code> spawns <code>DispatchPool::TxValidation</code> closure (<code>tx_validation.rs</code>).</li>
@@ -718,7 +719,7 @@
         <div class="navigation">
             <a href="../basic/module-02-consensus-basics.html" class="btn btn-secondary">← Previous Module</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="../basic/module-03-distributed-systems.html" class="btn btn-primary">Next Module →</a>
+            <a href="module-phase-01-submit-to-mempool.html" class="btn btn-primary">Phase 1 deep dive →</a>
         </div>
     </div>
 
@@ -726,7 +727,6 @@
     <script src="../../common/hyperscale-flow-data.js"></script>
     <script src="../../common/hyperscale-links.js"></script>
     <script src="../../common/navigation.js"></script>
-    <script src="../../common/protocol-engineer-track.js"></script>
     <script src="../../common/glossary.js"></script>
     <script src="../../common/module-init.js" data-module-id="basic-05b"></script>
     <script>

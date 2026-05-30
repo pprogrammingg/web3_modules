@@ -9,7 +9,8 @@
 </head>
 <body>
     <nav class="site-home-bar">
-        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
     </nav>
     <div class="course-content">
         <div class="course-header">
@@ -289,38 +290,10 @@
             </div>
         </div>
 
-        <div class="section section-oss-contribution" id="oss-contribution">
-            <h2>OSS contribution: batch crypto validation (#43)</h2>
-            <p class="oss-journey-welcome">Performance work shines when it’s measurable and incremental. You’re not expected to rewrite cryptography in a weekend—you’re expected to show curiosity, numbers, and clear communication. That combination opens doors upstream and here.</p>
-            <p>Track <a class="oss-issue-link" href="https://github.com/hyperscalers/hyperscale-rs/issues/43" target="_blank" rel="noopener">issue #43 — Fork radix-transactions to add batch crypto validation</a>. Goal: speed up signature checks on batches from the Radix transaction stack by extending or forking <code>radix-transactions</code>, then wiring validation into the paths you mapped (QC, validator bind, identity).</p>
-
-            <div class="oss-contrib-step">
-                <h3>Step 1 — Make a safe sandbox</h3>
-                <p>Fork <strong>radix-transactions</strong> (or the upstream Radix repo named in the issue) under your GitHub user and create a focused branch for experiments.</p>
-                <div class="oss-expected"><strong>Expected result:</strong> You can build and run tests on your fork without touching hyperscale-rs yet—freedom to explore.</div>
-            </div>
-
-            <div class="oss-contrib-step">
-                <h3>Step 2 — Prove the win with evidence</h3>
-                <p>Benchmark current single-verify vs your batch API on a synthetic workload; write down hardware, flags, and methodology in the PR so numbers travel.</p>
-                <div class="oss-expected"><strong>Expected result:</strong> A small table or paragraph (“before / after / setup”) reviewers can trust—or refine—without rerunning your whole life.</div>
-            </div>
-
-            <div class="oss-contrib-step">
-                <h3>Step 3 — Integrate with consent</h3>
-                <p>Open a <strong>draft PR</strong> to hyperscale-rs that pins your fork in <code>Cargo.toml</code> <em>only if</em> maintainers agree—often the first merge targets radix upstream, then hyperscale picks up the release.</p>
-                <div class="oss-expected"><strong>Expected result:</strong> The thread agrees on sequencing; you avoid surprise dependency forks and stay proud of a clean story.</div>
-            </div>
-
-            <div class="oss-payoff">
-                <strong>Reward:</strong> Faster verification means healthier nodes and happier operators—and you’ll have bench numbers that belong on your portfolio forever.
-            </div>
-        </div>
-
         <div class="navigation">
-            <a href="module-09-timing.html" class="btn btn-secondary">← Previous Module</a>
+            <a href="../basic/module-05-libp2p.html" class="btn btn-secondary">← libp2p</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="module-10-performance-measurement.html" class="btn btn-primary">Next Module →</a>
+            <a href="../index.html" class="btn btn-secondary">Back to Course</a>
         </div>
     </div>
 
@@ -328,7 +301,6 @@
     <script src="../../common/hyperscale-flow-data.js"></script>
     <script src="../../common/hyperscale-links.js"></script>
     <script src="../../common/navigation.js"></script>
-    <script src="../../common/protocol-engineer-track.js"></script>
     <script src="../../common/glossary.js"></script>
     <script src="../../common/module-init.js" data-module-id="intermediate-08"></script>
     <script src="module-08-cryptography-quiz.js"></script>

@@ -55,15 +55,17 @@ if (!/\.course-content \.section\s*\{[^}]*background:\s*transparent/.test(STYLES
     err('.course-content .section must not use background: var(--bg2)');
 } else ok('.course-content .section is transparent (no nested grey panels)');
 
-if (
-    !/body\.evm-track:has\(\.course-content\)[\s\S]*background:\s*var\(--bg\)/.test(STYLES)
-) {
-    err('module pages: body.evm-track:has(.course-content) should use white page background');
-} else ok('evm module pages: body background matches reading card');
+if (!/body:has\(\.course-content\)\s*\{[^}]*background:\s*var\(--bg\)/.test(STYLES)) {
+    err('module pages: body:has(.course-content) should use white page background');
+} else ok('all module pages: body background matches reading card (incl. Hyperscale)');
 
 if (!/\.course-content \.table-wrap\s*\{[^}]*background:\s*var\(--bg\)/.test(STYLES)) {
     err('.course-content .table-wrap needs solid --bg behind scrollable tables');
 } else ok('.course-content .table-wrap has opaque background');
+
+if (!/:not\(\.hs-phase-roadmap a\)/.test(STYLES)) {
+    err('in-content link underline rule must exclude .hs-phase-roadmap a (full card border)');
+} else ok('phase roadmap links excluded from border-bottom underline override');
 
 if (
     !/\.course-content \.evm-polished-hero\.polished-stone-surface::before[\s\S]*mix-blend-mode:\s*normal/.test(

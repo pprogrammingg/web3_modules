@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Shard Simulation E2E Tests: Improved/Innovative New Test Case</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Cross-Shard Simulation E2E Tests: Improved/Innovative New Test Case</h1>
+            <div class="course-meta"><span>⏱️ 1.5–2 hours</span><span>📊 Level 6</span><span>Hands-on lab</span></div>
+        </div>
+
+        <div class="section project-hero">
+            <h2>Why this project</h2>
+            <p style="margin:0;line-height:1.65;">
+                After <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>, you run the
+                <strong>deterministic multi-shard simulation E2E</strong> in the repo:
+                <code>test_e2e_cross_shard_transaction</code> (six validators, <code>multi_shard_config()</code>).
+                You add trace markers, print per-shard committed heights and transaction status, and relate the polling loop
+                (mempool → committed → executed → finalized) to the five-phase cross-shard story—not a repeat of the single-shard height lab.
+            </p>
+        </div>
+
+        <div class="section">
+            <h2>Prerequisites</h2>
+            <ul>
+                <li>Local <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> clone with <code>cargo test</code> working.</li>
+                <li>Completed <a href="module-hs-improved-simulation-tests.html">Single-Shard Simulation E2E hands-on</a> (markers, <code>run_until</code>, stats).</li>
+                <li>Skim <a href="module-05-cross-shard.html">cross-shard reading module</a> so provisions and receipt tiers are fresh.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Files you will touch</h2>
+            <ul>
+                <li><code>crates/simulation/tests/e2e_tests.rs</code> — <code>test_e2e_cross_shard_transaction</code> (multi-shard section; uses <code>multi_shard_config()</code>).</li>
+                <li>Optional: same file — <code>multi_shard_config()</code> helper near the top of the cross-shard tests.</li>
+            </ul>
+        </div>
+
+        <div class="section project-step" id="step-1">
+            <h3>Step 1 — Baseline run</h3>
+            <p>From the <strong>hyperscale-rs repository root</strong>:</p>
+            <pre style="overflow-x:auto;padding:1rem;background:var(--bg2);border-radius:6px;font-size:0.9rem;">cargo test -p hyperscale-simulation test_e2e_cross_shard_transaction -- --nocapture</pre>
+            <p>Confirm the test passes. Note the ASCII diagram in the test comment (withdraw on shard 0, deposit on shard 1), seed discovery for accounts on different shards, and the final per-shard validator dump (nodes 0–2 vs 3–5).</p>
+        </div>
+
+        <div class="section project-step" id="step-2">
+            <h3>Step 2 — Trace markers</h3>
+            <p>In <code>test_e2e_cross_shard_transaction</code>, add two markers:</p>
+            <ol>
+                <li>After <code>runner.initialize_genesis_with_balances(...)</code> — e.g. <code>println!("[lab-xshard] genesis balances set");</code></li>
+                <li>After <code>runner.schedule_initial_event(... SubmitTransaction ...)</code> — e.g. <code>println!("[lab-xshard] cross-shard tx scheduled: {:?}", tx_hash);</code></li>
+            </ol>
+            <p>Re-run the same <code>cargo test</code> command and confirm both markers appear before the polling loop output.</p>
+        </div>
+
+        <div class="section project-step" id="step-3">
+            <h3>Step 3 — Per-shard snapshot after warm-up</h3>
+            <p>After the existing <code>runner.run_until(Duration::from_secs(3));</code> (consensus warm-up), insert a helper that prints:</p>
+            <ul>
+                <li>For nodes <code>0..3</code> (shard 0): <code>committed_height()</code> and whether <code>node.execution().is_finalized(tx_hash)</code> is true.</li>
+                <li>For nodes <code>3..6</code> (shard 1): the same pair.</li>
+            </ul>
+            <p>Use the <code>tx_hash</code> already computed in the test. Print one line per node with a <code>[lab-xshard]</code> prefix. You are not required to assert strict height equality across shards—cross-shard progress is tracked via mempool status and finalization on the transaction hash.</p>
+        </div>
+
+        <div class="section project-step" id="step-4">
+            <h3>Step 4 — Poll loop visibility</h3>
+            <p>Inside the existing <code>for iteration in 0..100</code> loop, when <code>finalized</code> first becomes true, add:</p>
+            <pre style="overflow-x:auto;padding:0.75rem;background:var(--bg2);border-radius:6px;font-size:0.88rem;">println!("[lab-xshard] finalized at iteration {} sim_elapsed={:?}", iteration, runner.now().checked_sub(start_time).unwrap());</pre>
+            <p>After the loop, print <code>runner.stats()</code> once. In your notes (or a comment in a scratch file), map which flags flipped in order: <code>in_mempool</code>, <code>committed</code>, <code>executed</code>, <code>finalized</code>, <code>completed</code>.</p>
+        </div>
+
+        <div class="section project-step" id="step-5">
+            <h3>Step 5 — Stretch (optional)</h3>
+            <ul>
+                <li>Temporarily increase <code>num_shards</code> in <code>multi_shard_config()</code> only in a local branch and document why the seed search loop must find accounts on distinct shards.</li>
+                <li>Compare one line from this test’s final assertions with the provision narrative in <a href="module-05-cross-shard.html">Cross-Shard Transactions</a>.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>What “done” looks like</h2>
+            <ul>
+                <li>Markers prove you can locate genesis funding and cross-shard submit in the event timeline.</li>
+                <li>Per-shard height/finalization prints show you can read both validator groups (0–2 and 3–5).</li>
+                <li>You can explain in one paragraph how this test differs from <code>test_e2e_single_shard_transaction</code> (routing, two shard groups, cross-shard manifest).</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Next</h2>
+            <p>Continue to <a href="module-hs-improved-cross-shard-production-tests.html">Cross-Shard Production E2E hands-on</a> to draft what a production cross-shard integration test would need.</p>
+        </div>
+
+        <div class="navigation">
+            <a href="module-05-cross-shard.html" class="btn btn-secondary">← Cross-shard reading</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="module-hs-improved-cross-shard-production-tests.html" class="btn btn-primary">Cross-shard production E2E →</a>
+            <a href="../index.html" class="btn btn-secondary">Back to Course</a>
+        </div>
+    </div>
+
+    <script src="../../common/course-data.js"></script>
+    <script src="../../common/navigation.js"></script>
+    <script src="../../common/glossary.js"></script>
+    <script src="../../common/module-init.js" data-module-id="hs-improved-cross-shard-sim-tests"></script>
+</body>
+</html>

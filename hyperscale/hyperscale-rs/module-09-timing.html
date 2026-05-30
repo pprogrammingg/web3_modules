@@ -9,7 +9,8 @@
 </head>
 <body>
     <nav class="site-home-bar">
-        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
     </nav>
     <div class="course-content">
         <div class="course-header">
@@ -35,7 +36,7 @@
         <div class="section">
             <h2>Why timing matters</h2>
             <p>BFT consensus must make <strong>progress</strong> even when the network is slow or some validators are slow or faulty. If the leader never proposes, or proposals never reach quorum, the chain would stall. <strong>Heights</strong> and <strong>rounds</strong> structure the protocol; <strong>timeouts</strong> and <strong>timers</strong> ensure that after some bounded time the system moves to a new round (new leader) or triggers the next proposal. This module goes into detail on how hyperscale-rs does that.</p>
-            <p>For the full BFT flow (propose → vote → QC → commit), see <a href="module-04-bft-implementation.html">Dynamics of Node State Machine and BFT</a>. Here we focus on the <em>when</em>: rounds, heights, timeouts, and timers.</p>
+            <p>For the full BFT flow (propose → vote → QC → commit), see <a href="module-phase-02-propose-vote-commit.html">Phase 2: Propose → Commit</a>. Here we focus on the <em>when</em>: rounds, heights, timeouts, and timers.</p>
         </div>
 
         <div class="section">
@@ -76,7 +77,7 @@
             <h3>Cleanup timer</h3>
             <ul>
                 <li><strong>When set:</strong> Alongside the view-change timer during genesis/recovery (<code>TimerId::Cleanup</code>, interval from <code>BftConfig::cleanup_interval</code>).</li>
-                <li><strong>Purpose:</strong> Housekeeping: pending-block fetch hints, sync-health checks, mempool tombstones/pending expiry sweeps (<code>on_cleanup_timer</code> in <code>state/timers.rs</code>).</li>
+                <li><strong>Purpose:</strong> Housekeeping: pending-block fetch hints, sync-health checks, mempool <span data-glossary="tombstones">tombstones</span>/pending expiry sweeps (<code>on_cleanup_timer</code> in <code>state/timers.rs</code>).</li>
             </ul>
             <p><strong>SetTimer</strong> therefore covers <em>liveness</em> (view change) and <em>hygiene</em> (cleanup), while <strong>proposal timing</strong> is event-driven off new consensus inputs.</p>
         </div>
@@ -149,7 +150,7 @@
         <div class="navigation">
             <a href="module-06-execution.html" class="btn btn-secondary">← Previous Module</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="module-08-cryptography.html" class="btn btn-primary">Next Module →</a>
+            <a href="module-10-performance-measurement.html" class="btn btn-primary">Performance measurement →</a>
         </div>
     </div>
 
@@ -157,7 +158,6 @@
     <script src="../../common/hyperscale-flow-data.js"></script>
     <script src="../../common/hyperscale-links.js"></script>
     <script src="../../common/navigation.js"></script>
-    <script src="../../common/protocol-engineer-track.js"></script>
     <script src="../../common/glossary.js"></script>
     <script src="../../common/module-init.js" data-module-id="intermediate-timing"></script>
     <script>

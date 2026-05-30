@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 4: Cross-Shard Transactions</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Phase 4: Cross-Shard Transactions</h1>
+            <p class="course-header-lede">Big-flow steps 6, 13–14: gossip to all touched shards, provision-based atomicity (no 2PC), receipts, <code>ConflictDetector</code>.</p>
+            <div class="course-meta"><span>⏱️ ~2 h (outline)</span></div>
+        </div>
+        <nav class="hs-phase-roadmap" aria-label="Tx flow phase modules">
+            <a href="module-phase-01-submit-to-mempool.html"><span class="phase-num">Phase 1</span>Submit → mempool</a>
+            <a href="module-phase-02-propose-vote-commit.html"><span class="phase-num">Phase 2</span>Propose → commit</a>
+            <a href="module-phase-03-execution-waves.html"><span class="phase-num">Phase 3</span>Execution &amp; waves</a>
+            <a href="module-phase-04-cross-shard-tx.html" class="is-current"><span class="phase-num">Phase 4</span>Cross-shard tx</a>
+            <a href="module-hs-simulation-harness-analysis.html"><span class="phase-num">Harness</span>Sim E2E</a>
+            <a href="module-hs-production-e2e-harness.html"><span class="phase-num">Harness</span>Prod E2E</a>
+        </nav>
+        <div class="section">
+            <h2>1 — Gossip to every touched shard (big-flow step 6)</h2>
+            <p class="module-footnote module-footnote--tight">Proof snippets below are trimmed from the <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> tree. Same ingress path as Phase 1 — multi-shard is “more shards in the loop.” Ellipsis (<code>...</code>) hides boilerplate; follow <code>data-file</code> links for full sources.</p>
+            <div class="hs-phase-proof">
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — declared reads ∪ writes → per-shard gossip batch</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/node/src/io_loop/step/tx_validation.rs — handle_submit_transaction
+let shards: BTreeSet&lt;ShardGroupId&gt; = tx.declared_reads().iter()
+    .chain(tx.declared_writes().iter())
+    .map(|node_id| shard_for_node(node_id, num_shards)).collect();
+for shard in shards {
+    self.enqueue_tx_for_gossip(shard, Arc::clone(&amp;tx));
+}</code></pre></div>
+                <div class="code-block"><pre><code class="language-rust">// crates/types/src/topology/snapshot.rs
+pub fn is_cross_shard_transaction(&amp;self, tx: &amp;RoutableTransaction) -&gt; bool {
+    self.all_shards_for_transaction(tx).len() &gt; 1
+}</code></pre></div>
+            </div>
+        </div>
+        <div class="section">
+            <h2>2 — Per-shard mempool &amp; BFT (steps 7–11 each shard)</h2>
+            <p>Each shard committee runs Phase 1 admission and Phase 2 propose/vote/commit independently. No global mempool — only bytes replication + local admission.</p>
+        </div>
+        <div class="section">
+            <h2>3 — Provisions &amp; atomic composability (steps 13–14)</h2>
+            <p>After commits, validators emit <code>StateProvision</code> messages; <code>ProvisionCoordinator</code> tracks quorum per required shard before execution proceeds (provision-based — no 2PC coordinator).</p>
+            <div class="hs-phase-proof">
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — commit fans out to provisions coordinator</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/node/src/state/bft.rs — on_block_committed
+actions.extend(
+    self.provisions.on_block_committed(self.topology.snapshot(), certified),
+);</code></pre></div>
+                <div class="code-block"><pre><code class="language-rust">// crates/core/src/protocol_event.rs (variant)
+StateProvisionsVerified { ... }
+// crates/core/src/action.rs — verify/build provisions off-thread</code></pre></div>
+            </div>
+            <p>Deep dive: <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a> · concepts: <a href="../intermediate/module-01-sharding.html">Sharding concepts</a>.</p>
+        </div>
+        <div class="module-actions">
+            <button type="button" class="btn btn-primary" id="complete-module-btn">Mark module complete</button>
+        </div>
+        <nav class="navigation module-nav">
+            <a href="module-phase-03-execution-waves.html" class="btn btn-secondary">← Phase 3</a>
+            <a href="module-hs-simulation-harness-analysis.html" class="btn btn-primary">Simulation harness →</a>
+        </nav>
+    </div>
+    <script src="../../common/course-data.js"></script>
+    <script src="../../common/hyperscale-flow-data.js"></script>
+    <script src="../../common/hyperscale-links.js"></script>
+    <script src="../../common/navigation.js"></script>
+    <script src="../../common/glossary.js"></script>
+    <script src="../../common/module-init.js" data-module-id="hs-phase-04"></script>
+</body>
+</html>

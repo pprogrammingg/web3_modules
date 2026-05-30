@@ -9,7 +9,8 @@
 </head>
 <body>
     <nav class="site-home-bar">
-        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
     </nav>
     <div class="course-content">
         <div class="course-header">
@@ -41,6 +42,7 @@
                 <li><strong>WebRTC</strong> — Enables browser-to-browser and NAT traversal (e.g. hole punching).</li>
             </ul>
             <p>Transports that lack native encryption (e.g. TCP, WebSocket) are secured by a libp2p security handshake (Noise or TLS) on top. QUIC may already include encryption.</p>
+            <p><strong>In Hyperscale-rs:</strong> validator-to-validator replication uses <strong>libp2p gossipsub over QUIC</strong> on the production network stack. That mesh is <strong>separate from wallet transport</strong>—users still submit signed transactions with HTTP <code>POST /api/v1/transactions</code>, not over the validator QUIC links.</p>
         </div>
 
         <div class="section">
@@ -110,7 +112,6 @@
 
     <script src="../../common/course-data.js"></script>
     <script src="../../common/navigation.js"></script>
-    <script src="../../common/protocol-engineer-track.js"></script>
     <script src="../../common/glossary.js"></script>
     <script src="../../common/module-init.js" data-module-id="intermediate-libp2p"></script>
     <script src="module-06-libp2p-quiz.js"></script>

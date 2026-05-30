@@ -137,17 +137,23 @@ function runHyperscale(track, resolvedRepo, diffTarget, saveBaselineFlag) {
         const ch = changed.replace(/\\/g, '/');
         if (fileRefs[ch]) {
             affectedFileRefs.push({ path: ch, note: fileRefs[ch].note || fileRefs[ch].lineHint });
-            if (fileRefs[ch].note) {
-                Object.keys(moduleUsage).forEach(flowId => {
-                    if (
-                        flowId === 'file-refs-general' ||
-                        flowId.includes('bft') ||
-                        flowId.includes('tx-flow')
-                    ) {
-                        (moduleUsage[flowId] || []).forEach(m => affectedModules.add(m));
-                    }
-                });
-            }
+            (moduleUsage['file-refs-general'] || []).forEach(m => affectedModules.add(m));
+            const note = (fileRefs[ch].note || '').toLowerCase();
+            Object.keys(moduleUsage).forEach(flowId => {
+                if (flowId === 'file-refs-general') return;
+                const match =
+                    (note.includes('bft') && flowId.includes('bft')) ||
+                    (note.includes('tx') && flowId.includes('tx-flow')) ||
+                    (note.includes('messaging') && flowId === 'tx-flow') ||
+                    (note.includes('cross-shard') && (flowId.includes('provision') || flowId.includes('2pc'))) ||
+                    (note.includes('overview') && flowId.startsWith('overview-flow')) ||
+                    (note.includes('e2e') && flowId === 'tx-flow') ||
+                    (note.includes('perf') && flowId === 'rust-optimization-module') ||
+                    (note.includes('simulator') && (flowId === 'tx-flow' || flowId === 'rust-optimization-module'));
+                if (match) {
+                    (moduleUsage[flowId] || []).forEach(m => affectedModules.add(m));
+                }
+            });
         }
         for (const [crateName, cratePath] of Object.entries(crates)) {
             if (ch === cratePath || ch.startsWith(cratePath + '/')) {
@@ -163,6 +169,7 @@ function runHyperscale(track, resolvedRepo, diffTarget, saveBaselineFlag) {
                     'overview-flow-2',
                     'overview-flow-3',
                     'crate-groups',
+                    'rust-optimization-module',
                 ].forEach(flowId => {
                     (moduleUsage[flowId] || []).forEach(m => affectedModules.add(m));
                 });

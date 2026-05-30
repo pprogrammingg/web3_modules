@@ -58,7 +58,7 @@ Every **curriculum module** (paths in `common/*-course-data.js`, plus `solana-co
 
 | Track | `body` class | Scripts (after `navigation.js` + `glossary.js`) |
 |-------|----------------|--------------------------------------------------|
-| Hyperscale | (none) | `course-data.js`, `protocol-engineer-track.js`, `module-init.js` |
+| Hyperscale | (none) | `course-data.js`, `module-init.js` (loads `rust-highlight.js` for dark Rust snippets) |
 | ZK | `zk-track` | `zk-course-data.js`, `zk-navigation.js`, `module-init.js` |
 | Crypto | `crypto-track` | `crypto-course-data.js`, `crypto-navigation.js`, `module-init.js` |
 | EVM | `evm-track` | `evm-course-data.js`, `evm-navigation.js`, `module-init.js` |

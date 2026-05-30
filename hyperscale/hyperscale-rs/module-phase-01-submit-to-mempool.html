@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 1: Submit → Mempool (single shard)</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Phase 1: User Submit → Shard Mempool</h1>
+            <p class="course-header-lede">Staff-level drill on steps 1–5 of the <a href="module-01b-tx-flow.html">big-picture tx flow</a> — one Radix tx, one shard, production path to <code>Pending</code> on every validator that admits it.</p>
+            <div class="course-meta">
+                <span>⏱️ ~1.5–2 hours</span>
+                <span>📊 Level 1 deep dive</span>
+                <span>🎯 Hyperscale-rs</span>
+            </div>
+        </div>
+
+        <div class="hs-phase-hero">
+            <span class="hs-phase-hero-tag">Tx flow phases</span>
+            <div class="hs-phase-scope">
+                <div class="hs-phase-scope-block">
+                    <span class="hs-phase-scope-label">In scope</span>
+                    <ol class="hs-phase-flow" aria-label="Phase 1 in-scope pipeline">
+                        <li><span class="hs-phase-flow-chip">Wallet sign</span></li>
+                        <li><span class="hs-phase-flow-chip">HTTP RPC</span></li>
+                        <li><span class="hs-phase-flow-chip">IoLoop::step</span></li>
+                        <li><span class="hs-phase-flow-chip">Gossip</span></li>
+                        <li><span class="hs-phase-flow-chip">Validation</span></li>
+                        <li><span class="hs-phase-flow-chip">Mempool admission</span></li>
+                    </ol>
+                </div>
+                <div class="hs-phase-scope-block hs-phase-scope-block--out">
+                    <span class="hs-phase-scope-label">Out of scope</span>
+                    <div class="hs-phase-scope-tags">
+                        <a href="module-hs-simulation-harness-analysis.html" class="hs-scope-pill out">SimulationRunner / EventKey (Phase 5)</a>
+                        <a href="module-phase-02-propose-vote-commit.html" class="hs-scope-pill out">Propose → QC → commit (Phase 2)</a>
+                        <a href="module-phase-03-execution-waves.html" class="hs-scope-pill out">Execution waves (Phase 3)</a>
+                        <a href="module-phase-04-cross-shard-tx.html" class="hs-scope-pill out">Cross-shard (Phase 4)</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="hs-phase-roadmap" aria-label="Tx flow phase modules">
+            <a href="module-phase-01-submit-to-mempool.html" class="is-current"><span class="phase-num">Phase 1</span>Submit → mempool</a>
+            <a href="module-phase-02-propose-vote-commit.html"><span class="phase-num">Phase 2</span>Propose → commit</a>
+            <a href="module-phase-03-execution-waves.html"><span class="phase-num">Phase 3</span>Execution &amp; waves</a>
+            <a href="module-phase-04-cross-shard-tx.html"><span class="phase-num">Phase 4</span>Cross-shard tx</a>
+            <a href="module-hs-simulation-harness-analysis.html"><span class="phase-num">Harness</span>Sim E2E</a>
+            <a href="module-hs-production-e2e-harness.html"><span class="phase-num">Harness</span>Prod E2E</a>
+        </nav>
+
+        <div class="section">
+            <h2>Maps to the big diagram</h2>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-first">
+                    <thead><tr><th>Big flow step</th><th>This phase</th></tr></thead>
+                    <tbody>
+                        <tr><td>1–2 User sign &amp; submit</td><td>§ Pipeline steps 1–2</td></tr>
+                        <tr><td>3 Node receives</td><td>§ 3–4 RPC + crossbeam + <code>step(SubmitTransaction)</code></td></tr>
+                        <tr><td>4 Cross-shard determination</td><td>Shard set from <code>declared_reads ∪ declared_writes</code> (single-shard = one shard)</td></tr>
+                        <tr><td>5 Mempool</td><td>§ 8–9 validation + <code>admit_internal</code></td></tr>
+                        <tr><td>6+ BFT / execution</td><td><a href="module-phase-02-propose-vote-commit.html">Phase 2+</a></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>0 — Prerequisite mental model</h2>
+            <ul class="module-tight-prose">
+                <li><strong>Shard</strong> = validator committee (<code>ShardGroupId</code> in code). Example config only: e.g. 26 shards × 50–100 validators per shard—not fixed by the protocol.</li>
+                <li><strong>Validator</strong> = one process: <code>IoLoop</code> + <code>NodeStateMachine</code> (BFT + mempool + execution) + storage + network impl.</li>
+                <li><strong>Mempool</strong> = <em>per-validator</em> in-memory state (<code>hyperscale-mempool</code>), not one shared shard mailbox.</li>
+                <li><strong>Production network</strong> = <code>hyperscale-network-libp2p</code> (libp2p gossipsub over QUIC between validators—separate from the wallet’s HTTP <code>POST</code> in step 2). Simulation uses <code>hyperscale-network-memory</code> — noted only where it differs.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>0b — Why gossip and a local mempool?</h2>
+            <p>Read this <strong>before</strong> steps 3–9. RPC (step 2) only hits <strong>one</strong> validator; gossip and mempool answer “how do the <em>rest</em> of the committee get the tx, and what happens on <em>this</em> machine before block building?”</p>
+
+            <h3>Why gossip is necessary</h3>
+            <ul class="module-tight-prose">
+                <li><strong>Replication, not “remote mempool write.”</strong> Validators do not pull txs from a shared shard mailbox. Gossip copies the <strong>same signed bytes</strong> to peers on libp2p so each committee member can validate and decide locally.</li>
+                <li><strong>Censorship resistance.</strong> A single RPC endpoint can drop you; gossip from any honest ingress is enough for the bytes to spread (Phase 1 staff debate on multi-submit).</li>
+                <li><strong>Cross-shard fanout.</strong> A tx’s declared reads/writes may touch several shards; the first receiver gossips to <strong>each involved shard’s</strong> topic so those committees see the tx too (<a href="module-phase-04-cross-shard-tx.html">Phase 4</a>).</li>
+                <li><strong>Matches the wire protocol.</strong> Production uses gossipsub (many small validator messages), not N separate HTTP posts from the wallet to every node.</li>
+            </ul>
+
+            <h3>What the mempool is for (and what it is not)</h3>
+            <p>The mempool is <strong>not</strong> the crossbeam queue, <strong>not</strong> “the network inbox,” and <strong>not</strong> where RPC writes when you POST. Those are ingress/scheduling layers (steps 3–5).</p>
+            <p><strong>Role after validation (steps 8–9):</strong> on each validator, <code>MempoolCoordinator</code> holds txs that are <strong>cryptographically valid</strong> and <strong>policy-eligible</strong> as <code>Pending</code> candidates. That pool is the <strong>local staging area for consensus</strong>:</p>
+            <ul class="module-tight-prose">
+                <li>The <strong>proposer</strong> (Phase 2) pulls from <code>ready_transactions()</code> when building the next block—not from RPC or from “the shard’s global pool.”</li>
+                <li>Non-proposers keep the same tx <code>Pending</code> so they can vote on a block that includes it, track expiry/<span data-glossary="tombstones">tombstones</span>, and stay consistent with peers.</li>
+                <li>A validator on a shard the tx does <strong>not</strong> touch may still gossip and validate for relay, but skips local admission (<code>involves_local_shard</code>)—no entry in its pool.</li>
+            </ul>
+            <p>So: <strong>gossip = spread bytes;</strong> <strong>mempool = per-validator “ready to be proposed/voted on” set</strong> once this node trusts the signature and Radix rules.</p>
+
+            <h3>Why “batch” keeps appearing (three different things)</h3>
+            <p>“Batch” in Phase 1 is <strong>not</strong> “the IoLoop dequeues many crossbeam messages in one turn.” Production still does <strong>one <code>NodeInput</code> → one <code>step</code></strong> per loop iteration (step 4).</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="flow-steps flow-steps-wide-first">
+                    <thead><tr><th>“Batch” means</th><th>What gets grouped</th><th>Why</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>TransactionGossip batch</strong> (outbound)</td>
+                            <td>Many txs → one <code>TransactionGossip</code> pubsub message <strong>per destination shard</strong></td>
+                            <td>Bursty RPC/gossip ingress would spam one packet per tx. <code>enqueue_tx_for_gossip</code> appends to a per-shard <code>BatchAccumulator</code>; when <code>tx_gossip_max</code> (e.g. 200) or <code>tx_gossip_window</code> is hit, <code>flush_tx_gossip_batch</code> publishes once (step 6).</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Validation batch</strong> (local crypto)</td>
+                            <td>Many txs → one <code>DispatchPool::TxValidation</code> job</td>
+                            <td>Separate accumulator (<code>validation_batch</code>); amortizes Ed25519/Radix work off the pinned thread. Flush on cap/deadline or <code>flush_expired_batches</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Loop flush</strong> (<code>flush_expired_batches</code>)</td>
+                            <td>Time-based wakeups in <code>run_pinned_loop</code></td>
+                            <td>Even if no new <code>NodeInput</code> arrives, the pinned loop wakes at <code>nearest_batch_deadline()</code> so gossip/validation batches do not sit past their window.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p><strong>Inbound gossip can already be batched on the wire:</strong> one libp2p message may carry several txs; the handler loops and enqueues <strong>one <code>TransactionGossipReceived</code> per tx</strong> on crossbeam—still one <code>step</code> per event, each tx then joins the same validation batch accumulator as a local submit.</p>
+            <div class="hs-phase-proof">
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — outbound gossip batching is per-shard accumulator, not crossbeam mux</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/node/src/io_loop/mod.rs (field docs)
+/// Per-destination-shard outbound TransactionGossip accumulators.
+/// ... fills until its count cap or time window expires, then flushes
+/// as a single batched gossip message.
+
+// crates/node/src/io_loop/step/tx_validation.rs — enqueue_tx_for_gossip
+if batch.push(tx, now) { self.flush_tx_gossip_batch(shard); }
+// flush → TransactionGossip::new(txs); network.broadcast_to_shard(shard, &amp;gossip);</code></pre></div>
+            </div>
+            <div class="hs-gotcha">
+                <strong>Gotcha:</strong> Scheduling gossip in step 5 does <strong>not</strong> wait for validation to finish. Bytes may leave this node before Ed25519 checks complete; invalid txs never reach <code>Pending</code> here or on peers, but bandwidth was still spent—by design.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>1 — Production pipeline (numbered)</h2>
+            <p class="module-footnote module-footnote--tight">Proof snippets below are trimmed from the <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> tree. Ellipsis (<code>...</code>) hides boilerplate; follow <code>data-file</code> links for full sources.</p>
+            <div class="hs-phase-pipeline">
+                <div class="hs-phase-step outside">
+                    <div class="hs-phase-step-num">1</div>
+                    <div>
+                        <h3>User signs on device</h3>
+                        <p>On the phone or browser, a <strong>wallet</strong> (or dApp) builds a Radix <code>NotarizedTransactionV1</code>: the transaction intent plus a <strong>user signature</strong> that proves the account owner authorized it. That user signature uses <strong>Ed25519</strong>, which is the normal Radix end-user signing scheme—fast, one signature per transaction, verified later by <code>TransactionValidation</code> in the node.</p>
+                        <p>This is <strong>not</strong> the same cryptography validators use among themselves. Committee votes and quorum certificates use <strong>BLS</strong> (aggregatable signatures for many validators). Confusing the two is a common onboarding mistake: Phase 1 follows the <em>user tx bytes</em>; <a href="module-phase-02-propose-vote-commit.html">Phase 2</a> follows validator BLS votes and QCs. See also <a href="module-08-cryptography.html">cryptography module</a> for the full split.</p>
+                    </div>
+                </div>
+                <div class="hs-phase-step outside">
+                    <div class="hs-phase-step-num">2</div>
+                    <div>
+                        <h3>HTTP RPC to a validator</h3>
+                        <p>The wallet submits the signed transaction to a validator using ordinary <strong>HTTP</strong>, not the validator-to-validator P2P stack. In production the usual entrypoint is <code>POST /api/v1/transactions</code> on the node’s RPC server (implemented in the <a href="#" data-crate="production" target="_blank" rel="noopener">production</a> crate). The body carries the transaction as <strong>hex</strong> or <strong>SBOR</strong> bytes—the wire encoding the RPC handler decodes before any consensus logic runs.</p>
+                        <p>A phone or browser is <strong>not</strong> expected to open a libp2p connection or publish to gossipsub topics. Wallets talk HTTP to one (or a few) validators they trust for submission; after the RPC handler accepts the payload, the node forwards work internally. Validator replicas still meet on libp2p later in this phase—that is how peers share the same tx bytes, not how the user’s app first delivers them.</p>
+                    </div>
+                </div>
+                <div class="hs-phase-step hyperscale">
+                    <div class="hs-phase-step-num">3</div>
+                    <div>
+                        <h3>RPC handler → crossbeam</h3>
+                        <p>On a thread that serves HTTP (alongside Tokio and libp2p), the RPC handler <strong>decodes</strong> the body (hex or SBOR → a typed transaction struct) and may <strong>reject early</strong> with backpressure—for example if the node is far behind on sync, the mempool snapshot reports pressure, or cross-shard congestion limits apply.</p>
+                        <p><strong>Not yet full cryptographic validation:</strong> this step does <strong>not</strong> prove the tx was signed by a valid account key. The handler does not call mempool admission and typically does not run the full <code>TransactionValidation</code> path (Ed25519 + Radix manifest rules) on the RPC thread—that happens later on a worker pool (Track B below). RPC may still return an error for obviously malformed payloads; soundness for “signed by the right private key” is established only after <code>TransactionValidated</code> (step 8).</p>
+                        <p>When the handler accepts the bytes, it enqueues <code>NodeInput::SubmitTransaction { tx }</code> on a crossbeam channel (<code>tx_submission_tx</code> → <code>consensus_rx</code> in <a href="#" data-file="crates/production/src/runner.rs" target="_blank" rel="noopener">runner.rs</a>) so the pinned consensus thread can process it safely.</p>
+                        <div class="hs-phase-proof">
+                            <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — decode + crossbeam only; comments name the async path (no mempool here)</p>
+                            <div class="code-block"><pre><code class="language-rust">// crates/production/src/rpc/handlers.rs — submit_transaction_handler
+if let Some(rejection) = check_backpressure(&amp;state) { return rejection; }
+let transaction = match decode_transaction(&amp;request.transaction_hex) { ... };
+// Submit directly to IoLoop via crossbeam channel.
+// IoLoop will: 1. Gossip  2. Queue batch validation  3. Mempool after validation
+state.tx_submission_tx.send(NodeInput::SubmitTransaction { tx: tx_arc }) ...;
+// Return immediately - validation and gossip happen async</code></pre></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hs-phase-step hyperscale">
+                    <div class="hs-phase-step-num">4</div>
+                    <div>
+                        <h3>Pinned IoLoop receives</h3>
+                        <p>The production runner’s <code>run_pinned_loop</code> runs consensus on a <strong>dedicated pinned thread</strong> (<code>io-loop</code>). Other parts of the process—Tokio (HTTP RPC, libp2p, timer sleeps), worker pools (tx validation, heavy crypto)—must not call <code>IoLoop::step</code> directly. They hand work to that thread through <strong>several crossbeam channels</strong>, not one mixed inbox:</p>
+                        <ul>
+                            <li><strong><code>timer_rx</code></strong> — logical timers (proposal / view-change) armed on Tokio; when a sleep fires, it injects a timer-scoped <code>NodeInput</code> here.</li>
+                            <li><strong><code>callback_rx</code></strong> — results from off-thread work (e.g. validation finished on a <code>DispatchPool</code>) packaged as <code>NodeInput</code> for the hot path.</li>
+                            <li><strong><code>consensus_rx</code></strong> — “main” ingress: RPC <code>SubmitTransaction</code> (<code>tx_submission_tx</code>), libp2p-delivered gossip/BFT messages, and similar protocol inputs.</li>
+                        </ul>
+                        <p><strong>Why multiple channels?</strong> So the pinned loop can enforce <strong>priority without reordering a single FIFO</strong>: timer before callback before consensus on each receive. That favors liveness (a fired proposal timer is not stuck behind a gossip flood on <code>consensus_rx</code>). Separate queues also match <strong>who produces</strong> each message (Tokio timers vs pool callbacks vs network/RPC) and make queue-depth metrics meaningful. See also <a href="module-hs-production-e2e-harness.html">E2E tests: tracing code to flow</a> for the full <code>run_pinned_loop</code> loop body.</p>
+                        <p><strong>One loop iteration vs one <code>step</code>:</strong> Each iteration of <code>run_pinned_loop</code> dequeues <strong>at most one</strong> <code>NodeInput</code>—priority <code>try_recv</code> on those three receivers, or a blocking <code>crossbeam::select!</code> if nothing is ready yet—then runs <strong>exactly one</strong> <code>IoLoop::step(event)</code> for that input. It does <strong>not</strong> drain every ready message from all channels in the same iteration. If a timer, a callback, and <code>SubmitTransaction</code> are all queued, this iteration takes the timer; the others wait for <strong>later iterations</strong> (often back-to-back, but still one <code>step</code> per iteration).</p>
+                        <p><strong>Do not confuse with “batch” in §0b:</strong> one crossbeam dequeue still means one <code>step</code>. “Batch” elsewhere means grouping many <strong>transactions</strong> for one gossip publish or one validation worker job—not merging unrelated <code>NodeInput</code>s.</p>
+                        <div class="hs-phase-proof">
+                            <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — one event per loop iteration; timer &gt; callback &gt; consensus</p>
+                            <div class="code-block"><pre><code class="language-rust">// crates/production/src/runner.rs — run_pinned_loop
+// Drains the three crossbeam channels via try_recv in priority order
+// (timer_rx &gt; callback_rx &gt; consensus_rx). ...
+if let Ok(e) = config.timer_rx.try_recv() { break 'recv Some(e); }
+if let Ok(e) = config.callback_rx.try_recv() { break 'recv Some(e); }
+if let Ok(e) = config.consensus_rx.try_recv() { break 'recv Some(e); }
+// ...
+if let Some(event) = event {
+    let output = io_loop.step(event);  // exactly one NodeInput per iteration
+    for op in output.timer_ops { timer_mgr.process_op(op); }
+}
+io_loop.flush_expired_batches(wall_clock_local());</code></pre></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hs-phase-step hyperscale">
+                    <div class="hs-phase-step-num">5</div>
+                    <div>
+                        <h3><code>step(SubmitTransaction)</code></h3>
+                        <p>One <code>step(SubmitTransaction)</code> on the pinned thread schedules <strong>two independent tracks</strong> in <a href="#" data-file="crates/node/src/io_loop/step/tx_validation.rs" target="_blank" rel="noopener">tx_validation.rs</a>—replication to peers and local validation (see <strong>§0b</strong> for why both exist and what “gossip batch” means). Neither finishes inside this single <code>step</code>; both complete in later loop iterations.</p>
+                        <p><strong>Track A — schedule gossip (step 6 publishes).</strong> From the tx’s declared read/write node IDs, the node derives every involved shard and calls <code>enqueue_tx_for_gossip</code>—append to that shard’s outbound <code>BatchAccumulator</code>, not an immediate libp2p send per tx. The wire publish happens in <strong>step 6</strong> when the accumulator hits count/time limits or <code>flush_expired_batches</code> runs.</p>
+                        <p><strong>Track B — validate, then maybe admit (steps 8–9).</strong> If this hash is not already in flight: <code>queue_validation</code> → <code>BatchAccumulator</code> → on flush, <code>DispatchPool::TxValidation</code> runs <code>TransactionValidation</code> (Ed25519 + Radix rules). <strong>Fail:</strong> <code>TransactionValidationsFailed</code> on <code>callback_rx</code> — no mempool. <strong>Pass:</strong> <code>TransactionValidated</code> on <code>callback_rx</code> → later <code>step</code> → <code>admit_internal</code> if <code>involves_local_shard</code>.</p>
+                        <p><strong>Gossip ingress (step 7):</strong> same <code>queue_validation</code> path as RPC submit — peers do not skip crypto because the tx was relayed.</p>
+                        <div class="info" style="margin-top:0.75rem;">
+                            <p><strong>Track A + B together (incl. multi-shard):</strong> One <code>step(SubmitTransaction)</code> can schedule gossip to <strong>every involved shard</strong> and local validation at once. Gossip (step 6) is <strong>not rolled back</strong> if local validation later fails — bytes may already be on the wire; invalid txs simply never reach <code>Pending</code> here or on peers after they validate.</p>
+                            <p><strong>Validation pass</strong> on this validator: worker OK → <code>TransactionValidated</code> → <code>admit_internal</code> only if this node’s shard is in the tx’s shard set; otherwise validate-and-relay only (no local pool). Other shards’ validators received gossip (step 6–7), run the same pipeline, and admit on <strong>their</strong> shard if involved. Cross-shard execution is <a href="module-phase-04-cross-shard-tx.html">Phase 4</a>; inclusion in a block is <a href="module-phase-02-propose-vote-commit.html">Phase 2</a>.</p>
+                            <p><strong>Validation fail</strong> on this validator: <code>TransactionValidationsFailed</code> — no mempool, no Phase 2 path for this hash. Gossip already sent is harmless noise; peers reject the same bytes in their own <code>TransactionValidation</code> and also skip admission.</p>
+                        </div>
+                        <div class="hs-phase-proof">
+                            <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — Track A + B in one handler; validation async via <code>event_sender</code></p>
+                            <div class="code-block"><pre><code class="language-rust">// crates/node/src/io_loop/step/tx_validation.rs — handle_submit_transaction
+for shard in shards {  // reads ∪ writes → shard_for_node
+    self.enqueue_tx_for_gossip(shard, Arc::clone(&amp;tx));
+}
+if !self.pending_validation.contains(&amp;tx_hash) &amp;&amp; !self.caches.tx_store.contains(&amp;tx_hash) {
+    self.locally_submitted.insert(tx_hash);
+    self.pending_validation.insert(tx_hash);
+    self.queue_validation(tx);
+}
+
+// flush_validation_batch — DispatchPool::TxValidation (off pinned thread)
+self.dispatch.spawn(DispatchPool::TxValidation, move || {
+    let results: Vec&lt;bool&gt; = batch.iter()
+        .map(|tx| validator.validate_transaction(tx).is_ok()).collect();
+    if valid {
+        let _ = event_tx.send(NodeInput::TransactionValidated { tx });
+    } else {
+        let _ = event_tx.send(NodeInput::TransactionValidationsFailed { hashes: ... });
+    }
+});</code></pre></div>
+                            <p class="hs-phase-proof-caption"><strong>Gossip publish</strong> — batched per shard; may flush on cap or deadline</p>
+                            <div class="code-block"><pre><code class="language-rust">// same file — flush_tx_gossip_batch
+let gossip = TransactionGossip::new(txs);
+self.network.broadcast_to_shard(shard, &amp;gossip);</code></pre></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hs-phase-step hyperscale">
+                    <div class="hs-phase-step-num">6</div>
+                    <div>
+                        <h3>Gossip leaves this validator</h3>
+                        <p>When a <code>TransactionGossip</code> batch is ready (queued in step 5, flushed by the network layer or batch timing), the <strong>production</strong> network stack publishes it to other validators on each involved shard. Under the hood that is <strong>libp2p gossipsub</strong> over a <strong>QUIC</strong> transport—validator-to-validator replication, separate from the wallet’s HTTP <code>POST</code> in step 2.</p>
+                        <p>The purpose of gossip here is to copy the <strong>same signed transaction bytes</strong> to the rest of the committee so each peer can validate and, if appropriate, admit the tx into <strong>its own</strong> mempool. A common misconception is that gossip “writes into the destination mempool” or that RPC somehow updates remote pools directly. It does neither: every validator still runs validation and <code>admit_internal</code> locally after it receives <code>TransactionGossipReceived</code> (step 7).</p>
+                        <div class="hs-phase-proof">
+                            <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — libp2p handler forwards bytes; mempool unchanged here</p>
+                            <div class="code-block"><pre><code class="language-rust">// crates/node/src/io_loop/network_handlers.rs
+self.network.register_gossip_handler::&lt;TransactionGossip&gt;(TopicScope::Shard,
+    move |gossip: TransactionGossip| -&gt; GossipVerdict {
+        for transaction in gossip.transactions {
+            let _ = tx.send(NodeInput::TransactionGossipReceived { tx: transaction });
+        }
+        GossipVerdict::Accept
+    },
+);</code></pre></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hs-phase-step hyperscale">
+                    <div class="hs-phase-step-num">7</div>
+                    <div>
+                        <h3>Peers: gossip → validate</h3>
+                        <p>When another validator receives the gossip, libp2p delivers <code>NodeInput::TransactionGossipReceived</code> into its IoLoop, which feeds the <strong>same batched validation pipeline</strong> used for locally submitted transactions—unless the hash is already in <code>TxStore</code> or <span data-glossary="tombstoned">tombstoned</span> (terminal, must not re-admit). Peers do not skip signature or Radix checks just because the tx originated elsewhere.</p>
+                        <div class="hs-phase-proof">
+                            <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — gossip ingress uses same <code>queue_validation</code> as submit</p>
+                            <div class="code-block"><pre><code class="language-rust">// crates/node/src/io_loop/step/tx_validation.rs — handle_gossip_received_tx_for_validation
+if !self.caches.tx_store.contains(&amp;tx_hash) &amp;&amp; !self.state.mempool().is_tombstoned(&amp;tx_hash) {
+    self.pending_validation.insert(tx_hash);
+    self.queue_validation(tx);
+}</code></pre></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hs-phase-step hyperscale">
+                    <div class="hs-phase-step-num">8</div>
+                    <div>
+                        <h3><code>TransactionValidated</code></h3>
+                        <p>This step is the <strong>first time the state machine treats the tx as cryptographically sound</strong>—Ed25519 and Radix checks already succeeded in <code>TransactionValidation</code> on a worker (Track B). The pinned thread now raises <code>ProtocolEvent::TransactionValidated</code> into <code>NodeStateMachine</code>. The mempool coordinator admits the transaction only if this validator’s topology says the tx <strong>involves the local shard</strong> (<code>topology.involves_local_shard(&amp;tx)</code>). Validators on shards the tx does not touch may still have gossiped or validated the bytes for relay, but they will not keep it in their local pool.</p>
+                        <div class="hs-phase-proof">
+                            <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — worker success → <code>feed_event(TransactionValidated)</code></p>
+                            <div class="code-block"><pre><code class="language-rust">// crates/node/src/io_loop/step/tx_validation.rs — handle_transaction_validated
+self.feed_event(ProtocolEvent::TransactionValidated { tx, submitted_locally });
+
+// crates/node/src/state/transactions.rs — on_transaction_validated
+if !self.topology.snapshot().involves_local_shard(&amp;tx) {
+    return vec![];  // validate-and-relay only
+}
+self.mempool.on_transaction_gossip(...)</code></pre></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hs-phase-step hyperscale">
+                    <div class="hs-phase-step-num">9</div>
+                    <div>
+                        <h3>Mempool admission → <code>Pending</code></h3>
+                        <p>After <code>TransactionValidated</code>, the mempool coordinator’s <code>admit_internal</code> routine decides whether this validator keeps the transaction in its local pool (<strong>§0b</strong>: staging for Phase 2 proposer selection—not ingress). It is the gate between “cryptographically valid” and “eligible to be proposed in a future block.”</p>
+                        <p><strong>Typical reject reasons:</strong></p>
+                        <ul>
+                            <li><strong><span data-glossary="tombstone">Tombstone</span></strong> — the hash was already finalized or evicted and must not be re-admitted.</li>
+                            <li><strong>Duplicate</strong> — the same hash is already in the pool with a live status.</li>
+                            <li><strong>Expired</strong> — the transaction’s <code>validity_range.end</code> is before the node’s current chain time (<code>WeightedTimestamp</code> from committed QCs, not the machine’s wall clock).</li>
+                        </ul>
+                        <p>If admission succeeds, the tx is inserted as <code>Pending</code> in this validator’s <code>BTreeMap&lt;TxHash, PoolEntry&gt;</code> (with ready/deferred tracking for proposer selection later). New pool content can set a latch via <code>queue_ready_proposal()</code>, which tells BFT that fresh material exists—but <strong>building and voting on a block</strong> still happens in <a href="module-phase-02-propose-vote-commit.html">Phase 2</a>, not in this step.</p>
+                        <div class="hs-phase-proof">
+                            <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — admission gate is <code>admit_internal</code>; success emits <code>TransactionsAdmitted</code></p>
+                            <div class="code-block"><pre><code class="language-rust">// crates/mempool/src/coordinator.rs — on_transaction_gossip
+match self.admit_internal(topology, &amp;tx, submitted_locally, now) {
+    Some(_) =&gt; vec![Action::Continuation(ProtocolEvent::TransactionsAdmitted {
+        txs: vec![tx],
+    })],
+    None =&gt; vec![],
+}</code></pre></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="info">
+                <p><strong>Single-shard outcome:</strong> For a transaction that only touches one shard, every validator in that shard’s committee that receives and successfully validates the gossip should end with the same hash in <code>Pending</code> inside its own <code>BTreeMap&lt;TxHash, PoolEntry&gt;</code>—there is still no shared global mempool object. A future proposer on that shard will later choose from <code>ready_transactions()</code>; inclusion in a block is not part of Phase 1.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>2 — Who implements what</h2>
+            <p class="module-footnote module-footnote--tight">Rough crate map only—no file links. Use the repo tree when you are ready to set breakpoints.</p>
+            <div class="table-wrap table-wrap--reflow">
+                <table class="flow-steps flow-steps-wide-first">
+                    <thead><tr><th>Concern</th><th>Crate (under <code>crates/</code>)</th><th>Role in this phase</th></tr></thead>
+                    <tbody>
+                        <tr><td>RPC ingress</td><td><code>production</code></td><td>HTTP <code>POST /api/v1/transactions</code>; enqueues <code>SubmitTransaction</code> for the IoLoop—does not write the mempool directly.</td></tr>
+                        <tr><td>Thread boundary</td><td><code>production</code> + <code>node</code></td><td>crossbeam <code>Sender&lt;NodeInput&gt;</code> into <code>timer_rx</code> / <code>callback_rx</code> / <code>consensus_rx</code>; pinned loop receives with timer → callback → consensus priority.</td></tr>
+                        <tr><td>Orchestrator</td><td><code>node</code> (<code>IoLoop</code>)</td><td>One <code>NodeInput</code> handled per <code>step</code> on the pinned consensus thread.</td></tr>
+                        <tr><td>State machine</td><td><code>node</code> (<code>NodeStateMachine</code>)</td><td>Composes <code>MempoolCoordinator</code> and BFT; routes <code>ProtocolEvent</code> after validation.</td></tr>
+                        <tr><td>Mempool</td><td><code>mempool</code></td><td>Per-validator pool: <code>PoolEntry</code>, ready/deferred sets, <span data-glossary="tombstones">tombstones</span>, shared <code>TxStore</code>.</td></tr>
+                        <tr><td>Tx validation</td><td><code>engine</code></td><td>Radix rules and signature checks; in production usually on a worker pool, result fed back as events.</td></tr>
+                        <tr><td>Gossip payload</td><td><code>types</code> / <code>messages</code></td><td><code>TransactionGossip</code> message type; batched before publish.</td></tr>
+                        <tr><td>Network transport</td><td><code>network</code>, <code>network-libp2p</code></td><td>Trait API (<code>broadcast_to_shard</code>, etc.); production uses gossipsub over QUIC for validator-to-validator replication—not the wallet HTTP path. <code>node</code> registers inbound handlers.</td></tr>
+                        <tr><td>Chain time</td><td><code>types</code></td><td><code>WeightedTimestamp</code> from committed QCs drives validity and <span data-glossary="tombstones">tombstones</span>—not NTP on each machine.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>3 — Design Q&amp;A (curated)</h2>
+
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">Is there a distinct “RPC client” in the protocol?</p>
+                <p><strong>No.</strong> Any HTTP client can POST. Validators are servers; wallets are clients. Validators also gossip on libp2p to each other.</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">Where does the validator verify the user Ed25519 signature?</p>
+                <p><strong>On a <code>DispatchPool::TxValidation</code> worker</strong>, after <code>queue_validation</code> / batch flush—not on the HTTP RPC thread and not inside <code>admit_internal</code>.</p>
+                <p>Flow: RPC decodes and enqueues <code>SubmitTransaction</code> (step 3) → pinned <code>step(SubmitTransaction)</code> schedules validation (step 5) → worker runs <code>TransactionValidation</code> → success returns as <code>TransactionValidated</code> on <code>callback_rx</code> (step 8) → only then mempool admission (step 9). Forged or wrongly signed txs fail in validation; they never reach <code>Pending</code>.</p>
+                <p>Validator <strong>BLS</strong> signatures (votes, QCs) are a different path—<a href="module-phase-02-propose-vote-commit.html">Phase 2</a>, not user tx ingress.</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">Why crossbeam instead of pushing straight into the mempool?</p>
+                <p>Because the <strong>mempool is not a public inbox</strong> that any thread can append to. On each validator, <code>MempoolCoordinator</code> lives inside <code>NodeStateMachine</code> and is updated only when the <strong>pinned IoLoop thread</strong> runs <code>step</code> on a <code>NodeInput</code> or <code>ProtocolEvent</code>. That design keeps BFT, mempool, and execution state in one place without mutexes on every hot path.</p>
+                <p>The HTTP RPC handler runs on a <strong>different thread</strong> (Tokio/async world alongside libp2p and validation workers). When a wallet POSTs a transaction, the handler can decode the body and apply backpressure, but it must not call <code>admit_internal</code> directly—that would race with the consensus thread mutating the same maps.</p>
+                <p>Instead the handler sends a small message on a crossbeam channel: <code>NodeInput::SubmitTransaction { tx }</code>. The IoLoop thread receives it, runs <code>step(SubmitTransaction)</code>, gossips and schedules validation, and only later—after <code>TransactionValidated</code>—does the state machine call mempool admission. So the channel is a <strong>thread-safe handoff of work</strong>, not “the mempool queue.” The actual pool is still updated synchronously on the owner thread, in the right order with gossip and validation.</p>
+                <p>If you imagined “RPC writes straight into mempool,” you would need either heavy locking around the whole pool (slow, easy to get wrong) or a second code path that bypasses validation ordering. Hyperscale-rs avoids both by funneling everything through <code>NodeInput</code> → <code>step</code> → events.</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">Why several crossbeam channels instead of one <code>Sender&lt;NodeInput&gt;</code>?</p>
+                <p>One FIFO queue would force you to either process strictly in arrival order (bad for liveness when gossip bursts ahead of a fired proposal timer) or scan/reorder on every dequeue. Production splits producers into <strong><code>timer_rx</code>, <code>callback_rx</code>, <code>consensus_rx</code></strong> so <code>run_pinned_loop</code> can apply a fixed policy: <strong>timer → callback → consensus</strong> on each receive.</p>
+                <p>That matches how work is created: Tokio timer tasks, validation/execution pools, and network/RPC tasks all run elsewhere; each sends a small <code>NodeInput</code> when ready. The pinned thread stays the sole mutator of BFT + mempool + execution orchestration.</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">What is an <code>IoLoop::step</code>?</p>
+                <p><strong>One atomic turn of the validator’s orchestrator</strong> on the pinned <code>io-loop</code> thread. The production runner dequeues exactly one <code>NodeInput</code> from crossbeam (timer, callback, or consensus priority), then calls <code>IoLoop::step(that_event)</code> in <a href="#" data-file="crates/node/src/io_loop/mod.rs" target="_blank" rel="noopener">io_loop/mod.rs</a>.</p>
+                <p>Inside that single <code>step</code>, the loop does <strong>one</strong> of two things:</p>
+                <ul class="module-tight-prose">
+                    <li><strong>IoLoop-only path</strong> — handle the variant directly in <code>step</code> without entering the big state machine yet. Examples: <code>SubmitTransaction</code> (schedule gossip + validation), <code>TransactionGossipReceived</code>, <code>TransactionValidated</code> (then feed mempool admission).</li>
+                    <li><strong>State-machine path</strong> — wrap a <code>ProtocolEvent</code> (often via <code>NodeInput::Protocol(...)</code>) and call <code>NodeStateMachine::handle</code>, then run every returned <code>Action</code> (network publish, timers, storage, continuations).</li>
+                </ul>
+                <p><code>step</code> returns a small <code>StepOutput</code> (status emissions, timer ops, action counts). It does <strong>not</strong> drain the whole crossbeam queue. Housekeeping such as <code>flush_expired_batches</code> may run in the <em>same</em> outer <code>run_pinned_loop</code> iteration <em>after</em> <code>step</code>, but that is not a second <code>NodeInput</code>.</p>
+                <p><strong>Mental model:</strong> one <code>NodeInput</code> = one “something happened” message; one <code>step</code> = “process that one thing and emit whatever the node must do next.”</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">Can one round of <code>run_pinned_loop</code> process multiple crossbeam events?</p>
+                <p><strong>No—one outer-loop iteration handles one dequeued <code>NodeInput</code> and one <code>IoLoop::step</code>.</strong> After <code>step</code>, the same iteration may run post-step housekeeping (<code>flush_expired_batches</code>, metrics, optional JVT GC)—that is not consuming another channel message.</p>
+                <p>If many inputs are pending, the loop may spin through iterations quickly (timer, then callback, then consensus, …), but each iteration still advances the state machine with <strong>one logical event</strong>. Throughput comes from fast <code>step</code> handlers and worker pools, not from batching unrelated <code>NodeInput</code>s into a single <code>step</code> call.</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">Does “gossip batch” mean crossbeam delivers many txs in one IoLoop turn?</p>
+                <p><strong>No.</strong> Crossbeam still delivers <strong>one <code>NodeInput</code> per loop iteration</strong>. “Gossip batch” means many transactions are packed into <strong>one outbound <code>TransactionGossip</code> message per shard</strong> via <code>BatchAccumulator</code> (count cap + time window), so libp2p is not flooded with one publish per tx. A separate <strong>validation batch</strong> groups txs for one worker job—see §0b table.</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">If the tx only touches my shard, do we skip gossip?</p>
+                <p><strong>No.</strong> Peers still need the bytes. You also validate locally → <code>TransactionValidated</code> without waiting for your own gossip echo.</p>
+            </div>
+            <div class="hs-gotcha">
+                <strong>Gotcha — “land in the destination mempool”:</strong> There is <strong>no global mempool</strong> for the whole blockchain and <strong>no shared mempool object per shard</strong> either. Each <strong>validator process</strong> keeps its own in-memory pool. Gossip only copies the signed transaction bytes to peers; after each validator validates locally, it runs the same <code>admit_internal</code> rules on <strong>its own</strong> <code>MempoolCoordinator</code>—so “arriving at the shard” really means “copied to every committee member who then admits independently.”
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">Can an attacker submit someone else’s signed tx?</p>
+                <p><strong>Yes</strong> (replay/spam/propagation). Forgery fails <code>TransactionValidation</code>. Censorship: one RPC endpoint can drop traffic — mitigate with multi-submit and honest gossip; protocol needs quorum, not one gateway.</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">Do validators gossip transactions over libp2p on QUIC in production?</p>
+                <p><strong>Yes, in production.</strong> After a validator packages a <code>TransactionGossip</code> message, the <code>network-libp2p</code> stack publishes it to peers using <strong>libp2p gossipsub</strong> on a <strong>QUIC</strong> transport. That is validator-to-validator replication on shard-scoped topics—not the wallet’s HTTP RPC path from step 2.</p>
+                <p><strong>In simulation and tests,</strong> the same message types flow through an in-memory network adapter (fake latency queues, no real QUIC handshake on the validator mesh). The protocol logic and SBOR payloads are the same; only the transport layer changes. When you read traces, “gossip left the node” in prod means gossipsub/QUIC between validators; in sim it means the harness delivered bytes to peers on a deterministic schedule. Neither path is the wallet’s HTTP submit from step 2.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>4 — Staff debate: pros, cons, mitigations</h2>
+            <div class="hs-debate">
+                <div class="hs-debate-col pro">
+                    <h4>RPC to one validator (default UX)</h4>
+                    <p>Wallets and dApps can use a single HTTPS URL—easy to document and for users (“send tx to this RPC”).</p>
+                    <p><strong>How mitigation works in practice:</strong> the wallet sends the <strong>same already-signed bytes</strong> to <strong>more than one validator RPC</strong> (e.g. three endpoints run by different operators). Each <code>POST /api/v1/transactions</code> is independent. If validator A drops your request, B or C may still accept it, run <code>SubmitTransaction</code>, and gossip to the shard. You only need <strong>one honest ingress</strong>; gossip spreads the tx to the rest of the committee.</p>
+                    <p>Typical patterns: a primary plus fallback RPC list in the wallet; parallel background POSTs; an app backend that fans out; or public infra that load-shares across operators. No resigning is required—the signature is already on the payload.</p>
+                </div>
+                <div class="hs-debate-col con">
+                    <h4>What can still go wrong</h4>
+                    <p><strong>One URL only:</strong> if the user never leaves a censoring RPC, that node never helps—but another endpoint can, without a new signature from the user.</p>
+                    <p><strong>Captured endpoint list:</strong> if every RPC URL the wallet knows is run by colluding operators who all drop the same tx, ingress fails. That is curated trust in RPC providers, not a protocol-level fix.</p>
+                </div>
+            </div>
+            <div class="hs-debate">
+                <div class="hs-debate-col pro">
+                    <h4>Pinned single-threaded IoLoop</h4>
+                    <p>No locks on BFT/mempool; clear happens-before.</p>
+                </div>
+                <div class="hs-debate-col con">
+                    <h4>Cost</h4>
+                    <p>All ingress is serialized on one thread: each loop iteration runs one <code>step</code>, so a slow handler delays the <strong>next</strong> dequeue (timer, callback, or consensus).</p>
+                    <p><strong>Mitigation:</strong> Heavy work on worker pools; completion returns as <code>NodeInput</code> on <code>callback_rx</code>. Validation batches flush on deadlines without merging multiple unrelated inputs into one <code>step</code>.</p>
+                </div>
+            </div>
+            <div class="hs-debate">
+                <div class="hs-debate-col pro">
+                    <h4>Gossip even for same-shard submit</h4>
+                    <p>Peers stay consistent; matches pubsub reality.</p>
+                </div>
+                <div class="hs-debate-col con">
+                    <h4>Cost</h4>
+                    <p>Bandwidth vs hypothetical direct fanout RPC.</p>
+                    <p><strong>Mitigation:</strong> Batched <code>TransactionGossip</code>; receiver dedup.</p>
+                </div>
+            </div>
+            <div class="hs-debate">
+                <div class="hs-debate-col pro">
+                    <h4>Per-validator mempool</h4>
+                    <p>No central shard bottleneck; parallel admission.</p>
+                </div>
+                <div class="hs-debate-col con">
+                    <h4>Cost</h4>
+                    <p>Brief drift until gossip converges.</p>
+                    <p><strong>Mitigation:</strong> Same rules + eventual inclusion in a block.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>5 — Phase 1 checklist</h2>
+            <ul>
+                <li>User signed a Radix <code>NotarizedTransactionV1</code> with Ed25519 (wallet/dApp—not validator BLS)</li>
+                <li>HTTP <code>POST /api/v1/transactions</code> accepted (hex/SBOR body; optional: submit to several validators)</li>
+                <li><code>SubmitTransaction</code> on crossbeam → pinned <code>step</code></li>
+                <li>Gossip to every shard in the tx’s declared node set (single-shard = one shard)</li>
+                <li>Validate → <code>TransactionValidated</code></li>
+                <li><code>MempoolCoordinator</code>: <code>Pending</code> on each admitting validator</li>
+                <li><strong>Not yet:</strong> block proposed, committed, or executed → <a href="module-phase-02-propose-vote-commit.html">Phase 2</a></li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Quiz — Phase 1 (tricky)</h2>
+            <p>Pass threshold 70%. Read the gotchas and Q&amp;A — several questions are deliberately pedantic.</p>
+            <div id="quiz-phase-01" class="quiz-container"></div>
+        </div>
+
+        <div class="module-actions">
+            <button type="button" class="btn btn-primary" id="complete-module-btn">Mark module complete</button>
+        </div>
+        <nav class="navigation module-nav">
+            <a href="module-01b-tx-flow.html" class="btn btn-secondary">← Big-picture tx flow</a>
+            <a href="module-phase-02-propose-vote-commit.html" class="btn btn-primary">Phase 2 →</a>
+        </nav>
+    </div>
+
+    <script src="../../common/course-data.js"></script>
+    <script src="../../common/hyperscale-flow-data.js"></script>
+    <script src="../../common/hyperscale-links.js"></script>
+    <script src="../../common/navigation.js"></script>
+    <script src="../../common/glossary.js"></script>
+    <script src="../../common/module-init.js" data-module-id="hs-phase-01"></script>
+    <script>
+        (function () {
+            const quizQuestions = [
+                {
+                    question: "A wallet POSTs a signed tx to validator A (single-shard tx). Where does the tx first enter the consensus state machine?",
+                    options: [
+                        "Directly into MempoolCoordinator::admit on the RPC thread",
+                        "As NodeInput::SubmitTransaction on the pinned IoLoop after crossbeam delivery",
+                        "As a libp2p gossipsub message from the phone",
+                        "As ProtocolEvent::TransactionValidated from the HTTP handler"
+                    ],
+                    correct: 1,
+                    explanation: "RPC decodes and sends SubmitTransaction on a channel; only IoLoop::step runs the state machine path. Mempool admission follows validation, not the RPC thread."
+                },
+                {
+                    question: "Validator B is in the same shard as A and already has the tx Pending. Why did A still gossip the tx?",
+                    options: [
+                        "Gossip is only for cross-shard txs",
+                        "Because crossbeam routes to all shards automatically",
+                        "Peers need the bytes; same-shard submit still uses pubsub replication",
+                        "Mempool is global per shard so gossip is redundant but harmless"
+                    ],
+                    correct: 2,
+                    explanation: "There is no shard-global mempool. Gossip replicates to peers; local validation can admit without waiting for your own gossip back."
+                },
+                {
+                    question: "Which clock should mempool use to reject a tx past validity_range.end?",
+                    options: [
+                        "SystemTime::now() on each machine",
+                        "NTP-synchronized wall clock across the datacenter",
+                        "WeightedTimestamp anchored from committed QCs / runner set_time",
+                        "The proposer's local clock only"
+                    ],
+                    correct: 2,
+                    explanation: "Chain-anchored WeightedTimestamp keeps expiry consistent across validators; wall-clock skew does not define consensus time."
+                },
+                {
+                    question: "An attacker forwards a valid signed tx they did not create to your RPC. What happens?",
+                    options: [
+                        "Rejected at RPC because the sender IP did not sign it",
+                        "Accepted as a propagated payload if signature/format are valid; submitter identity is not the signer, and mempool replay/spam controls still apply",
+                        "Automatically tombstoned as malicious",
+                        "Only the original wallet's validator may accept it"
+                    ],
+                    correct: 1,
+                    explanation: "RPC ingress is a transport hop, not proof of authorship. The node verifies that the tx was signed by the transaction's required key(s); if that cryptographic check passes, forwarding by a third party is still valid propagation. Protection is then policy-based: duplicate hashes are deduped, invalid/failing txs are rejected or tombstoned, and capacity/expiry limits provide spam pressure controls. So the attacker cannot forge the signer, but they can relay already-valid bytes."
+                },
+                {
+                    question: "In one iteration of run_pinned_loop, how many NodeInput events does IoLoop::step handle?",
+                    options: [
+                        "All messages currently ready on timer, callback, and consensus channels",
+                        "Exactly one dequeued NodeInput, then post-step flush/metrics in the same iteration",
+                        "As many as fit in one BatchAccumulator flush",
+                        "Zero — step only runs on the Tokio runtime"
+                    ],
+                    correct: 1,
+                    explanation: "Each loop iteration receives at most one input (priority try_recv / select!), calls step once, then flush_expired_batches and related housekeeping—not another dequeue in that same iteration."
+                },
+                {
+                    question: "Production IoLoop receive priority (simplified): a ViewChange timer event and an RPC SubmitTransaction are both ready. Which does run_pinned_loop process first?",
+                    options: [
+                        "SubmitTransaction (client fairness)",
+                        "Whichever arrived first on a single FIFO queue",
+                        "Timer channel before consensus channel (timer > callback > consensus)",
+                        "Random fair scheduling"
+                    ],
+                    correct: 2,
+                    explanation: "run_pinned_loop applies fixed channel priority: timer_rx before callback_rx before consensus_rx, so the timer event is dequeued first. Simulation uses a different EventKey model (Phase 5)."
+                },
+                {
+                    question: "Must every validator expose public HTTP RPC for the protocol to work?",
+                    options: [
+                        "Yes — otherwise txs cannot enter the network",
+                        "No — any validator that receives gossip can validate and admit",
+                        "Yes — gossip only carries hashes, not bodies",
+                        "Only the proposer may accept RPC"
+                    ],
+                    correct: 1,
+                    explanation: "RPC is an operational convenience. Protocol assumes txs propagate via gossip from any ingress point."
+                }
+            ];
+            if (typeof initializeQuiz === 'function') {
+                initializeQuiz('quiz-phase-01', quizQuestions, 70);
+            }
+        })();
+    </script>
+</body>
+</html>

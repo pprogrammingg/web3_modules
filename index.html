@@ -82,11 +82,12 @@
         }
         /* Stone tint + “light” angles: each track reads as a different polished gem */
         .track-card--hyperscale {
-            background: linear-gradient(145deg, #1e3a5f 0%, #0f2744 45%, #0a1628 100%);
-            --stone-hue: 214;
-            --stone-hue-accent: 198;
-            --stone-sat: 40%;
-            --stone-sat-accent: 52%;
+            /* Navy base fused with magenta — blue at top-left, violet-magenta through mid/deep stops */
+            background: linear-gradient(145deg, #1e3a5f 0%, #3d2a6a 30%, #4a1f6f 55%, #5c1f5c 75%, #1a0a28 100%);
+            --stone-hue: 248;
+            --stone-hue-accent: 302;
+            --stone-sat: 46%;
+            --stone-sat-accent: 58%;
             --stone-light-angle: 118deg;
             --stone-light-angle-2: 36deg;
             /* Stronger cabochon shine (diffused in global .polished-stone-surface) */

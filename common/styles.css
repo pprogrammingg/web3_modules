@@ -175,9 +175,8 @@ h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.2rem; }
  * Module pages: single white reading surface (no grey panels / table striping).
  * Sections are dividers only; table cells override global th { bg2 } — see block after th, td rules.
  */
-body.zk-track:has(.course-content),
-body.crypto-track:has(.course-content),
-body.evm-track:has(.course-content) {
+/* All curriculum module pages (Hyperscale, ZK, Crypto, EVM, Solana): white page behind reading card */
+body:has(.course-content) {
     background: var(--bg);
 }
 .course-content .section {
@@ -245,6 +244,308 @@ body.evm-track:has(.course-content) {
 .module-grid--in-phase {
     margin-top: 0.75rem;
     margin-bottom: 0.25rem;
+}
+
+/* Hyperscale tx-flow phase deep-dive modules */
+.hs-phase-hero {
+    margin: 0 0 1.25rem;
+    padding: 1.15rem 1.3rem 1.25rem;
+    border-radius: 12px;
+    border: 1px solid rgba(99, 102, 241, 0.22);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.09) 0%, rgba(16, 185, 129, 0.05) 55%, rgba(255, 255, 255, 0.4) 100%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
+}
+.hs-phase-hero p:last-child {
+    margin-bottom: 0;
+}
+.hs-phase-hero-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 0.65rem;
+}
+.hs-phase-scope {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+.hs-phase-scope-block--out {
+    padding-top: 0.15rem;
+    border-top: 1px dashed rgba(99, 102, 241, 0.18);
+}
+.hs-phase-scope-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text2);
+    margin-bottom: 0.5rem;
+}
+.hs-phase-flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.hs-phase-flow li {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    max-width: 100%;
+}
+.hs-phase-flow li:not(:last-child)::after {
+    content: "→";
+    margin: 0 0.35rem;
+    color: rgba(99, 102, 241, 0.55);
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.hs-phase-flow-chip {
+    display: inline-block;
+    font-family: inherit;
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    padding: 0.32rem 0.62rem;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.11);
+    border: 1px solid rgba(99, 102, 241, 0.24);
+    color: #312e81;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.hs-phase-scope-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+.hs-phase-pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 1rem 0 1.25rem;
+    min-width: 0;
+    max-width: 100%;
+}
+.hs-phase-step {
+    display: grid;
+    grid-template-columns: 3.25rem minmax(0, 1fr);
+    gap: 0.75rem 1rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    position: relative;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+/* Grid text column: minmax(0,1fr) alone is not enough — child needs min-width:0 to wrap */
+.hs-phase-step > :not(.hs-phase-step-num) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: break-word;
+}
+.hs-phase-step + .hs-phase-step {
+    margin-top: 0.5rem;
+}
+.hs-phase-step-num {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #fff;
+    background: var(--primary);
+    flex-shrink: 0;
+}
+.hs-phase-step.outside .hs-phase-step-num {
+    background: var(--text2);
+}
+.hs-phase-step h3 {
+    margin: 0 0 0.35rem;
+    font-size: 1.05rem;
+}
+.hs-phase-step p {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--text2);
+    line-height: 1.5;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+.hs-phase-step h3 code,
+.hs-phase-step p code,
+.hs-phase-step li code {
+    font-size: 0.88em;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.hs-phase-step a {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.hs-phase-step .info p {
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+.hs-phase-step ul {
+    margin: 0.5rem 0 0.75rem;
+    padding-left: 1.25rem;
+    color: var(--text2);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+.hs-phase-step ul li {
+    margin-bottom: 0.35rem;
+}
+.hs-phase-proof {
+    margin: 0.85rem 0 0;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--border);
+}
+.hs-phase-proof-caption {
+    margin: 0 0 0.4rem;
+    font-size: 0.88rem;
+    color: var(--text2);
+}
+.hs-phase-proof .code-block {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+.hs-gotcha {
+    margin: 1rem 0;
+    padding: 0.85rem 1rem;
+    border-radius: 8px;
+    border-left: 4px solid #d97706;
+    background: rgba(217, 119, 6, 0.08);
+}
+.hs-gotcha strong {
+    color: #b45309;
+}
+.hs-debate {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+@media (max-width: 640px) {
+    .hs-debate {
+        grid-template-columns: 1fr;
+    }
+}
+.hs-debate-col {
+    padding: 0.85rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+.hs-debate-col h4 {
+    margin: 0 0 0.5rem;
+    font-size: 0.92rem;
+}
+.hs-debate-col.pro {
+    background: rgba(16, 185, 129, 0.06);
+}
+.hs-debate-col.con {
+    background: rgba(239, 68, 68, 0.05);
+}
+.hs-qa-item {
+    margin: 1rem 0;
+    padding: 0.75rem 0 0.75rem 1rem;
+    border-left: 3px solid var(--primary);
+}
+.hs-qa-item .hs-qa-q {
+    font-weight: 700;
+    margin: 0 0 0.4rem;
+}
+.hs-qa-item p {
+    margin: 0.25rem 0 0;
+}
+.hs-phase-roadmap {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: 0.65rem;
+    margin: 1rem 0 1.25rem;
+    padding-bottom: 1px; /* avoid subpixel clip on card borders */
+}
+.hs-phase-roadmap a {
+    display: block;
+    box-sizing: border-box;
+    padding: 0.65rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    text-decoration: none;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--text);
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.hs-phase-roadmap a:hover {
+    border: 1px solid var(--primary);
+    border-bottom: 1px solid var(--primary);
+    background: rgba(99, 102, 241, 0.06);
+    color: var(--primary);
+}
+.hs-phase-roadmap a.is-current {
+    border: 1px solid var(--primary);
+    border-bottom: 1px solid var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+    font-weight: 600;
+    color: var(--primary);
+}
+.hs-phase-roadmap .phase-num {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--primary);
+    margin-bottom: 0.2rem;
+}
+.hs-scope-pill {
+    display: inline-block;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.35;
+    padding: 0.28rem 0.6rem;
+    border-radius: 999px;
+    margin: 0;
+    border: 1px solid var(--border);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s, background 0.15s;
+}
+a.hs-scope-pill:hover {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.08);
+    color: var(--primary);
+}
+.hs-scope-pill.in {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.35);
+    color: #065f46;
+}
+.hs-scope-pill.out {
+    background: rgba(148, 163, 184, 0.12);
+    border-color: rgba(148, 163, 184, 0.35);
+    color: var(--text2);
 }
 
 /*
@@ -674,86 +975,6 @@ body.crypto-track .progress-fill {
     color: #92400e;
 }
 
-/* Protocol engineer track — appears at bottom of every module (shared narrative) */
-.elite-track-panel {
-    margin-top: 2.25rem;
-    margin-bottom: 1rem;
-    padding: 1.35rem 1.5rem 1.5rem;
-    border-radius: 10px;
-    border: 1px solid rgba(30, 64, 175, 0.2);
-    background: linear-gradient(145deg, #f8fafc 0%, #eff6ff 45%, #f5f3ff 100%);
-    box-shadow: 0 2px 12px rgba(30, 58, 138, 0.06);
-}
-.elite-track-panel h2 {
-    margin-top: 0;
-    font-size: 1.2rem;
-    color: #1e3a8a;
-    letter-spacing: -0.02em;
-}
-.elite-track-lede,
-.elite-track-lab {
-    line-height: 1.55;
-    font-size: 0.98rem;
-    margin: 0.65rem 0 0;
-}
-.elite-track-lab {
-    padding: 0.65rem 0.85rem;
-    background: rgba(255, 255, 255, 0.65);
-    border-radius: 6px;
-    border: 1px solid rgba(59, 130, 246, 0.15);
-}
-.elite-track-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 1rem;
-    margin-top: 1.15rem;
-}
-.elite-card {
-    background: rgba(255, 255, 255, 0.85);
-    border-radius: 8px;
-    padding: 1rem 1.1rem;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-}
-.elite-card h3 {
-    margin-top: 0;
-    font-size: 1rem;
-    color: #1e40af;
-}
-.elite-tip-list {
-    margin: 0.4rem 0 0;
-    padding-left: 1.15rem;
-}
-.elite-tip-list li {
-    margin: 0.4rem 0;
-    line-height: 1.45;
-    font-size: 0.93rem;
-}
-.elite-reading-list {
-    margin: 0.35rem 0 0;
-    padding-left: 1.15rem;
-    font-size: 0.92rem;
-    line-height: 1.45;
-}
-.elite-reading-list li {
-    margin: 0.45rem 0;
-}
-.elite-reading-optional {
-    opacity: 0.9;
-    font-size: 0.88rem;
-}
-.elite-fun-fact {
-    margin: 0.35rem 0 0;
-    font-size: 0.95rem;
-    line-height: 1.5;
-    color: #334155;
-}
-.elite-track-foot {
-    margin: 1.15rem 0 0;
-    font-size: 0.88rem;
-    line-height: 1.45;
-    color: #475569;
-    font-style: italic;
-}
 .course-level-band-career {
     margin: 0.35rem 0 0.75rem;
     font-size: 0.88rem;
@@ -934,6 +1155,21 @@ body.crypto-track .progress-fill {
 .project-step { margin: 1.25rem 0; padding-left: 0.25rem; border-left: 3px solid #a78bfa; padding-left: 1rem; }
 .project-step h3 { margin-top: 0; color: #5b21b6; font-size: 1.05rem; }
 
+/* Hands-on module pages: subtle violet shell (index cards use .module-card--project) */
+body.module-page--hands-on .course-header {
+    border-bottom: 2px solid rgba(124, 58, 237, 0.2);
+    padding-bottom: 1rem;
+    margin-bottom: 0.5rem;
+}
+body.module-page--hands-on .course-header h1 {
+    color: #5b21b6;
+}
+body.module-page--hands-on .course-meta span {
+    background: #ede9fe;
+    color: #5b21b6;
+    border: 1px solid #c4b5fd;
+}
+
 .module-meta { display: flex; justify-content: space-between; margin-top: 1rem; font-size: 0.9rem; color: var(--text2); }
 .module-status { padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
 .status-pending { background: var(--bg2); color: var(--text2); }
@@ -991,12 +1227,47 @@ body.crypto-track .progress-fill {
 .quiz-explanations ul { margin: 0; padding-left: 1.25rem; }
 .quiz-explanations li { margin-bottom: 0.5rem; }
 
-.assignment { background: #fef3c7; border-left: 4px solid var(--warning); padding: 1.5rem; margin: 1.5rem 0; border-radius: 6px; }
-.assignment h3 { color: #92400e; margin-top: 0; }
+/* Practical / lab assignments — violet (hands-on cue, matches project cards) */
+.assignment {
+    background: linear-gradient(135deg, #faf5ff 0%, #f5f3ff 100%);
+    border: 2px solid rgba(124, 58, 237, 0.22);
+    border-left: 4px solid #7c3aed;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    border-radius: 8px;
+}
+.assignment h3,
+.assignment h4 { color: #5b21b6; margin-top: 0; }
+.assignment > h4:first-of-type { margin-top: 1rem; }
 
-.code-block { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace; font-size: 0.9rem; margin: 1rem 0; }
+/* Dark code panels (markdown-style Rust snippets) */
+.code-block {
+    background: #0d1117;
+    color: #e6edf3;
+    padding: 1rem 1.1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+    font-size: 0.9rem;
+    margin: 1rem 0;
+    border: 1px solid #30363d;
+}
 .code-block pre { margin: 0; white-space: pre; }
-.code-block code { display: block; font-family: inherit; font-size: inherit; color: inherit; }
+.code-block code {
+    display: block;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    background: transparent;
+}
+.rust-hl-comment { color: #8b949e; font-style: italic; }
+.rust-hl-keyword { color: #ff7b72; }
+.rust-hl-string { color: #a5d6ff; }
+.rust-hl-type { color: #79c0ff; }
+.rust-hl-path { color: #d2a8ff; }
+.rust-hl-fn { color: #d2a8ff; }
+.rust-hl-ident { color: #e6edf3; }
+.rust-hl-punct { color: #e6edf3; }
 /* Light code block (e.g. manifest snippets) */
 .code-block-light { background: #f1f5f9; color: var(--text); padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.9rem; margin: 0.75rem 0; }
 .code-block-light code { font-family: ui-monospace, monospace; }
@@ -1053,11 +1324,21 @@ body.crypto-track .progress-fill {
         min-height: 48px;
         white-space: nowrap;
     }
+    .hs-phase-roadmap {
+        grid-template-columns: 1fr;
+    }
+    .hs-phase-step {
+        grid-template-columns: 1fr;
+        gap: 0.65rem;
+    }
+    .hs-phase-step-num {
+        justify-self: start;
+    }
 }
 
-/* In-content links (not nav or buttons) */
+/* In-content links (not nav, buttons, or phase roadmap cards) */
 .course-content .section a:not(.btn):not(.site-home-link),
-.course-content a[href*=".html"]:not(.btn):not(.site-home-link) {
+.course-content a[href*=".html"]:not(.btn):not(.site-home-link):not(.hs-phase-roadmap a) {
     color: var(--primary);
     text-decoration: none;
     font-weight: 500;
@@ -1065,7 +1346,7 @@ body.crypto-track .progress-fill {
     transition: color 0.2s, border-color 0.2s;
 }
 .course-content .section a:not(.btn):not(.site-home-link):hover,
-.course-content a[href*=".html"]:not(.btn):not(.site-home-link):hover {
+.course-content a[href*=".html"]:not(.btn):not(.site-home-link):not(.hs-phase-roadmap a):hover {
     color: var(--primary-hover);
     border-bottom-color: var(--primary);
 }

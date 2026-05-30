@@ -9,7 +9,8 @@
 </head>
 <body>
     <nav class="site-home-bar">
-        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
     </nav>
     <div class="course-content">
         <div class="course-header">
@@ -38,15 +39,15 @@
 
         <div class="section module-tight-prose">
             <h2>1. Docs, tests, and end-to-end (this module’s focus)</h2>
-            <p>Documentation and small unit tests are still the lowest-risk way to learn layout, review culture, and Rust conventions—but <strong>this module’s assignment centers on integration / E2E tests</strong>: same core state machine as production, exercised through the simulation harness (fast, deterministic) and the production harness (real threads, network, storage). Line-by-line tracing of canonical tests lives in <a href="module-11-e2e-tests.html">End-to-end tests: tracing code to flow</a>; read or skim it alongside Segments 1–2 below if you have not already.</p>
+            <p>Documentation and small unit tests are still the lowest-risk way to learn layout, review culture, and Rust conventions—but <strong>this module’s assignment centers on integration / E2E tests</strong>: same core state machine as production, exercised through the simulation harness (fast, deterministic) and the production harness (real threads, network, storage). Line-by-line tracing of canonical tests lives in <a href="module-hs-production-e2e-harness.html">End-to-end tests: tracing code to flow</a>; read or skim it alongside Segments 1–2 below if you have not already.</p>
         </div>
 
         <div class="section">
             <h2>2. Practical Assignment</h2>
             <div class="assignment">
                 <h3>Assignment: four segments (~1 hour)</h3>
-                <p><strong>What “trace” means here:</strong> Segments 1–2 ask for <strong>numbered traces in your journal</strong>—steps tied to symbols and blocks you read in the source. That deliverable is prose, not extra prints in the repo. If you add <strong>temporary instrumentation</strong> while exploring, use <strong><code>tracing::debug!</code></strong> (see <code>use tracing::debug</code>) and run with <code>RUST_LOG=debug</code>, consistent with <a href="module-01-overview.html">module 1 — Trace flows end-to-end</a> and <a href="module-11-e2e-tests.html">module 11</a>—not <code>println!</code>, which bypasses log filtering and is easy to leave behind by mistake.</p>
-                <p>Work in order. Each segment is sized for <strong>about 10–25 minutes</strong>—one small win per sitting: a trace you can narrate, a command whose story you understand, then two tight contributions. Checkboxes save in this browser (resume anytime). Deep reference material lives in <a href="module-11-e2e-tests.html">module 11 — End-to-end tests</a>; keep it open in another tab.</p>
+                <p><strong>What “trace” means here:</strong> Segments 1–2 ask for <strong>numbered traces in your journal</strong>—steps tied to symbols and blocks you read in the source. That deliverable is prose, not extra prints in the repo. If you add <strong>temporary instrumentation</strong> while exploring, use <strong><code>tracing::debug!</code></strong> (see <code>use tracing::debug</code>) and run with <code>RUST_LOG=debug</code>, consistent with <a href="module-01-overview.html">module 1 — Trace flows end-to-end</a> and <a href="module-hs-production-e2e-harness.html">module 11</a>—not <code>println!</code>, which bypasses log filtering and is easy to leave behind by mistake.</p>
+                <p>Work in order. Each segment is sized for <strong>about 10–25 minutes</strong>—one small win per sitting: a trace you can narrate, a command whose story you understand, then two tight contributions. Checkboxes save in this browser (resume anytime). Deep reference material lives in <a href="module-hs-production-e2e-harness.html">module 11 — End-to-end tests</a>; keep it open in another tab.</p>
 
                 <div class="assignment-step-block" id="assignment-segment-1">
                     <div class="assignment-segment-head">
@@ -237,7 +238,6 @@ fn test_production_runner_with_network() {
     <script src="../../common/hyperscale-flow-data.js"></script>
     <script src="../../common/hyperscale-links.js"></script>
     <script src="../../common/navigation.js"></script>
-    <script src="../../common/protocol-engineer-track.js"></script>
     <script src="../../common/glossary.js"></script>
     <script>
         (function () {

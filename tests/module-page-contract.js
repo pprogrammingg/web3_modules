@@ -73,6 +73,11 @@ for (const rel of modules) {
     if (!html.includes('site-home-bar')) {
         err(`${rel}: missing site-home-bar`);
     }
+    if (rel.startsWith('hyperscale/') && !rel.endsWith('index.html')) {
+        if (!html.includes('../../index.html') && !html.includes('../../../index.html')) {
+            err(`${rel}: Hyperscale module should link to All tracks (../../index.html)`);
+        }
+    }
 
     const prefix = trackPrefix(rel);
     if (prefix) {

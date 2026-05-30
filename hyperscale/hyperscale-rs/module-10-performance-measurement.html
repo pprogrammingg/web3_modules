@@ -9,13 +9,14 @@
 </head>
 <body>
     <nav class="site-home-bar">
-        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
     </nav>
     <div class="course-content">
         <div class="course-header">
             <h1>Performance Measurement</h1>
             <div class="course-meta">
-                <span>⏱️ Duration: 1–1.5 hours</span>
+                <span>⏱️ Duration: 1.5–2 hours (hands-on)</span>
                 <span>📊 Difficulty: Intermediate</span>
                 <span>🎯 Hyperscale-rs Specific</span>
             </div>
@@ -28,7 +29,7 @@
                 <li>Know what simulation metrics can miss compared to real deployment</li>
                 <li>Identify gaps and get concrete recommendations for additional performance measures</li>
             </ul>
-            <p>After metrics, read <a href="module-12-rust-optimizations.html"><strong>Rust Optimizations in Hyperscale-rs</strong></a> (same level)—it ties those measurements to idioms (types, ownership, pools) so you do not “optimize” blind.</p>
+            <p>After the hands-on lab, continue to <a href="../basic/module-05-libp2p.html">libp2p</a> then <a href="module-08-cryptography.html">cryptography</a>. Optional reading: <a href="module-12-rust-optimizations.html">Rust optimizations</a> ties measurements to implementation idioms.</p>
         </div>
 
         <div class="section">
@@ -43,7 +44,7 @@
                 <li><strong>Outcomes:</strong> Retries, rejections, and <strong>in-flight at end</strong> (transactions not yet finalized when the run stops).</li>
                 <li><strong>Lock contention:</strong> Peak <strong>locked nodes</strong>, <strong>deferred</strong> count, and <strong>contention ratio</strong> from the mempool (cross-shard backpressure).</li>
             </ul>
-            <p>Reports are produced by <code>MetricsCollector</code> / <code>SimulationReport</code> and printed at the end (and optionally a livelock report for stuck transactions). The simulation uses <strong>simulated time</strong> and a <strong>network simulator</strong> (configurable latency, no real TCP/QUIC or packet loss by default).</p>
+            <p>Reports are produced by <code>MetricsCollector</code> / <code>SimulationReport</code> and printed at the end (and optionally a livelock report for stuck transactions). The simulation uses <strong>simulated time</strong> and a <strong>network simulator</strong> (configurable latency, no real validator QUIC/gossipsub mesh and no wallet HTTP—just in-memory delivery with optional fake latency).</p>
 
             <h3>Production (metrics crate + <span data-glossary="prometheus">Prometheus</span>)</h3>
             <p>In production, <code>hyperscale_metrics</code> defines a <code>MetricsRecorder</code> trait; <code>hyperscale_metrics_prometheus</code> implements it and is installed at startup. Recorded metrics include:</p>
@@ -64,7 +65,7 @@
             <h2>What simulation can miss vs real life</h2>
             <p>Simulation is excellent for correctness and deterministic regression, but it does not fully reflect production performance. Gaps include:</p>
             <ul>
-                <li><strong>Real network behavior:</strong> Simulation typically uses a simple latency model and in-memory message passing. Real networks have variable RTT, packet loss, reordering, and congestion. libp2p, TCP/QUIC, and Gossipsub behavior (fanout, mesh, duplicate suppression) are not reproduced; neither are slow or flaky peers.</li>
+                <li><strong>Real network behavior:</strong> Simulation typically uses a simple latency model and in-memory message passing. Production validators use libp2p gossipsub over QUIC for peer replication (separate from wallet HTTP submit). Real meshes have variable RTT, packet loss, reordering, and congestion; fanout, mesh, and duplicate-suppression behavior are not reproduced in sim; neither are slow or flaky peers.</li>
                 <li><strong>Real I/O and CPU contention:</strong> Simulated time advances in steps; there is no real disk latency, no RocksDB compaction stalls, and no contention with other processes. Production runs with real RocksDB, real signature verification (CPU-bound), and real execution (Radix Engine) on real hardware—so tail latencies and throughput under load can differ a lot.</li>
                 <li><strong>Concurrency and scheduling:</strong> Simulation may use a single-threaded or simplified runner; production uses thread pools (dispatch-pooled), async I/O, and channel backpressure. Queue depths, lock contention, and thread starvation in production are not mirrored in the sim.</li>
                 <li><strong>Scale and topology:</strong> Sim runs are often small (few shards, few validators). Real deployments have more nodes, more shards, and more cross-shard traffic; scaling behavior (e.g. broadcast amplification, sync load) is not extrapolated from small sims.</li>
@@ -152,17 +153,65 @@
             </div>
         </div>
 
+        <div class="section project-hero">
+            <h2>Hands-on: measure with hyperscale-sim</h2>
+            <p style="margin:0;line-height:1.65;">
+                You will <strong>run the simulator</strong>, capture the built-in <code>SimulationReport</code>, and compare two runs—no quiz. Keep a short lab journal (copy/paste the summary block each time). Requires a local <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> clone and release build.
+            </p>
+        </div>
+
+        <div class="section project-step" id="lab-1">
+            <h3>Lab 1 — Baseline run</h3>
+            <p>From the repository root:</p>
+            <pre style="overflow-x:auto;padding:1rem;background:var(--bg2);border-radius:6px;font-size:0.9rem;">cargo build --release
+cargo run --release --bin hyperscale-sim -- --seed 42 -s 2 -v 4 -d 60 --tps 1000</pre>
+            <p>In your journal, record:</p>
+            <ul>
+                <li><strong>Average TPS</strong> and <strong>Peak TPS</strong></li>
+                <li><strong>P50, P90, P99</strong> latency (submit → finalize)</li>
+                <li><strong>Submitted / Completed / Rejected / In-flight</strong> at end</li>
+                <li><strong>Peak lock contention</strong> line if printed (locked nodes, deferred, ratio)</li>
+            </ul>
+        </div>
+
+        <div class="section project-step" id="lab-2">
+            <h3>Lab 2 — Parameter sweep (compare two runs)</h3>
+            <p>Run a <strong>second</strong> configuration and compare to Lab 1. Example stress run:</p>
+            <pre style="overflow-x:auto;padding:1rem;background:var(--bg2);border-radius:6px;font-size:0.9rem;">cargo run --release --bin hyperscale-sim -- --seed 42 -s 1 -v 4 -d 30 --tps 2000</pre>
+            <p>Write 3–5 sentences: which metric moved most (TPS vs P99 vs rejections), and one hypothesis tied to <code>-s</code>, <code>--tps</code>, or duration—not guesswork about unrelated subsystems.</p>
+        </div>
+
+        <div class="section project-step" id="lab-3">
+            <h3>Lab 3 — Map sim metrics to code (15 min read-only)</h3>
+            <p>Open <code>crates/simulator/src/metrics/mod.rs</code> and find where <code>print_summary</code> formats TPS and latency. Then skim one production hook: <code>record_transaction_finalized</code> in <code>crates/node/src/io_loop/actions.rs</code> (study table above).</p>
+            <p>In your journal, complete:</p>
+            <ul>
+                <li><strong>One</strong> sim-only metric you trust for regression tests</li>
+                <li><strong>One</strong> production metric from the reading section that sim does <em>not</em> print in <code>SimulationReport</code></li>
+            </ul>
+        </div>
+
+        <div class="section project-step" id="lab-4">
+            <h3>Lab 4 — Optional: production metrics inventory</h3>
+            <p>If you have run a production node with Prometheus enabled, list three metric names (or grep <code>record_</code> in <code>crates/metrics-prometheus</code>) that have no analogue in the sim summary. If not, grep instead:</p>
+            <pre style="overflow-x:auto;padding:0.75rem;background:var(--bg2);border-radius:6px;font-size:0.88rem;">rg 'fn record_' crates/metrics-prometheus/src -n | head -20</pre>
+            <p>Pick three functions and note what each measures in plain language.</p>
+        </div>
+
         <div class="section">
-            <h2>Quiz: Performance measurement</h2>
-            <p>These questions cover simulation vs production metrics, what sim can miss, recommendations, and the steps to instrument and measure with simulation. Pass threshold: 70%.</p>
-            <div id="quiz-performance" class="quiz-container"></div>
+            <h2>What “done” looks like</h2>
+            <ul>
+                <li>Two sim summaries pasted or summarized with numbers (not “it looked fine”).</li>
+                <li>A short comparison paragraph for Lab 2.</li>
+                <li>Sim vs prod gap: at least one metric in each column from Lab 3.</li>
+            </ul>
         </div>
 
         <div class="navigation">
-            <a href="module-08-cryptography.html" class="btn btn-secondary">← Previous Module</a>
+            <a href="module-09-timing.html" class="btn btn-secondary">← Timing</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="module-12-rust-optimizations.html" class="btn btn-primary">Next Module →</a>
-            <a href="../index.html" class="btn btn-primary">Back to Course</a>
+            <a href="../basic/module-05-libp2p.html" class="btn btn-primary">libp2p →</a>
+            <a href="../index.html" class="btn btn-secondary">Back to Course</a>
         </div>
     </div>
 
@@ -170,105 +219,7 @@
     <script src="../../common/hyperscale-flow-data.js"></script>
     <script src="../../common/hyperscale-links.js"></script>
     <script src="../../common/navigation.js"></script>
-    <script src="../../common/protocol-engineer-track.js"></script>
     <script src="../../common/glossary.js"></script>
     <script src="../../common/module-init.js" data-module-id="intermediate-performance"></script>
-    <script>
-        (function() {
-            const quizQuestions = [
-                {
-                    question: "What does the simulation report (SimulationReport) include?",
-                    options: [
-                        "Only average TPS and P50 latency",
-                        "Submitted/completed/rejected counts, average and peak TPS, P50/P90/P99/max/avg latency, retries, in-flight at end, and peak lock contention (locked nodes, deferred count, contention ratio)",
-                        "Only lock contention and view changes",
-                        "Prometheus counters and histograms exported to a file"
-                    ],
-                    correct: 1,
-                    explanation: "SimulationReport aggregates MetricsCollector output: throughput (submitted, completed, rejected, retries, in-flight), TPS (average and peak), latency percentiles and max/avg from the HDR histogram, and peak mempool lock contention stats."
-                },
-                {
-                    question: "What does production (Prometheus) record that the simulator report does not?",
-                    options: [
-                        "Only block height and round",
-                        "Real wall-clock latency, RocksDB read/write and storage operation latency, queue depths for consensus/crypto/execution/RPC channels, signature verification latency, sync/fetch events, and tx rejection reasons",
-                        "The same metrics as simulation, in the same format",
-                        "Only transactions_finalized and mempool_size"
-                    ],
-                    correct: 1,
-                    explanation: "Production uses hyperscale_metrics_prometheus to record consensus, transactions, backpressure, infrastructure (network, signatures, execution), pool/channel depths, storage (RocksDB and operations), sync/fetch, and ingress/errors—all in real time with real I/O."
-                },
-                {
-                    question: "Where is transaction finalization latency recorded so it can appear in production metrics?",
-                    options: [
-                        "Only in the simulator MetricsCollector",
-                        "In the node io_loop action handler via hyperscale_metrics::record_transaction_finalized(latency_secs, cross_shard)",
-                        "In BFT state when a block is committed",
-                        "In the mempool when a tx is removed from the pool"
-                    ],
-                    correct: 1,
-                    explanation: "When the node processes a finalized transaction (e.g. after execution and certificate aggregation), the io_loop action handler calls record_transaction_finalized with the latency and whether the tx was cross-shard. The shared metrics layer (Prometheus in production) then records it. Path in the module study table."
-                },
-                {
-                    question: "What can simulation miss compared to real-life deployment?",
-                    options: [
-                        "Nothing; simulation is as accurate as production",
-                        "Real network behavior (RTT, loss, congestion, libp2p), real I/O and CPU contention (RocksDB, compaction), concurrency and scheduling (thread pools, channel backpressure), scale/topology effects, failure/recovery timing, and end-to-end user experience (RPC latency, client retries)",
-                        "Only packet loss",
-                        "Only RocksDB latency"
-                    ],
-                    correct: 1,
-                    explanation: "Simulation uses simulated time and a simple network model. Real deployments have variable network behavior, real disk and CPU contention, different concurrency behavior, larger scale, real failures and recovery, and client-visible latency that the sim does not reproduce."
-                },
-                {
-                    question: "Which recommendation would improve simulation-based performance measurement?",
-                    options: [
-                        "Remove MetricsCollector to reduce overhead",
-                        "Add configurable network model (packet loss, jitter), larger multi-shard runs in CI, time-to-finality split by single-shard vs cross-shard, and round/view-change stats",
-                        "Run only single-shard with one validator",
-                        "Disable the livelock report"
-                    ],
-                    correct: 1,
-                    explanation: "Recommendations for sim include: configurable network model for stress tests, more shards/validators in CI, latency and TPS broken down by cross-shard vs single-shard, and rounds-per-height and view-change counts to correlate with throughput."
-                },
-                {
-                    question: "To measure throughput and P99 latency with the simulator, which sequence is correct?",
-                    options: [
-                        "Install Prometheus, run the validator binary, then query Prometheus for TPS.",
-                        "Build release, run hyperscale-sim with --seed, -s, -v, -d, and --tps; at the end read the printed SimulationReport (Average TPS, Peak TPS, P50/P90/P99 latency). Optionally vary -s, -v, -d, --tps and compare reports.",
-                        "Add a new record_* call only in metrics-prometheus, then run the sim.",
-                        "Run the spammer against production and read logs."
-                    ],
-                    correct: 1,
-                    explanation: "The simulator is the right tool for controlled throughput and latency measurement: cargo run --release --bin hyperscale-sim with desired parameters; the built-in MetricsCollector fills SimulationReport and print_summary() outputs TPS and latency. Varying parameters lets you compare behavior."
-                },
-                {
-                    question: "You want to add a new performance metric that is recorded in both simulation and production. Which approach is correct?",
-                    options: [
-                        "Add it only to MetricsCollector in simulator/src/metrics; production will automatically get it.",
-                        "Define the semantic on MetricsRecorder in the shared metrics crate, implement it in metrics-prometheus (e.g. counter/histogram), and call hyperscale_metrics::record_*(...) from the production code path that observes the event. For sim, either extend MetricsCollector and SimulationReport for sim-only reporting, or call the same record_* from the sim runner if a no-op or sim-specific recorder is installed so both paths feed one metric.",
-                        "Add a println! in the simulator and a Prometheus metric in production with different names.",
-                        "Only add to Prometheus; the sim does not need it."
-                    ],
-                    correct: 1,
-                    explanation: "Shared semantics live in the MetricsRecorder trait; production uses the Prometheus impl and calls record_* from the relevant code. The simulator normally uses MetricsCollector for its report, so for one metric in both you either extend both (trait + Prometheus + MetricsCollector + report) or call the metrics crate from sim with a recorder that no-ops or aggregates for the sim report."
-                },
-                {
-                    question: "What is the role of MetricsCollector vs MetricsRecorder (metrics crate)?",
-                    options: [
-                        "They are the same type.",
-                        "MetricsCollector is used by the simulator to build SimulationReport (TPS, latency histogram, lock contention). MetricsRecorder is the trait in the hyperscale_metrics crate implemented by metrics-prometheus (and no-op) for production (and tests) to record counters, histograms, etc.",
-                        "MetricsRecorder is only for simulation.",
-                        "MetricsCollector exports to Prometheus."
-                    ],
-                    correct: 1,
-                    explanation: "MetricsCollector lives in the simulator and aggregates submissions, completions, latency histogram, and lock contention into SimulationReport. MetricsRecorder is the abstraction in the metrics crate; production installs the Prometheus implementation and all production code paths call record_*; the sim report is independent (MetricsCollector), though conceptually they can be aligned."
-                }
-            ];
-            if (typeof initializeQuiz === 'function') {
-                initializeQuiz('quiz-performance', quizQuestions, 70);
-            }
-        })();
-    </script>
 </body>
 </html>

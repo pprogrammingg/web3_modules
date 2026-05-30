@@ -9,7 +9,8 @@
 </head>
 <body>
     <nav class="site-home-bar">
-        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
     </nav>
     <div class="course-content">
         <div class="course-header">
@@ -331,7 +332,7 @@
 
         <div class="section">
             <h2>Threading &amp; concurrency ladder (Hyperscale-rs context)</h2>
-            <p>Your <code>StateMachine::handle</code> is synchronous and pure; a real node still runs in an OS full of threads and async runtimes. Below: <strong>one sentence each</strong>, from foundations toward details that show up in hyperscale-rs (especially production). For a code-level walkthrough of the production <code>io-loop</code> thread and <code>run_pinned_loop</code>, see <a href="../hyperscale-rs/module-11-e2e-tests.html">End-to-end tests: tracing code to flow</a>.</p>
+            <p>Your <code>StateMachine::handle</code> is synchronous and pure; a real node still runs in an OS full of threads and async runtimes. Below: <strong>one sentence each</strong>, from foundations toward details that show up in hyperscale-rs (especially production). For a code-level walkthrough of the production <code>io-loop</code> thread and <code>run_pinned_loop</code>, see <a href="../hyperscale-rs/module-hs-production-e2e-harness.html">End-to-end tests: tracing code to flow</a>.</p>
             <ol class="hyperscale-threading-ladder">
                 <li><strong>Process vs thread</strong> — A process is an isolated program; threads share memory—hyperscale uses a <strong>dedicated thread</strong> for the hot <code>IoLoop</code> path and <strong>separate</strong> Tokio/async work for network and timers.</li>
                 <li><strong>Multitasking / time-sharing</strong> — The OS preempts threads; long synchronous work inside <code>IoLoop::step</code> still <strong>blocks every consensus event</strong> on that thread until <code>step</code> returns.</li>
@@ -342,22 +343,21 @@
                 <li><strong>Locking / data races</strong> — Locks serialize shared data; hyperscale reduces races by isolating hot state on one thread and using <code>Arc</code> + channels for handoff (storage bridges like <code>SharedStorage</code> still require careful design).</li>
                 <li><strong><span data-glossary="cpu affinity">CPU affinity</span> (“pinning”)</strong> — Affinity tells the OS which cores may run a thread; production tries to pin the <code>io-loop</code> thread for steadier scheduling, not because the loop is test-only code.</li>
                 <li><strong>Thread pools / work distribution</strong> — Pools run many units of work across workers; hyperscale’s dispatch pools handle heavy work so it need not all run inside <code>step</code>, with results coming back as callback channel events.</li>
-                <li><strong>Deterministic simulation vs production</strong> — Simulation drives the same <code>IoLoop::step</code> from one driver thread with fake time and fake network; production drives it from a pinned thread with wall-clock time and real QUIC—same logic, different harness.</li>
+                <li><strong>Deterministic simulation vs production</strong> — Simulation drives the same <code>IoLoop::step</code> from one driver thread with fake time and fake network; production drives it from a pinned thread with wall-clock time and real libp2p gossipsub over QUIC between validators (wallet submit stays HTTP, separate from that mesh)—same logic, different harness.</li>
                 <li><strong>Backpressure</strong> — When producers outpace consumers, queues grow or you drop/block; production uses batch deadlines and <code>flush_expired_batches</code> so validation and I/O do not grow without bound.</li>
                 <li><strong>NUMA / cache effects (niche)</strong> — On large servers, which core and which memory node matter for cache and NUMA; pinning the hot thread is a small step toward predictable behavior, not a full NUMA story by itself.</li>
             </ol>
         </div>
 
         <div class="navigation">
-            <a href="module-03-distributed-systems.html" class="btn btn-secondary">← Previous Module</a>
+            <a href="../hyperscale-rs/module-01-overview.html" class="btn btn-secondary">← Overview &amp; setup</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="../hyperscale-rs/module-03-first-contribution.html" class="btn btn-primary">Next Module →</a>
+            <a href="module-01-blockchain-fundamentals.html" class="btn btn-primary">Blockchain fundamentals →</a>
         </div>
     </div>
 
     <script src="../../common/course-data.js"></script>
     <script src="../../common/navigation.js"></script>
-    <script src="../../common/protocol-engineer-track.js"></script>
     <script src="../../common/glossary.js"></script>
     <script src="../../common/module-init.js" data-module-id="basic-04"></script>
     <script>

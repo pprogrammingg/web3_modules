@@ -9,7 +9,8 @@
 </head>
 <body>
     <nav class="site-home-bar">
-        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
     </nav>
     <div class="course-content">
         <div class="course-header">
@@ -56,6 +57,7 @@
 
         <div class="section">
             <h2>Livelock Prevention</h2>
+            <p><strong>Hyperscale-rs implementation note:</strong> the live node uses a <strong>provision-based</strong> cross-shard protocol (not a 2PC coordinator). Overlap resolution is <code>ConflictDetector</code> in <code>crates/execution/src/conflict.rs</code>; post-run stuck-tx reports use <code>crates/simulator/src/livelock.rs</code>. See <a href="../hyperscale-rs/module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>.</p>
             <p>In cross-shard protocols, <span data-glossary="livelock">livelock</span> can occur if shards keep retrying or re-ordering without ever committing. (Livelock = processes are active but no useful progress; unlike deadlock where everyone is blocked waiting.) Common techniques:</p>
             <ul>
                 <li><strong>Deterministic order</strong> – Use a fixed order (e.g. by shard ID) for prepare and for applying commits, so all nodes agree on the same sequence.</li>
@@ -71,15 +73,14 @@
         </div>
 
         <div class="navigation">
-            <a href="../hyperscale-rs/module-01c-crate-groups.html" class="btn btn-secondary">← Previous Module</a>
+            <a href="../basic/module-03-distributed-systems.html" class="btn btn-secondary">← Distributed systems</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="../hyperscale-rs/module-04-bft-implementation.html" class="btn btn-primary">Next Module →</a>
+            <a href="../hyperscale-rs/module-05-cross-shard.html" class="btn btn-primary">Cross-shard tx →</a>
         </div>
     </div>
 
     <script src="../../common/course-data.js"></script>
     <script src="../../common/navigation.js"></script>
-    <script src="../../common/protocol-engineer-track.js"></script>
     <script src="../../common/glossary.js"></script>
     <script src="../../common/module-init.js" data-module-id="intermediate-02"></script>
 </body>

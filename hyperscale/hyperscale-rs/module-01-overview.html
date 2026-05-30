@@ -9,7 +9,8 @@
 </head>
 <body>
     <nav class="site-home-bar">
-        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
     </nav>
     <div class="course-content">
         <div class="course-header">
@@ -233,7 +234,7 @@
             <p>The rest of this module uses the <strong>simulator</strong> (<code>hyperscale-sim</code>): one process, simulated time, in-memory network. To run <strong>real validator nodes</strong> (separate processes, real libp2p, real RocksDB, real RPC), you use the production runner and launch scripts. Below: what it takes and how to do it.</p>
 
             <h3>Production threading (brief)</h3>
-            <p>Validators use the same <code>IoLoop</code> / state machine as simulation, but in production that loop runs on a <strong>dedicated <code>std::thread</code></strong> (the <code>io-loop</code> thread), optionally <strong>pinned to a <span data-glossary="cpu core affinity">CPU core</span></strong> for steadier scheduling, while <strong>Tokio</strong> runs libp2p, timers, and related async work; heavy work is often <strong>offloaded to thread pools</strong> and results return via <strong>channels</strong>. This is not a special “test-only” loop—it is how live nodes advance consensus. For a full explanation (<code>run_pinned_loop</code>, <code>core_affinity::set_for_current</code>, simulation vs production), see <a href="module-11-e2e-tests.html">End-to-end tests: tracing code to flow</a>. A compact “threading ladder” of terms lives in <a href="../basic/module-04-state-machines.html">State Machines &amp; Event-Driven Architecture</a>.</p>
+            <p>Validators use the same <code>IoLoop</code> / state machine as simulation, but in production that loop runs on a <strong>dedicated <code>std::thread</code></strong> (the <code>io-loop</code> thread), optionally <strong>pinned to a <span data-glossary="cpu core affinity">CPU core</span></strong> for steadier scheduling, while <strong>Tokio</strong> runs libp2p, timers, and related async work; heavy work is often <strong>offloaded to thread pools</strong> and results return via <strong>channels</strong>. This is not a special “test-only” loop—it is how live nodes advance consensus. For a full explanation (<code>run_pinned_loop</code>, <code>core_affinity::set_for_current</code>, simulation vs production), see <a href="module-hs-production-e2e-harness.html">End-to-end tests: tracing code to flow</a>. A compact “threading ladder” of terms lives in <a href="module-hs-improved-simulation-tests.html">State Machines &amp; Event-Driven Architecture</a>.</p>
 
             <h3>Requirements</h3>
             <ul>
@@ -286,7 +287,7 @@
         <div class="section">
             <h2>Important crates for overall flows</h2>
             <p>When studying single-shard and multi-shard flows, focus on the <strong>node</strong>, <strong>mempool</strong>, <strong>bft</strong>, <strong>execution</strong>, and <strong>types</strong> crates; multi-shard adds <strong>provisions</strong> and execution’s cross-shard / <strong>conflict</strong> paths (<code>ConflictDetector</code> in <code>crates/execution/src/conflict.rs</code>). For simulation tracing, use the <strong>simulator</strong> (workload, submit; optional <code>--analyze-livelocks</code>) and <strong>simulation</strong> (runner, network, action dispatch) crates — paths in the study table.</p>
-            <p>See <a href="module-01b-tx-flow.html">Transaction Flow</a> and <a href="module-01c-crate-groups.html">Crate Groups</a> for diagrams and quizzes.</p>
+            <p>See <a href="module-01b-tx-flow.html">Transaction Flow</a> for the stage diagram and crate-group table.</p>
         </div>
 
         <div class="section hs-suggested-study-section" id="suggested-crates-files-to-study">
@@ -343,9 +344,9 @@
         </div>
 
         <div class="navigation">
-            <a href="module-03-first-contribution.html" class="btn btn-secondary">← Previous Module</a>
+            <a href="../index.html" class="btn btn-secondary">← Course index</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="module-02-codebase-exploration.html" class="btn btn-primary">Next Module →</a>
+            <a href="../basic/module-04-state-machines.html" class="btn btn-primary">State machines →</a>
         </div>
     </div>
 
@@ -353,7 +354,6 @@
     <script src="../../common/hyperscale-flow-data.js"></script>
     <script src="../../common/hyperscale-links.js"></script>
     <script src="../../common/navigation.js"></script>
-    <script src="../../common/protocol-engineer-track.js"></script>
     <script src="../../common/glossary.js"></script>
     <script src="../../common/module-init.js" data-module-id="intermediate-hs-overview"></script>
 </body>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Shard Production E2E Tests: Improved/Innovative New Test Case</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Cross-Shard Production E2E Tests: Improved/Innovative New Test Case</h1>
+            <div class="course-meta"><span>⏱️ 1–1.5 hours</span><span>📊 Level 6</span><span>Design + wiring lab</span></div>
+        </div>
+
+        <div class="section project-hero">
+            <h2>Why this lab</h2>
+            <p style="margin:0;line-height:1.65;">
+                The repo today has a rich <strong>simulation</strong> cross-shard E2E (<code>test_e2e_cross_shard_transaction</code>) but
+                <strong>no dedicated production integration test</strong> that exercises a full cross-shard transaction on live wiring.
+                This module is a <strong>design-and-observability lab</strong>: you map the simulation test to production ingress, threading, and
+                multi-validator topology, then write acceptance criteria for a future <code>test_production_cross_shard_*</code>—the same spirit as
+                <a href="module-hs-improved-production-tests.html">Single-Shard Production E2E hands-on</a>, extended across shards.
+            </p>
+        </div>
+
+        <div class="section">
+            <h2>Prerequisites</h2>
+            <ul>
+                <li>Completed <a href="module-hs-improved-cross-shard-simulation-tests.html">Cross-Shard Simulation E2E hands-on</a>.</li>
+                <li>Completed <a href="module-hs-production-e2e-harness.html">production E2E harness analysis</a> and single-shard production hands-on.</li>
+            </ul>
+        </div>
+
+        <div class="section project-step" id="step-1">
+            <h3>Step 1 — Simulation spec as source of truth</h3>
+            <p>In <code>crates/simulation/tests/e2e_tests.rs</code>, list (in a short markdown note or comment block you keep locally):</p>
+            <ol>
+                <li>What <code>multi_shard_config()</code> sets (<code>num_shards</code>, validator count, connectivity).</li>
+                <li>How the test picks shard-0 and shard-1 accounts (seed loop + <code>shard_for_node</code>).</li>
+                <li>What “done” means in the poll loop (<code>completed</code>, <code>executed</code>, <code>finalized</code>).</li>
+            </ol>
+            <p>This list becomes the checklist for production parity.</p>
+        </div>
+
+        <div class="section project-step" id="step-2">
+            <h3>Step 2 — Production gap analysis</h3>
+            <p>Search <code>crates/production/tests/</code> for cross-shard or multi-shard coverage (today: typically none). Re-read
+            <code>test_production_runner_with_network</code> from
+            <a href="module-hs-improved-production-tests.html">single-shard production hands-on</a>.</p>
+            <p>Write a table with three columns: <strong>Signal</strong> (e.g. listen address up, tx in mempool, cross-shard receipt),
+            <strong>Single-shard prod test today</strong>, <strong>Needed for cross-shard prod E2E</strong>. Aim for at least six rows.</p>
+        </div>
+
+        <div class="section project-step" id="step-3">
+            <h3>Step 3 — Ingress and topology sketch</h3>
+            <p>Without implementing a full new test yet, draft pseudocode or bullet steps for a future integration test:</p>
+            <ul>
+                <li>Start <strong>two shard groups</strong> (or N validators partitioned by <code>ShardGroupId</code>) with production runner APIs.</li>
+                <li>Submit a cross-shard manifest via the same paths you documented for RPC vs <code>tx_submission_sender</code>.</li>
+                <li>Observe: network up on each group, pinned <code>io-loop</code> threads running, and a wall-clock bounded wait for finalization.</li>
+                <li>Shutdown cleanly (mirror single-shard production test assertions).</li>
+            </ul>
+            <p>Reference crates/paths from <a href="module-hs-production-e2e-harness.html">production harness analysis</a>.</p>
+        </div>
+
+        <div class="section project-step" id="step-4">
+            <h3>Step 4 — Optional code touch</h3>
+            <p>If you want a minimal repo change, add <strong>comment-only</strong> markers in
+            <code>crates/production/tests/</code> (near the existing network runner test) pointing to this lab’s acceptance criteria—
+            or add a <code>#[ignore]</code> stub test named <code>test_production_cross_shard_transaction</code> with <code>todo!()</code> and your checklist in the doc comment.
+            Do not leave flaky or failing tests enabled in CI.</p>
+        </div>
+
+        <div class="section">
+            <h2>What “done” looks like</h2>
+            <ul>
+                <li>A gap table and acceptance criteria a teammate could implement as a real production E2E.</li>
+                <li>Clear statement of what simulation proves today vs what production wiring must add (multi-shard topology, cross-shard ingress, wall-clock bounds).</li>
+                <li>No broken tests in the default <code>cargo test</code> path.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Next</h2>
+            <p>Continue to <a href="module-06-execution.html">Transaction Execution &amp; Radix Engine</a>.</p>
+        </div>
+
+        <div class="navigation">
+            <a href="module-hs-improved-cross-shard-simulation-tests.html" class="btn btn-secondary">← Cross-shard simulation E2E</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="module-06-execution.html" class="btn btn-primary">Execution &amp; Radix Engine →</a>
+            <a href="../index.html" class="btn btn-secondary">Back to Course</a>
+        </div>
+    </div>
+
+    <script src="../../common/course-data.js"></script>
+    <script src="../../common/navigation.js"></script>
+    <script src="../../common/glossary.js"></script>
+    <script src="../../common/module-init.js" data-module-id="hs-improved-cross-shard-prod-tests"></script>
+</body>
+</html>

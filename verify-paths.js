@@ -25,7 +25,7 @@ const COMMON_FILES = [
     'evm-navigation.js',
     'glossary.js',
     'module-init.js',
-    'protocol-engineer-track.js',
+    'rust-highlight.js',
     'hyperscale-flow-data.js',
     'hyperscale-links.js',
 ];
@@ -100,9 +100,9 @@ const COMMON_JS = [
     'crypto-navigation.js',
     'zk-navigation.js',
     'evm-navigation.js',
-    'protocol-engineer-track.js',
     'glossary.js',
     'module-init.js',
+    'rust-highlight.js',
     'hyperscale-flow-data.js',
     'hyperscale-links.js',
 ];

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Single-Shard Production E2E Tests: Improved/Innovative New Test Case</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Single-Shard Production E2E Tests: Improved/Innovative New Test Case</h1>
+            <div class="course-meta">
+                <span>⏱️ 1.5–2 hours</span>
+                <span>📊 Level 5</span>
+                <span>Hands-on lab</span>
+            </div>
+        </div>
+
+        <div class="section project-hero">
+            <h2>Why this lab</h2>
+            <p style="margin:0;line-height:1.65;">
+                You traced <code>test_production_runner_with_network</code> in
+                <a href="module-hs-production-e2e-harness.html">production E2E test case analysis</a>.
+                Here you <strong>change that integration test</strong>: add visible markers, assert what production wiring can show
+                <strong>without</strong> pretending the test already submits a user transaction, and document how real ingress
+                (<code>POST /api/v1/transactions</code> or <code>tx_submission_sender()</code>) would feed the same <code>IoLoop</code> path.
+            </p>
+        </div>
+
+        <div class="section">
+            <h2>Prerequisites</h2>
+            <ul>
+                <li>Local <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> clone; stable Rust + <code>cargo</code>.</li>
+                <li>Completed or skimmed simulation hands-on and production harness analysis modules.</li>
+                <li>Comfort with <code>#[serial]</code> production tests and <code>RUST_LOG=info</code>.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Files you will touch</h2>
+            <ul>
+                <li><code>crates/production/tests/e2e_tests.rs</code> — <code>test_production_runner_with_network</code></li>
+                <li>Optional read-only: <code>crates/production/src/runner.rs</code> (<code>tx_submission_sender</code>), <code>crates/production/src/rpc/handlers.rs</code> (<code>submit_transaction_handler</code>)</li>
+            </ul>
+        </div>
+
+        <div class="section project-step" id="step-1">
+            <h3>Step 1 — Baseline run</h3>
+            <p>From the <strong>repository root</strong> (production tests are serial and use real ports):</p>
+            <pre style="overflow-x:auto;padding:1rem;background:var(--bg2);border-radius:6px;font-size:0.9rem;">RUST_LOG=info cargo test -p hyperscale-production --test e2e_tests test_production_runner_with_network -- --test-threads=1 --nocapture</pre>
+            <p>Confirm pass once. Note log lines for peer id, listen addresses, and clean shutdown.</p>
+        </div>
+
+        <div class="section project-step" id="step-2">
+            <h3>Step 2 — Trace markers (what the harness can show)</h3>
+            <p>Add three <code>tracing::info!</code> markers (preferred over <code>println!</code>):</p>
+            <ol>
+                <li>After <code>build()</code> succeeds — e.g. <code>info!("[lab] runner built");</code></li>
+                <li>After <code>listen_addresses()</code> returns — log <code>addrs.len()</code> and the addresses</li>
+                <li>Immediately before <code>drop(shutdown)</code> — e.g. <code>info!("[lab] requesting shutdown");</code></li>
+            </ol>
+            <p>Re-run with the same command. Verify ordering: built → listening → shutdown → test pass.</p>
+        </div>
+
+        <div class="section project-step" id="step-3">
+            <h3>Step 3 — Assert observables the canonical test omits</h3>
+            <p>After fetching listen addresses, add:</p>
+            <pre style="overflow-x:auto;padding:1rem;background:var(--bg2);border-radius:6px;font-size:0.85rem;">assert!(!addrs.is_empty(), "production runner should bind at least one QUIC listen address (validator libp2p mesh, not wallet HTTP)");
+info!("[lab] listen addresses: {:?}", addrs);</pre>
+            <p>This documents <strong>what production E2E can prove today</strong>: wiring + network surface, not yet tx execution.</p>
+        </div>
+
+        <div class="section project-step" id="step-4">
+            <h3>Step 4 — User input beginning (design note, not required code)</h3>
+            <p>In your journal (or PR description), answer in bullet form:</p>
+            <ul>
+                <li><strong>Live path:</strong> HTTP client → <code>submit_transaction_handler</code> → <code>tx_submission_tx.send(NodeInput::SubmitTransaction { ... })</code> → pinned loop on <code>consensus_rx</code>.</li>
+                <li><strong>Test hook:</strong> <code>ProductionRunner::tx_submission_sender()</code> sends the same <code>NodeInput</code> without RPC—useful for integration tests that need a tx without standing up HTTP.</li>
+                <li><strong>Why this test skips both:</strong> CI scope is build + libp2p + pinned loop + shutdown; adding a real signed tx is a follow-on test file, not a one-line tweak.</li>
+            </ul>
+            <p><strong>Stretch (optional):</strong> sketch a <em>new</em> <code>#[serial]</code> test that calls <code>tx_submission_sender()</code> after <code>run()</code> starts, with a fixture transaction from <code>TestFixtures</code>—do not block this lab on finishing that test.</p>
+        </div>
+
+        <div class="section project-step" id="step-5">
+            <h3>Step 5 — Stretch: longer run window</h3>
+            <p>Change the post-<code>run()</code> sleep from <code>500ms</code> to <code>2s</code> once, re-run, and note whether logs show periodic metrics or channel-depth exports (if enabled in your build). Restore <code>500ms</code> before you finish so CI stays fast.</p>
+        </div>
+
+        <div class="section">
+            <h2>What “done” looks like</h2>
+            <ul>
+                <li>Markers prove you can read production startup/shutdown ordering from logs.</li>
+                <li>Non-empty listen address assertion encodes a concrete wiring invariant.</li>
+                <li>You can explain RPC vs <code>tx_submission_sender</code> ingress without conflating them with the pinned loop itself.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Next</h2>
+            <p>Continue to <a href="../basic/module-03-distributed-systems.html">distributed systems</a>, or extend production coverage in a separate PR after the simulation/substate work in <a href="https://github.com/hyperscalers/hyperscale-rs/issues/18" target="_blank" rel="noopener">#18</a>.</p>
+        </div>
+
+        <div class="navigation">
+            <a href="module-hs-production-e2e-harness.html" class="btn btn-secondary">← Production harness</a>
+            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
+            <a href="../basic/module-03-distributed-systems.html" class="btn btn-primary">Distributed systems →</a>
+            <a href="../index.html" class="btn btn-secondary">Back to Course</a>
+        </div>
+    </div>
+
+    <script src="../../common/course-data.js"></script>
+    <script src="../../common/navigation.js"></script>
+    <script src="../../common/glossary.js"></script>
+    <script src="../../common/module-init.js" data-module-id="hs-improved-prod-tests"></script>
+</body>
+</html>

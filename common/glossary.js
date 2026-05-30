@@ -804,6 +804,16 @@ const GLOSSARY_ENTRIES = [
     competingConcepts: 'Mempool vs persistent storage: mempool is typically in-memory and can be evicted (e.g. by fee or expiry); committed state is on-chain. Different chains use different mempool policies (size, replacement, privacy).',
   },
   {
+    key: 'tombstone',
+    keys: ['tombstone', 'tombstones', 'tombstoned'],
+    term: 'Tombstone (mempool)',
+    def: 'In hyperscale-rs, a per-validator record that a transaction hash is finished (completed or aborted) and must not be re-admitted to the local mempool.',
+    technicalDef: 'Hyperscale-rs `MempoolCoordinator` keeps a `TombstoneStore`: `tx_hash → validity end time`. When a tx reaches a terminal status (e.g. `Completed`, `Aborted`), the pool entry is removed and the hash is tombstoned so gossip or RPC cannot put it back in `Pending`. `IoLoop` skips validation enqueue if `is_tombstoned(&hash)` (see `handle_gossip_received_tx_for_validation`). Tombstones are pruned when chain time (`WeightedTimestamp` from committed QCs) passes the tx\'s `validity_range.end_timestamp_exclusive`; matching bodies may then leave `TxStore`. This is per-validator dedup policy—not an on-chain tombstone object.',
+    explain10yo: 'After a transaction is completely done or cancelled on this computer, the node puts its fingerprint on a "do not let it back in the waiting room" list. If the same transaction tries to arrive again by gossip, the node ignores it.',
+    subCategory: ['State & Execution', 'Blockchain & Ledgers'],
+    competingConcepts: 'Tombstone vs tx expiry before admission: expiry rejects txs past `validity_range` at the gate; tombstone rejects re-entry after a terminal outcome. Tombstone vs global ban list: each validator maintains its own tombstones from its mempool history, not one shared network table.',
+  },
+  {
     key: 'locked nodes',
     keys: ['locked nodes', 'lock contention', 'lock contention peak'],
     term: 'Locked nodes (peak)',

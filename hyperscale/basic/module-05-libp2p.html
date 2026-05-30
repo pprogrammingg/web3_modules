@@ -9,7 +9,8 @@
 </head>
 <body>
     <nav class="site-home-bar">
-        <a href="../index.html" class="site-home-link" aria-label="Home">🏠 Home</a>
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
     </nav>
     <div class="course-content">
         <div class="course-header">
@@ -74,7 +75,7 @@
             <ul>
                 <li><strong>Identity</strong> — Each peer has a <strong>PeerId</strong> derived from a public key (e.g. Ed25519, secp256k1). This is the stable identity used in routing and security.</li>
                 <li><strong>Addressing</strong> — <strong>Multiaddr</strong> is a self-describing address format (e.g. <code>/ip4/192.168.1.1/tcp/4001</code>) so peers can advertise how they are reachable over which transport.</li>
-                <li><strong>Transport</strong> — The actual bytes on the wire: TCP, QUIC, WebSocket, WebRTC, etc. Multiple transports allow the same protocol to run over different networks.</li>
+                <li><strong>Transport</strong> — The actual bytes on the wire: TCP, QUIC, WebSocket, WebRTC, etc. Multiple transports allow the same protocol to run over different networks. In Hyperscale-rs production, validators use QUIC for the libp2p mesh; wallet apps use HTTP to submit txs—that is a different path.</li>
                 <li><strong>Security</strong> — After a transport connection is established, a security handshake (Noise or TLS 1.3) runs to authenticate the peer and encrypt the channel.</li>
                 <li><strong>Discovery &amp; routing</strong> — How peers find each other: DHT (e.g. Kademlia) for peer and content routing, bootstrap nodes, mDNS, or rendezvous.</li>
                 <li><strong>Pub/sub</strong> — Topic-based messaging; GossipSub is the main protocol for scalable, resilient broadcast (blocks, transactions, attestations).</li>
@@ -100,15 +101,14 @@
         </div>
 
         <div class="navigation">
-            <a href="../hyperscale-rs/project-01-e2e-observability.html" class="btn btn-secondary">← Previous Module</a>
+            <a href="../hyperscale-rs/module-10-performance-measurement.html" class="btn btn-secondary">← Performance measurement</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="../intermediate/module-06-libp2p.html" class="btn btn-primary">Next Module →</a>
+            <a href="../hyperscale-rs/module-08-cryptography.html" class="btn btn-primary">Cryptography →</a>
         </div>
     </div>
 
     <script src="../../common/course-data.js"></script>
     <script src="../../common/navigation.js"></script>
-    <script src="../../common/protocol-engineer-track.js"></script>
     <script src="../../common/glossary.js"></script>
     <script src="../../common/module-init.js" data-module-id="basic-07"></script>
     <script src="module-05-libp2p-quiz.js"></script>

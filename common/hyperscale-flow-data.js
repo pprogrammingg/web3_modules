@@ -128,15 +128,22 @@
     const MODULE_USAGE = {
         'tx-flow': [
             'hyperscale/hyperscale-rs/module-01b-tx-flow.html',
+            'hyperscale/hyperscale-rs/module-phase-01-submit-to-mempool.html',
+        ],
+        'phase-submit-mempool': [
+            'hyperscale/hyperscale-rs/module-phase-01-submit-to-mempool.html',
+        ],
+        'phase-propose-commit': [
+            'hyperscale/hyperscale-rs/module-phase-02-propose-vote-commit.html',
         ],
         'bft-single-shard': [
-            'hyperscale/hyperscale-rs/module-04-bft-implementation.html',
+            'hyperscale/hyperscale-rs/module-phase-02-propose-vote-commit.html',
         ],
         'bft-multi-shard': [
-            'hyperscale/hyperscale-rs/module-04-bft-implementation.html',
+            'hyperscale/hyperscale-rs/module-05-cross-shard.html',
         ],
         'bft-rust-internal': [
-            'hyperscale/hyperscale-rs/module-04-bft-implementation.html',
+            'hyperscale/hyperscale-rs/module-phase-02-propose-vote-commit.html',
         ],
         '2pc-flow': [
             'hyperscale/hyperscale-rs/module-05-cross-shard.html',
@@ -156,13 +163,22 @@
         ],
         'crate-groups': [
             'hyperscale/hyperscale-rs/module-01b-tx-flow.html',
-            'hyperscale/hyperscale-rs/module-01c-crate-groups.html',
         ],
         'file-refs-general': [
-            'hyperscale/hyperscale-rs/module-04-bft-implementation.html',
+            'hyperscale/hyperscale-rs/module-01b-tx-flow.html',
+            'hyperscale/hyperscale-rs/module-phase-01-submit-to-mempool.html',
+            'hyperscale/hyperscale-rs/module-phase-02-propose-vote-commit.html',
+            'hyperscale/hyperscale-rs/module-phase-02-propose-vote-commit.html',
             'hyperscale/hyperscale-rs/module-05-cross-shard.html',
             'hyperscale/hyperscale-rs/module-01-overview.html',
             'hyperscale/hyperscale-rs/module-08-cryptography.html',
+            'hyperscale/hyperscale-rs/module-10-performance-measurement.html',
+            'hyperscale/hyperscale-rs/module-hs-production-e2e-harness.html',
+            'hyperscale/hyperscale-rs/module-hs-simulation-harness-analysis.html',
+            'hyperscale/hyperscale-rs/module-hs-improved-simulation-tests.html',
+            'hyperscale/hyperscale-rs/module-hs-improved-production-tests.html',
+            'hyperscale/hyperscale-rs/module-hs-improved-cross-shard-simulation-tests.html',
+            'hyperscale/hyperscale-rs/module-hs-improved-cross-shard-production-tests.html',
         ],
         'rust-optimization-module': [
             'hyperscale/hyperscale-rs/module-12-rust-optimizations.html',

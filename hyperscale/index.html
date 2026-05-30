@@ -14,25 +14,26 @@
     <div class="container">
         <header>
             <h1>🚀 Blockchain & Hyperscale-rs Learning Journey</h1>
-            <p class="subtitle">Seven levels — three modules each (Level 6 adds a fourth Hyperscale-rs reading module on Rust idioms alongside measurement, E2E, and lab)—structured path toward elite decentralized protocol engineering (Levels 2–7 include one purple OSS contribution module; Level 1 is foundations + transaction-flow map only)</p>
+            <p class="subtitle">Eight levels (23 modules)—structured path toward elite decentralized protocol engineering (start with Hyperscale overview and state machines, then blockchain literacy and the tx-flow map)</p>
         </header>
 
         <div class="info elite-course-banner" style="margin: 1.25rem 0 2rem; padding: 1.35rem 1.5rem;">
             <h3 style="margin-top: 0;">Who this trains</h3>
             <p>This is deliberate coursework for engineers growing along the whole ladder—<strong>junior</strong>, <strong>intermediate</strong>, <strong>senior</strong>, <strong>tech lead</strong>, <strong>staff</strong>, and beyond. The primary outcome is not “know Hyperscale-rs only”; it is to think like a <strong>protocol engineer</strong>: precise about consensus and economics, rigorous in Rust, calm under partial synchrony, and fluent in networking and ops when shipping nodes.</p>
-            <p><strong>Hyperscale-rs</strong> is the cutting-edge lab—a serious Rust workspace where BFT, execution, cryptography, simulation, and libp2p meet. Every module ends with a <strong>Protocol engineer track</strong> panel: transferable Rust idioms, curated further reading, and protocol trivia so you round out as a professional, not only a tourist in one repo.</p>
+            <p><strong>Hyperscale-rs</strong> is the cutting-edge lab—a serious Rust workspace where BFT, execution, cryptography, simulation, and libp2p meet. Modules combine reading, quizzes where relevant, and hands-on labs (violet cards on the index) so you build protocol-engineering skill in the repo, not only from slides.</p>
             <table class="elite-ladder-table" aria-label="Course level to career band">
                 <thead>
                     <tr><th scope="col">Level</th><th scope="col">Approximate engineering band</th><th scope="col">What deepens here</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td>1</td><td>Junior → protocol-literate</td><td>Vocabulary, consensus, tx-flow map (reading-first)</td></tr>
-                    <tr><td>2</td><td>Mid → systems thinker</td><td>CAP, events, <strong>first OSS PR</strong></td></tr>
-                    <tr><td>3</td><td>Senior-minded → cartographer</td><td>Repo orientation, issue culture, crate mental map</td></tr>
-                    <tr><td>4</td><td>Senior → consensus &amp; sharding</td><td>BFT routines, cross-shard reasoning</td></tr>
-                    <tr><td>5</td><td>Senior / Staff- → execution &amp; crypto</td><td>VM boundaries, crypto ops, liveness timers</td></tr>
-                    <tr><td>6</td><td>Staff → measurement &amp; proof</td><td>Benches, E2E harnesses, observability</td></tr>
-                    <tr><td>7</td><td>Staff / Principal → P2P &amp; platform</td><td>libp2p production patterns, operator UX</td></tr>
+                    <tr><td>1</td><td>Junior → repo-ready</td><td><strong>Overview &amp; setup</strong>, state machines, blockchain fundamentals</td></tr>
+                    <tr><td>2</td><td>Mid → pipeline thinker</td><td>Consensus, <strong>tx-flow map</strong>, Phase 1</td></tr>
+                    <tr><td>3</td><td>Senior-minded → phases</td><td>Phases 2–4 (propose→cross-shard outline)</td></tr>
+                    <tr><td>4</td><td>Senior → single-shard sim harness</td><td>Simulation harness + single-shard simulation E2E hands-on</td></tr>
+                    <tr><td>5</td><td>Senior → single-shard prod &amp; sharding</td><td>Production harness, single-shard production E2E, CAP, sharding concepts</td></tr>
+                    <tr><td>6</td><td>Senior → cross-shard E2E</td><td>Cross-shard reading + simulation &amp; production cross-shard E2E labs</td></tr>
+                    <tr><td>7</td><td>Staff → execution &amp; measurement</td><td>Execution, timers, hands-on performance measurement</td></tr>
+                    <tr><td>8</td><td>Staff / Principal → depth</td><td>libp2p, cryptography</td></tr>
                 </tbody>
             </table>
             <p style="margin-bottom: 0; font-size: 0.92rem; color: var(--text2);">Bands are guides, not gates—many people revisit levels as their role changes. Expect to iterate through the journey with us.</p>
@@ -48,13 +49,14 @@
 
         <div class="info" style="margin: 2rem 0; padding: 1.5rem;">
             <h3 style="margin-top: 0;">Course Structure</h3>
-            <p>Each <strong>Level</strong> (1–7) lists <strong>three primary modules</strong> (Level 6 also includes an extra <strong>Rust optimizations</strong> Hyperscale-rs reading module between performance and E2E). <strong>Levels 2–7</strong> pair two learning tracks with <strong>one OSS contribution module</strong> (purple card, tied to a hyperscale-rs issue). <strong>Level 1</strong> is vocabulary → consensus → <strong>single-shard transaction flow</strong> so you see concrete Hyperscale wiring before long reading runs; your first hands-on OSS PR starts in <strong>Level 2</strong>. Contribution modules spell out steps and expected results so PR work feels guided.</p>
+            <p>Levels <strong>1–7</strong> each list <strong>three modules</strong>; <strong>Level 8</strong> has two (libp2p and cryptography). <strong>Level 1</strong> places <strong>Hyperscale-rs overview &amp; setup</strong> and <strong>state machines</strong> before the transaction-flow map (Level 2). Single-shard BFT coordinator detail is in <strong>Phase 2</strong>, not a separate duplicate module.</p>
             <ul>
-                <li><strong>Levels 1–3</strong> — Foundations → systems thinking → Hyperscale orientation &amp; crate map</li>
-                <li><strong>Levels 4–5</strong> — Sharding, BFT, cross-shard, then execution / timing / cryptography</li>
-                <li><strong>Levels 6–7</strong> — Measurement, E2E tests, lab project → libp2p depth &amp; packaging</li>
+                <li><strong>Levels 1–2</strong> — Orientation → consensus → tx-flow → Phase 1</li>
+                <li><strong>Levels 3–5</strong> — Phases 2–4 → single-shard harness labs → systems &amp; sharding</li>
+                <li><strong>Level 6</strong> — Cross-shard theory + cross-shard simulation &amp; production E2E hands-on</li>
+                <li><strong>Levels 7–8</strong> — Execution &amp; timers → perf lab → libp2p → crypto</li>
             </ul>
-            <p>Hyperscale-rs–specific modules keep the <span style="background: #fef3c7; color: #92400e; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.9rem;">Hyperscale-rs</span> badge; contribution slots also show an <strong>OSS contribution</strong> pill with a light purple card treatment.</p>
+            <p>Hyperscale-rs–specific modules keep the <span style="background: #fef3c7; color: #92400e; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.9rem;">Hyperscale-rs</span> badge.</p>
         </div>
 
         <div class="timeline">
@@ -65,20 +67,20 @@
             </div>
 
             <div class="timeline-section">
-                <h2>🔧 Levels 2–5</h2>
-                <p class="phase-description">Systems theory, Hyperscale orientation, then shard/BFT/cross-shard and execution/crypto—three modules per level.</p>
+                <h2>🔧 Levels 2–7</h2>
+                <p class="phase-description">Tx-flow &amp; phases → single-shard harness labs → cross-shard E2E labs → execution &amp; measurement—three modules per level.</p>
                 <div id="intermediate-modules"></div>
             </div>
 
             <div class="timeline-section">
-                <h2>⚡ Levels 6–7</h2>
-                <p class="phase-description">Perf, Rust idioms in the node, E2E tests, lab project—four Hyperscale-facing steps in Level 6, then libp2p in Level 7.</p>
+                <h2>⚡ Level 8</h2>
+                <p class="phase-description">libp2p introduction and cryptography in the node.</p>
                 <div id="advanced-modules"></div>
             </div>
 
             <div class="timeline-section">
                 <h2>🎯 Hyperscale-rs only (by level)</h2>
-                <p class="phase-description">Filtered view of the same <strong>Level 1–7</strong> path for Hyperscale-rs–tagged modules.</p>
+                <p class="phase-description">Filtered view of the same <strong>Level 1–8</strong> path for Hyperscale-rs–tagged modules.</p>
                 <div id="hyperscale-modules"></div>
             </div>
         </div>
@@ -109,7 +111,7 @@
                 <li><strong>Complete All Sections</strong> - Read content, take quizzes, complete assignments</li>
                 <li><strong>Focus on Hyperscale-rs Modules</strong> - If your goal is to contribute to hyperscale-rs, prioritize those modules</li>
                 <li><strong>Take Your Time</strong> - Each module is designed for 1.5-2 hours. Don't rush!</li>
-                <li><strong>Scroll to the Protocol engineer track</strong> — At the bottom of each module, curated Rust depth, readings, and protocol snacks scale with your level; revisit after promotions or role changes.</li>
+                <li><strong>Finish hands-on labs</strong> — Violet modules on the index are repo edits or design exercises; run tests locally and mark complete when your lab criteria are met.</li>
             </ol>
         </div>
     </div>

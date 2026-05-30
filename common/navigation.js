@@ -18,21 +18,25 @@ const AVAILABLE_MODULES = [
     'basic-02',
     'basic-03',
     'basic-04',
-    'basic-06',
-    'intermediate-hs-codebase',
     'intermediate-hs-overview',
     'basic-05b',
-    'intermediate-hs-crate-groups',
+    'hs-phase-01',
+    'hs-phase-02',
+    'hs-phase-03',
+    'hs-phase-04',
+    'hs-prod-e2e-harness',
+    'hs-sim-harness',
+    'hs-improved-sim-tests',
+    'hs-improved-prod-tests',
+    'hs-improved-cross-shard-sim-tests',
+    'hs-improved-cross-shard-prod-tests',
     'intermediate-02',
-    'intermediate-01',
     'intermediate-03',
     'intermediate-04',
     'intermediate-timing',
     'intermediate-08',
     'intermediate-performance',
     'intermediate-rust-optimization',
-    'intermediate-e2e-tests',
-    'intermediate-project-01',
     'basic-07',
     'intermediate-libp2p',
     'advanced-libp2p',
@@ -40,6 +44,23 @@ const AVAILABLE_MODULES = [
 
 function isModuleAvailable(moduleId) {
     return AVAILABLE_MODULES.includes(moduleId);
+}
+
+function findCourseModule(moduleId) {
+    if (typeof COURSE_DATA === 'undefined' || !COURSE_DATA.levels) return null;
+    var found = null;
+    ['basic', 'intermediate', 'advanced'].forEach(function (tier) {
+        var mods = COURSE_DATA.levels[tier] && COURSE_DATA.levels[tier].modules;
+        if (!mods) return;
+        mods.forEach(function (m) {
+            if (m.id === moduleId) found = m;
+        });
+    });
+    return found;
+}
+
+function isHandsOnModule(module) {
+    return module && (module.kind === 'project' || module.hasMajorAssignment === true);
 }
 
 function initializeCourseIndex() {
@@ -116,11 +137,11 @@ function renderModules() {
             return;
         }
         if (level === 'intermediate') {
-            container.innerHTML = renderCourseLevelGroups(levelData.modules, 2, 5);
+            container.innerHTML = renderCourseLevelGroups(levelData.modules, 2, 7);
             return;
         }
         if (level === 'advanced') {
-            container.innerHTML = renderCourseLevelGroups(levelData.modules, 6, 7);
+            container.innerHTML = renderCourseLevelGroups(levelData.modules, 8, 8);
             return;
         }
 
@@ -168,7 +189,7 @@ function renderModuleCard(module, status) {
     const statusKey = status in STATUS_CONFIG ? status : 'pending';
     const { class: statusClass, text: statusText, badge: statusClassBadge } = STATUS_CONFIG[statusKey];
 
-    const isProject = module.kind === 'project';
+    const isProject = isHandsOnModule(module);
     const isContribution = module.contributionModule === true;
     const projectBadge = isProject ? '<span class="badge-project">Hands-on project</span>' : '';
     const contribBadge = isContribution ? '<span class="badge-contribution">OSS contribution</span>' : '';
@@ -377,7 +398,12 @@ function markModuleComplete(moduleId) {
 // Initialize module page
 function initializeModulePage(moduleId) {
     startModule(moduleId);
-    
+
+    var mod = findCourseModule(moduleId);
+    if (isHandsOnModule(mod)) {
+        document.body.classList.add('module-page--hands-on');
+    }
+
     // Add completion button handler if exists
     const completeBtn = document.getElementById('complete-module-btn');
     if (completeBtn) {

@@ -4,6 +4,8 @@
 
 Single source of truth: **`common/hyperscale-flow-data.js`**. Teaching modules get repo/crate/file URLs from here via **`common/hyperscale-links.js`** (`data-repo`, `data-crate`, `data-file`). No hardcoded GitHub URLs in HTML.
 
+**Module page shell** (nav, `.course-content`, tables, backgrounds) matches other tracks — see **`common/MODULE_PAGE.md`**. After CSS changes, hard-refresh modules; `bash tests/run-all.sh` runs **module-surface-contract** (step 4d).
+
 ## When hyperscale-rs is updated
 
 1. **Use the local clone only.** Do not fetch or verify content from GitHub. The clone path is in **`scripts/hyperscale-repo.config.js`** (default `../other_projects/hyperscale-rs`); override with **`LOCAL_REPO_PATH=/path/to/hyperscale-rs`**.
