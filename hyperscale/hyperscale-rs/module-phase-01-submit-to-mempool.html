@@ -18,7 +18,7 @@
             <p class="course-header-lede">Staff-level drill on steps 1–5 of the <a href="module-01b-tx-flow.html">big-picture tx flow</a> — one Radix tx, one shard, production path to <code>Pending</code> on every validator that admits it.</p>
             <div class="course-meta">
                 <span>⏱️ ~1.5–2 hours</span>
-                <span>📊 Level 1 deep dive</span>
+                <span>📊 In-depth</span>
                 <span>🎯 Hyperscale-rs</span>
             </div>
         </div>
@@ -91,7 +91,7 @@
             <h3>Why gossip is necessary</h3>
             <ul class="module-tight-prose">
                 <li><strong>Replication, not “remote mempool write.”</strong> Validators do not pull txs from a shared shard mailbox. Gossip copies the <strong>same signed bytes</strong> to peers on libp2p so each committee member can validate and decide locally.</li>
-                <li><strong>Censorship resistance.</strong> A single RPC endpoint can drop you; gossip from any honest ingress is enough for the bytes to spread (Phase 1 staff debate on multi-submit).</li>
+                <li><strong>Censorship resistance.</strong> A single RPC endpoint can drop you; gossip from any honest ingress is enough for the bytes to spread (see design debate in §5).</li>
                 <li><strong>Cross-shard fanout.</strong> A tx’s declared reads/writes may touch several shards; the first receiver gossips to <strong>each involved shard’s</strong> topic so those committees see the tx too (<a href="module-phase-04-cross-shard-tx.html">Phase 4</a>).</li>
                 <li><strong>Matches the wire protocol.</strong> Production uses gossipsub (many small validator messages), not N separate HTTP posts from the wallet to every node.</li>
             </ul>

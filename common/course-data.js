@@ -4,14 +4,14 @@
 // verify-paths.js derives paths from id/path pairs below (paths under hyperscale/).
 const COURSE_DATA = {
     courseLevelMeta: [
-        { level: 1, title: 'Orientation & foundations', careerBand: 'Junior → repo-ready reader', description: 'Hyperscale overview, state-machine vocabulary, blockchain literacy—before the tx-flow map.' },
-        { level: 2, title: 'Flow map & phase I', careerBand: 'Mid-level → pipeline thinker', description: 'Consensus, transaction-flow diagram, Phase 1 submit→mempool.' },
-        { level: 3, title: 'Phases II–IV', careerBand: 'Senior-minded → pipeline depth', description: 'Propose→commit through cross-shard outline (hands-on harness labs come next).' },
-        { level: 4, title: 'Single-shard simulation harness', careerBand: 'Senior → deterministic tests', description: 'Simulation harness analysis + single-shard simulation E2E hands-on.' },
-        { level: 5, title: 'Single-shard production harness', careerBand: 'Senior → production wiring', description: 'Production E2E harness + single-shard production hands-on; then CAP and sharding vocabulary.' },
-        { level: 6, title: 'Cross-shard theory & E2E labs', careerBand: 'Senior → cross-shard engineer', description: 'Hyperscale cross-shard reading, then simulation and production cross-shard E2E hands-on labs.' },
-        { level: 7, title: 'Execution, timing & measurement', careerBand: 'Staff- → execution & ops', description: 'Radix execution boundary, liveness timers, hyperscale-sim performance lab.' },
-        { level: 8, title: 'Cryptography & P2P', careerBand: 'Staff- → crypto & networking context', description: 'libp2p introduction and signature/QC roles in the node.' }
+        { level: 1, title: 'Orientation & foundations', careerBand: 'Basic → repo-ready reader', description: 'Hyperscale overview, state-machine vocabulary, blockchain literacy—before the tx-flow map.' },
+        { level: 2, title: 'Flow map & phase I', careerBand: 'Basic → pipeline thinker', description: 'Consensus, transaction-flow diagram, Phase 1 submit→mempool.' },
+        { level: 3, title: 'Phases II–IV', careerBand: 'In-depth → pipeline depth', description: 'Propose→commit through cross-shard outline (hands-on harness labs come next).' },
+        { level: 4, title: 'Single-shard simulation harness', careerBand: 'In-depth → deterministic tests', description: 'Simulation harness analysis + single-shard simulation E2E hands-on.' },
+        { level: 5, title: 'Single-shard production harness', careerBand: 'In-depth → production wiring', description: 'Production E2E harness + single-shard production hands-on; then CAP and sharding vocabulary.' },
+        { level: 6, title: 'Cross-shard theory & E2E labs', careerBand: 'In-depth → cross-shard engineer', description: 'Hyperscale cross-shard reading, then simulation and production cross-shard E2E hands-on labs.' },
+        { level: 7, title: 'Execution, timing & measurement', careerBand: 'In-depth → execution & ops', description: 'Radix execution boundary, liveness timers, hyperscale-sim performance lab.' },
+        { level: 8, title: 'Cryptography & P2P', careerBand: 'In-depth → crypto & networking context', description: 'libp2p introduction and signature/QC roles in the node.' }
     ],
     levels: {
         basic: {
@@ -111,7 +111,7 @@ const COURSE_DATA = {
                     duration: '1.5–2 hours',
                     difficulty: 'Level 2',
                     path: 'hyperscale/hyperscale-rs/module-phase-01-submit-to-mempool.html',
-                    description: 'Staff-level drill on RPC, crossbeam, gossip, validation, per-validator mempool.',
+                    description: 'In-depth drill on RPC, crossbeam, gossip, validation, per-validator mempool.',
                     objectives: [
                         'Trace one single-shard tx from wallet RPC to Pending on validators',
                         'Explain why gossip runs even for same-shard submit',
@@ -127,7 +127,7 @@ const COURSE_DATA = {
                     duration: '1.5–2 hours',
                     difficulty: 'Level 3',
                     path: 'hyperscale/hyperscale-rs/module-phase-02-propose-vote-commit.html',
-                    description: 'Staff drill on propose → vote → QC → commit; BFT coordinator paths and in-repo proofs (replaces legacy BFT module).',
+                    description: 'In-depth drill on propose → vote → QC → commit; BFT coordinator paths and in-repo proofs (replaces legacy BFT module).',
                     objectives: [
                         'Explain proposer_for vs should_propose and why there is no ProposalTimer',
                         'Trace BuildProposal → ProposalBuilt → vote → QC → commit_block',
