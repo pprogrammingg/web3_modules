@@ -15,7 +15,7 @@
     <div class="course-content">
         <div class="course-header">
             <h1>Phase 2: Propose → Vote → Commit</h1>
-            <p class="course-header-lede">In-depth drill on big-flow <strong>steps 7–11</strong> (single shard): event-driven proposals, BLS votes, QC formation, two-chain commit, mempool status transitions. Assumes <a href="module-phase-01-submit-to-mempool.html">Phase 1</a> (<code>Pending</code> txs).</p>
+            <p class="course-header-lede">In-depth walk through big-flow <strong>steps 7–11</strong> on one shard: who proposes, how validators vote, how a <span class="glossary-term" data-glossary="quorum certificate">quorum certificate</span> appears, when blocks become final, and how the <span class="glossary-term" data-glossary="mempool">mempool</span> reacts. Assumes <a href="module-phase-01-submit-to-mempool.html">Phase 1</a> left txs in <code>Pending</code>. Each section tells the human story first; code excerpts are evidence.</p>
             <div class="course-meta">
                 <span>⏱️ ~1.5–2 hours</span>
                 <span>📊 In-depth</span>
@@ -87,12 +87,9 @@
         </div>
 
         <div class="section">
-            <h2>1 — Proposer selection (step 7)</h2>
-            <p>Leader is <strong>deterministic</strong> from topology — not voted per block:</p>
-            <ul>
-                <li><code>topology.proposer_for(height, round)</code> — round-robin over the shard’s ordered committee list: <code>committee[(height + round) % committee.len()]</code>. The array slot <em>is</em> a <code>ValidatorId</code>; every honest node derives the same proposer from height and round alone.</li>
-                <li><code>topology.should_propose(height, round)</code> — <code>true</code> only when that returned id equals <strong>this node’s</strong> <code>local_validator_id</code> (only the designated proposer dispatches <code>BuildProposal</code>).</li>
-            </ul>
+            <h2>1 — Who gets to propose this block? (step 7)</h2>
+            <p>The shard does <strong>not</strong> vote on “who should be leader for this block.” Everyone runs the same formula: given block height and round number, look up the next validator in a fixed round-robin over the committee list. If you know height 42 and round 1, every honest node computes the same leader id—no election message required.</p>
+            <p>On your machine, a second check asks: “Is that leader <em>me</em>?” Only then does this process build and broadcast a block. Followers still validate and vote; they just do not assemble the proposal bytes.</p>
             <div class="hs-gotcha">
                 <strong>Gotcha — small committees:</strong> With 5 validators, the same node is proposer again every 5 heights at round 0. That is expected round-robin, not “unfair repetition.”
             </div>
@@ -115,12 +112,10 @@ pub fn should_propose(&amp;self, height: BlockHeight, round: Round) -&gt; bool {
         <div class="section">
             <h2>2 — Roles: proposer, BFT coordinator, vote aggregator</h2>
             <p class="module-footnote module-footnote--tight">Proof snippets below are trimmed from the <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> tree. Ellipsis (<code>...</code>) hides boilerplate; follow <code>data-file</code> links for full sources.</p>
-            <p>Three names get conflated; they are different jobs on the <strong>same</strong> validator process:</p>
-            <ul class="module-tight-prose">
-                <li><strong>Proposer (leader)</strong> — one committee member per <code>(height, round)</code>, from <code>proposer_for</code>. Only that validator should dispatch <code>Action::BuildProposal</code> when <code>should_propose</code> is true.</li>
-                <li><strong><code>BftCoordinator</code></strong> — lives on <strong>every</strong> validator; not elected. It tracks chain height, pending blocks, vote sets, QCs, view change, and commit rules. You do not “pick” a coordinator—each node runs its own copy and must reach the same decisions given the same messages.</li>
-                <li><strong>QC aggregator</strong> — also <strong>any</strong> validator that collects 2f+1 <code>BlockVote</code>s for the same block hash. The proposer is not special here: whoever hits quorum first (or forms votes locally after voting) can run <code>VerifyAndBuildQuorumCertificate</code>. Others usually learn the QC from the next block’s <code>parent_qc</code>.</li>
-            </ul>
+            <p>Three names get conflated; they are different hats worn inside the <strong>same</strong> validator program:</p>
+            <p><strong>The proposer (leader)</strong> is whoever the round-robin says should package the next block at this height and round—only that machine should actually build and broadcast the proposal.</p>
+            <p><strong>The BFT coordinator</strong> is the consensus brain every validator runs locally—not a person elected over the network. It remembers pending blocks, votes, certificates, timeouts, and commit rules. Each peer has its own copy; they must converge given the same messages.</p>
+            <p><strong>The QC builder</strong> is whichever validator first collects enough votes on a block hash—often the proposer, but not by rule. Others usually learn the resulting certificate from the <em>next</em> block’s parent link instead of a dedicated QC broadcast.</p>
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — <code>BftCoordinator</code> is per-node state machine state, not a network role</p>
                 <div class="code-block"><pre><code class="language-rust">// crates/bft/src/coordinator.rs — struct BftCoordinator { ... }
@@ -153,26 +148,26 @@ pub fn should_propose(&amp;self, height: BlockHeight, round: Round) -&gt; bool {
                 <div class="hs-phase-step hyperscale">
                     <div class="hs-phase-step-num">A</div>
                     <div>
-                        <h3><code>queue_ready_proposal()</code></h3>
-                        <p>Sets the <span class="glossary-term" data-glossary="proposal latch">proposal latch</span>: “after this event, ask whether we should build.” It does not enqueue txs into BFT—it only schedules a check.</p>
+                        <h3>Something changed—maybe we should propose</h3>
+                        <p>When a new tx lands in the <span class="glossary-term" data-glossary="mempool">mempool</span>, a <span class="glossary-term" data-glossary="quorum certificate">QC</span> forms, or a block commits, the node flips a small <span class="glossary-term" data-glossary="proposal latch">proposal latch</span>: “after I finish handling this event, check whether there is block material worth packaging.” That latch is not a queue of transactions—it is a reminder to look.</p>
                     </div>
                 </div>
                 <div class="hs-phase-step hyperscale">
                     <div class="hs-phase-step-num">B</div>
                     <div>
-                        <h3><code>try_event_driven_proposal</code></h3>
-                        <p>At the end of <code>NodeStateMachine::handle</code>, if the latch was set, the node gathers <code>ready_transactions()</code>, finalized waves, and provisions, then calls <code>bft.try_propose(...)</code> (<a href="#" data-file="crates/node/src/state/proposal.rs" target="_blank" rel="noopener">proposal.rs</a>).</p>
+                        <h3>Gather what could go in the next block</h3>
+                        <p>At the end of the current state-machine turn, if the latch was set, the node collects ready txs, finalized execution waves, and cross-shard provisions—whatever the protocol allows into the next height—and asks the BFT layer whether to act. Still no block bytes on the wire; this is planning.</p>
                     </div>
                 </div>
                 <div class="hs-phase-step hyperscale">
                     <div class="hs-phase-step-num">C</div>
                     <div>
-                        <h3><code>try_propose</code> — the gate before bytes</h3>
-                        <p>If you are not the designated proposer, or you already have a <code>BuildProposal</code> in flight for this height/round, or vote locks forbid it, <code>try_propose</code> returns nothing and life goes on—no error storm, just defer. When the gates pass, it emits <code>Action::BuildProposal</code> and the IoLoop runner does the heavy IO.</p>
+                        <h3>Only the leader builds—and only if the gates allow</h3>
+                        <p>If this validator is not the designated proposer for this height and round, nothing happens (quiet defer). If a build is already in flight for the same slot, or vote locks forbid re-proposing, same story. When the stars align, the node requests a block build and the I/O layer reads storage, assembles header and body, and returns when done.</p>
                     </div>
                 </div>
             </div>
-            <p>This phase is the canonical <strong>BFT coordinator</strong> reading—in-repo proofs plus judgment about timing and failure modes.</p>
+            <p>There is still <strong>no alarm clock</strong> that proposes every N milliseconds—only this “something changed → gather → maybe build” dance, plus <span class="glossary-term" data-glossary="view change">view change</span> when the leader stalls.</p>
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — latch + post-dispatch <code>try_propose</code> (no ProposalTimer)</p>
                 <div class="code-block"><pre><code class="language-rust">// crates/bft/src/coordinator.rs
@@ -198,15 +193,11 @@ if !self.can_propose(topology_snapshot, next_height, round) { return vec![]; }
         </div>
 
         <div class="section">
-            <h2>5 — Build block (step 8)</h2>
-            <p>Think of this as a relay race inside one validator: BFT decides <em>whether</em> and <em>what</em> to propose; the IoLoop runner and storage layer actually <em>construct</em> the block bytes.</p>
-            <ol class="module-tight-prose">
-                <li><strong><code>Action::BuildProposal</code></strong> — the pinned IoLoop executes the action (<a href="#" data-file="crates/node/src/io_loop/actions.rs" target="_blank" rel="noopener">actions.rs</a>). This is the handoff from “consensus brain” to “IO + storage muscle.”</li>
-                <li><strong><code>action_handlers::build_proposal</code></strong> — reads the versioned ledger through storage (the <span class="glossary-term" data-glossary="jellyfish merkle tree">Jellyfish Merkle Tree</span> / <span class="glossary-term" data-glossary="jvt">JVT</span> layer), computes the new <span class="glossary-term" data-glossary="state root">state root</span>, and assembles <code>BlockHeader</code> plus body from the candidate txs, finalized waves, and provisions (<a href="#" data-file="crates/bft/src/action_handlers.rs" target="_blank" rel="noopener">action_handlers.rs</a>). The <code>BftCoordinator</code> never touches these bytes—it only requested the build.</li>
-                <li><strong><code>ProtocolEvent::ProposalBuilt</code></strong> — async storage work finished; the result re-enters the state machine as an event.</li>
-                <li><strong><code>on_proposal_built</code></strong> — stores a <code>PendingBlock</code>, gossips the header + <span class="glossary-term" data-glossary="block manifest">manifest</span>, and schedules this node’s own <code>BlockVote</code> (BLS, not user Ed25519).</li>
-            </ol>
-            <p><strong>Why a <span class="glossary-term" data-glossary="merkle tree">Merkle tree</span> here?</strong> The header’s state root is a single hash that commits to the entire key–value ledger after applying this block. Peers verify proposals and votes against that root without replaying every key. The JMT is the sparse fixed-depth tree hyperscale-rs uses for that commitment—see glossary for JMT vs plain Merkle roots on tx lists.</p>
+            <h2>5 — The leader actually builds the block (step 8)</h2>
+            <p>Think of a relay inside one validator: consensus has decided <em>that</em> this node may propose and <em>which</em> txs, waves, and provisions to try; storage and networking now do the heavy lifting.</p>
+            <p>First, the hot thread hands work to the block builder: read the ledger’s versioned state (the <span class="glossary-term" data-glossary="jellyfish merkle tree">Jellyfish Merkle Tree</span> / <span class="glossary-term" data-glossary="jvt">JVT</span> layer), compute the new <span class="glossary-term" data-glossary="state root">state root</span>, and pack a header plus body. The BFT coordinator never assembles those bytes—it only asked for the job.</p>
+            <p>When storage finishes, the result comes back as an internal “proposal built” event. The leader stores the block as pending, sends peers a <strong>header</strong> and a hash-only <span class="glossary-term" data-glossary="block manifest">manifest</span> (table of contents—not the user’s Radix manifest from Phase 1), and signs its own validator vote (BLS committee crypto, not wallet Ed25519).</p>
+            <p><strong>Why a <span class="glossary-term" data-glossary="merkle tree">Merkle tree</span>?</strong> The state root in the header is one fingerprint of the whole ledger after this block. Peers can check agreement without replaying every key. Tx lists in the block also use Merkle-style commitments; the JMT is the key–value state piece—hover the glossary entries for the distinction.</p>
             <div class="hs-gotcha">
                 <strong>Gotcha — stale <code>ProposalBuilt</code>:</strong> A separate in-flight proposal tracker ties storage callbacks to the dispatched <code>BuildProposal</code>. Late callbacks for an old height/round are dropped so repeated <code>try_propose</code> cannot double-broadcast.
             </div>
@@ -221,9 +212,9 @@ return self.build_and_dispatch_proposal(
         </div>
 
         <div class="section">
-            <h2>6 — Peers receive header + manifest (still step 8)</h2>
-            <p>Gossip delivers <code>BlockHeaderNotification</code>: a <strong>header</strong> (hashes, roots, proposer, <code>parent_qc</code>) plus a <strong><span class="glossary-term" data-glossary="block manifest">manifest</span></strong>—ordered lists of tx hashes, finalized wave ids, and provision hashes. That is <em>not</em> the Radix user manifest from Phase 1; it is the block’s table of contents so peers know what to fetch.</p>
-            <p><code>ProtocolEvent::BlockHeaderReceived</code> kicks the verification pipeline: check proposer identity, manifest caps, state/provision roots, timestamp monotonicity, and consistency with what we already know. If the header passes, the validator emits <code>PersistAndBroadcastVote</code>—a BLS <span class="glossary-term" data-glossary="block vote">BlockVote</span> on the header’s block hash. If bodies are still missing, the block stays in <code>PendingBlock</code> until the fetch protocol fills gaps (cleanup timer evicts stuck pendings—see <a href="module-09-timing.html">timing module</a>).</p>
+            <h2>6 — Other validators read the proposal (still step 8)</h2>
+            <p>The leader does not email everyone a full block first. Peers receive a compact <strong>header</strong> (who proposed, parent certificate, cryptographic roots) and a <strong><span class="glossary-term" data-glossary="block manifest">manifest</span></strong>—essentially a packing list of tx hashes, wave ids, and provision hashes. Bodies can arrive afterward via fetch if something was missing locally.</p>
+            <p>Each follower checks: was this really the right proposer? do the roots and timestamps make sense? does the manifest match what we can reconstruct? If yes, the validator signs a committee <span class="glossary-term" data-glossary="block vote">vote</span> agreeing to that block hash. If pieces are still missing, the block waits in a pending slot until data shows up or the cleanup timer gives up (<a href="module-09-timing.html">timing module</a>).</p>
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — manifest type and gossip shape</p>
                 <div class="code-block"><pre><code class="language-rust">// crates/types/src/block/manifest.rs
