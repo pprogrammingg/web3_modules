@@ -40,6 +40,10 @@ echo "== 5. quiz highlight contract =="
 node tests/test-quiz.js
 
 echo ""
+echo "== 5b. glossary contract (expand link + anchor ids) =="
+node tests/glossary-contract.js
+
+echo ""
 echo "== 6. mobile-test page present =="
 test -f mobile-test.html
 grep -q 'common/styles.css' mobile-test.html

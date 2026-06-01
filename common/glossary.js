@@ -1139,11 +1139,34 @@ GLOSSARY_ENTRIES.forEach((entry) => {
   if (!GLOSSARY[key]) GLOSSARY[key] = obj;
 });
 
+/** Stable fragment id for glossary.html entries (must match renderGlossaryPage). */
+const glossaryTermAnchorId = (entryKey, lookupKey) => {
+  const raw = entryKey || lookupKey || '';
+  return (
+    'term-' +
+    raw
+      .replace(/\s+/g, '-')
+      .replace(/[^a-zA-Z0-9-]/g, '')
+      .toLowerCase()
+  );
+};
+
+/**
+ * Resolve common/glossary.html from the page’s stylesheet link (same base as styles.css).
+ * Fallback paths were wrong for hyperscale-rs (../glossary.html does not exist).
+ */
 const getGlossaryPath = () => {
-  const p = window.location.pathname;
-  if (p.includes('/solana-core/')) return '../../common/glossary.html';
-  if (p.includes('/basic/') || p.includes('/hyperscale-rs/')) return '../glossary.html';
-  return 'glossary.html';
+  const styleLink =
+    document.getElementById('main-styles') ||
+    document.querySelector('link[rel="stylesheet"][href*="styles.css"]');
+  if (styleLink?.href) {
+    return new URL('glossary.html', styleLink.href).href;
+  }
+  try {
+    return new URL('common/glossary.html', window.location.href).href;
+  } catch {
+    return 'common/glossary.html';
+  }
 };
 
 function renderGlossaryPage() {
@@ -1175,7 +1198,7 @@ function renderGlossaryPage() {
     section.innerHTML = '<h2 class="glossary-category-title">' + escapeHtml(cat) + '</h2><div class="glossary-entries"></div>';
     const entriesEl = section.querySelector('.glossary-entries');
     (byCat[cat] || []).forEach((item) => {
-      const termId = 'term-' + (item.key || slug(item.term));
+      const termId = glossaryTermAnchorId(item.key, item.term);
       const subCatTags = (item.subCategory || []).map((c) => '<span class="glossary-tag">' + escapeHtml(c) + '</span>').join(' ');
       const entryEl = document.createElement('article');
       entryEl.className = 'glossary-entry';
@@ -1202,28 +1225,61 @@ function renderGlossaryPage() {
   }
 }
 
+const TOOLTIP_GAP_PX = 2;
+/** Invisible bridge above popup so pointer can leave the term without closing (see .glossary-tooltip::before). */
+const TOOLTIP_BRIDGE_PX = 14;
+
 const positionTooltip = (tooltip, rect) => {
   const w = 320;
-  let h = 180;
-  let left = rect.left + (rect.width / 2) - (w / 2);
-  let top = rect.bottom + 8;
+  const h = tooltip.offsetHeight || 180;
+  let left = rect.left + rect.width / 2 - w / 2;
+  let top = rect.bottom + TOOLTIP_GAP_PX;
   if (left + w > window.innerWidth) left = window.innerWidth - w - 10;
   if (left < 10) left = 10;
-  if (top + h > window.innerHeight && rect.top > h) top = rect.top - h - 8;
-  tooltip.style.left = left + 'px';
-  tooltip.style.top = top + 'px';
+  const bridge = TOOLTIP_BRIDGE_PX;
+  if (top + h - bridge > window.innerHeight && rect.top > h) {
+    top = rect.top - h - TOOLTIP_GAP_PX;
+    tooltip.classList.add('glossary-tooltip--above');
+  } else {
+    tooltip.classList.remove('glossary-tooltip--above');
+  }
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
 };
 
 function initializeGlossary() {
   const path = getGlossaryPath();
-  let hoverTimeout, activeTooltip = null;
+  /** Grace period before hiding—enough to move from term to popup across the gap. */
+  const HIDE_DELAY_MS = 350;
+  let hideTimeout = null;
+  let activeTooltip = null;
 
-  const closeActiveTooltip = () => {
-    if (activeTooltip) {
-      activeTooltip.style.display = 'none';
-      activeTooltip = null;
+  const cancelHide = () => {
+    if (hideTimeout) {
+      clearTimeout(hideTimeout);
+      hideTimeout = null;
     }
-    clearTimeout(hoverTimeout);
+  };
+
+  const scheduleHide = (tooltip) => {
+    cancelHide();
+    hideTimeout = setTimeout(() => {
+      if (activeTooltip === tooltip) {
+        tooltip.style.display = 'none';
+        activeTooltip = null;
+      }
+      hideTimeout = null;
+    }, HIDE_DELAY_MS);
+  };
+
+  const showTooltip = (el, tooltip) => {
+    cancelHide();
+    if (activeTooltip && activeTooltip !== tooltip) {
+      activeTooltip.style.display = 'none';
+    }
+    activeTooltip = tooltip;
+    tooltip.style.display = 'block';
+    positionTooltip(tooltip, el.getBoundingClientRect());
   };
 
   document.querySelectorAll('[data-glossary]').forEach((el) => {
@@ -1232,7 +1288,10 @@ function initializeGlossary() {
     if (!def) return;
 
     el.classList.add('glossary-term');
-    const termId = def.key ? `term-${def.key}` : `term-${key.replace(/\s+/g, '-')}`;
+    if (!el.hasAttribute('tabindex') && !el.matches('a, button, input, select, textarea')) {
+      el.setAttribute('tabindex', '0');
+    }
+    const termId = glossaryTermAnchorId(def.key, key);
     const expandUrl = `${path}#${termId}`;
 
     const tooltip = document.createElement('div');
@@ -1244,31 +1303,18 @@ function initializeGlossary() {
       (def.explain10yo ? `<p class="tooltip-10yo"><em>Explain to 10 year old:</em> ${def.explain10yo}</p>` : '') +
       `</div>` +
       `<div class="tooltip-footer">` +
-      `<a href="${expandUrl}" class="tooltip-expand" target="_blank" rel="noopener" onclick="event.stopPropagation()">Expand →</a>` +
+      `<a href="${expandUrl}" class="tooltip-expand" rel="noopener">Expand →</a>` +
       `</div>`;
     document.body.appendChild(tooltip);
 
-    el.addEventListener('mouseenter', () => {
-      closeActiveTooltip();
-      activeTooltip = tooltip;
-      tooltip.style.display = 'block';
-      positionTooltip(tooltip, el.getBoundingClientRect());
-    });
+    el.addEventListener('mouseenter', () => showTooltip(el, tooltip));
+    el.addEventListener('mouseleave', () => scheduleHide(tooltip));
 
-    el.addEventListener('mouseleave', () => {
-      hoverTimeout = setTimeout(() => {
-        if (activeTooltip === tooltip) {
-          tooltip.style.display = 'none';
-          activeTooltip = null;
-        }
-      }, 100);
-    });
+    tooltip.addEventListener('mouseenter', cancelHide);
+    tooltip.addEventListener('mouseleave', () => scheduleHide(tooltip));
 
-    tooltip.addEventListener('mouseenter', () => clearTimeout(hoverTimeout));
-    tooltip.addEventListener('mouseleave', () => {
-      tooltip.style.display = 'none';
-      if (activeTooltip === tooltip) activeTooltip = null;
-    });
+    el.addEventListener('focus', () => showTooltip(el, tooltip));
+    el.addEventListener('blur', () => scheduleHide(tooltip));
   });
 }
 

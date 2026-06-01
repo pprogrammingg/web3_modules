@@ -1449,6 +1449,28 @@ body.module-page--hands-on .course-meta span {
     pointer-events: auto;
 }
 
+/* Invisible hover bridge between term and popup (below term) */
+.glossary-tooltip::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -14px;
+    height: 14px;
+}
+
+.glossary-tooltip.glossary-tooltip--above::before {
+    top: auto;
+    bottom: -14px;
+    height: 14px;
+}
+
+.glossary-term:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
 .tooltip-header {
     background: #eff6ff;
     padding: 0.75rem 1rem;
