@@ -33,7 +33,7 @@
             <h2>Prerequisites</h2>
             <ul>
                 <li>Completed <a href="module-hs-improved-cross-shard-simulation-tests.html">Cross-Shard Simulation E2E hands-on</a>.</li>
-                <li>Completed <a href="module-hs-production-e2e-harness.html">production E2E harness analysis</a> and single-shard production hands-on.</li>
+                <li>Completed <a href="module-hs-simulation-harness-analysis.html#production-harness">production E2E harness analysis</a> and single-shard production hands-on.</li>
             </ul>
         </div>
 
@@ -63,10 +63,10 @@
             <ul>
                 <li>Start <strong>two shard groups</strong> (or N validators partitioned by <code>ShardGroupId</code>) with production runner APIs.</li>
                 <li>Submit a cross-shard manifest via the same paths you documented for RPC vs <code>tx_submission_sender</code>.</li>
-                <li>Observe: network up on each group, pinned <code>io-loop</code> threads running, and a wall-clock bounded wait for finalization.</li>
+                <li>Observe: network up on each group, pinned <code>shard-loop</code> threads running, and a wall-clock bounded wait for finalization.</li>
                 <li>Shutdown cleanly (mirror single-shard production test assertions).</li>
             </ul>
-            <p>Reference crates/paths from <a href="module-hs-production-e2e-harness.html">production harness analysis</a>.</p>
+            <p>Reference crates/paths from <a href="module-hs-simulation-harness-analysis.html#production-harness">production harness analysis</a>.</p>
         </div>
 
         <div class="section project-step" id="step-4">
@@ -88,13 +88,13 @@
 
         <div class="section">
             <h2>Next</h2>
-            <p>Continue to <a href="module-06-execution.html">Transaction Execution &amp; Radix Engine</a>.</p>
+            <p>Continue to <a href="module-10-performance-measurement.html">Performance measurement</a>.</p>
         </div>
 
         <div class="navigation">
             <a href="module-hs-improved-cross-shard-simulation-tests.html" class="btn btn-secondary">← Cross-shard simulation E2E</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="module-06-execution.html" class="btn btn-primary">Execution &amp; Radix Engine →</a>
+            <a href="module-10-performance-measurement.html" class="btn btn-primary">Performance measurement →</a>
             <a href="../index.html" class="btn btn-secondary">Back to Course</a>
         </div>
     </div>

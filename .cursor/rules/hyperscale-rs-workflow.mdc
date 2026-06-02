@@ -7,7 +7,7 @@ alwaysApply: false
 # Hyperscale-rs workflow
 
 - **Links:** From `common/hyperscale-flow-data.js` only. Use `data-crate`, `data-file`, `data-repo`; load `hyperscale-flow-data.js` + `hyperscale-links.js`. No hardcoded repo URLs in HTML.
-- **After hyperscale-rs changes:** Run `node scripts/reflect-changes.js hyperscale` (path in `scripts/hyperscale-repo.config.js`); re-check the modules it lists. Legacy: `check-hyperscale-changes.js`.
+- **After hyperscale-rs changes:** Run `node scripts/reflect-changes.js hyperscale` (path in `scripts/hyperscale-repo.config.js`); re-check the modules it lists; then `node tests/hyperscale-reflect-contract.js` or `bash tests/run-all.sh`. Legacy: `check-hyperscale-changes.js`. Bulk renames: `node scripts/apply-hyperscale-repo-reflect.js`.
 - **Tables:** Use `<div class="table-wrap">` and `<table class="flow-steps">`. Step column is narrow by default; if the first column has long text (e.g. stage names), add class `flow-steps-wide-first` to the table. See `common/styles.css` for `.flow-steps` and `.content-table`.
 - **Module shell:** `site-home-bar` with Hyperscale hub + All tracks; `.course-content` sections (shared CSS — no nested grey panels). See **`common/MODULE_PAGE.md`**.
 

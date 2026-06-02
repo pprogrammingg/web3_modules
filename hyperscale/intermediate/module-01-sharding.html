@@ -2,86 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sharding & Cross-Shard Transactions</title>
-    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
-    <script src="../../common/ensure-styles.js"></script>
+    <meta http-equiv="refresh" content="0;url=../hyperscale-rs/module-phase-04-cross-shard-tx.html">
+    <title>Redirect — Sharding concepts</title>
+    <link rel="stylesheet" href="../../common/styles.css">
 </head>
 <body>
     <nav class="site-home-bar">
-        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
-        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
+        <a href="../index.html" class="site-home-link">← Hyperscale</a>
     </nav>
-    <div class="course-content">
-        <div class="course-header">
-            <h1>Sharding & Cross-Shard Transactions</h1>
-            <div class="course-meta">
-                <span>⏱️ Duration: 1.5–2 hours</span>
-                <span>📊 Difficulty: Intermediate</span>
-                <span>📚 General (any blockchain)</span>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>Learning Objectives</h2>
-            <ul>
-                <li>Understand <span data-glossary="sharding">sharding</span> concepts and why they matter for scalability</li>
-                <li>Understand provision coordination (proofs across shards)</li>
-                <li>Learn <span data-glossary="livelock">livelock</span> prevention in cross-shard flow</li>
-            </ul>
-        </div>
-
-        <div class="section">
-            <h2>What is Sharding?</h2>
-            <p><span data-glossary="sharding">Sharding</span> splits the system into multiple subsets (shards), each maintaining its own subset of state and running consensus among a subset of validators. Benefits include higher throughput (parallel execution) and smaller per-shard state. The challenge is <strong>cross-shard transactions</strong>: when a single logical transaction touches state on more than one shard, the system must coordinate so that the outcome is atomic (all shards commit or all abort).</p>
-        </div>
-
-        <div class="section">
-            <h2>Two-Phase Commit (2PC)</h2>
-            <p>In <span data-glossary="two-phase commit">2PC</span>, a coordinator drives two phases:</p>
-            <ol>
-                <li><strong>Prepare:</strong> The coordinator asks each participant (here, each involved shard) whether it can commit. Each shard runs its part of the transaction (e.g. <span data-glossary="prepare phase">lock or reserve</span> resources) but does <em>not</em> make the state change visible. It replies yes or no.</li>
-                <li><strong>Commit or Abort:</strong> If <em>all</em> participants vote yes, the coordinator sends <strong>commit</strong> and each applies its state change. If any vote no (or timeout), the coordinator sends <strong>abort</strong> and everyone releases locks; no state change is applied.</li>
-            </ol>
-            <p>This gives atomicity: either every shard commits or none do. The order in which shards prepare and apply updates is fixed (e.g. by shard ID) so all nodes agree on the same outcome.</p>
-        </div>
-
-        <div class="section">
-            <h2>Provision Coordination</h2>
-            <p>Besides 2PC (prepare/commit/abort), cross-shard systems often need <strong>provisions</strong>: after a shard commits its block, it produces a signed proof (e.g. “state at height H for this tx”) and sends it to other shards. A shard that depends on remote state cannot finish its view of the transaction until it has received enough of these proofs (e.g. quorum) from the other involved shards. So there are two coordination ideas:</p>
-            <ul>
-                <li><strong>2PC</strong> – “Can everyone prepare? Commit or abort.”</li>
-                <li><strong>Provisions</strong> – “Do we have quorum of proofs from every other shard we need?” Only then can we consider the cross-shard tx complete on our shard.</li>
-            </ul>
-        </div>
-
-        <div class="section">
-            <h2>Livelock Prevention</h2>
-            <p><strong>Hyperscale-rs implementation note:</strong> the live node uses a <strong>provision-based</strong> cross-shard protocol (not a 2PC coordinator). Overlap resolution is <code>ConflictDetector</code> in <code>crates/execution/src/conflict.rs</code>; post-run stuck-tx reports use <code>crates/simulator/src/livelock.rs</code>. See <a href="../hyperscale-rs/module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>.</p>
-            <p>In cross-shard protocols, <span data-glossary="livelock">livelock</span> can occur if shards keep retrying or re-ordering without ever committing. (Livelock = processes are active but no useful progress; unlike deadlock where everyone is blocked waiting.) Common techniques:</p>
-            <ul>
-                <li><strong>Deterministic order</strong> – Use a fixed order (e.g. by shard ID) for prepare and for applying commits, so all nodes agree on the same sequence.</li>
-                <li><strong>Timeouts and back-off</strong> – If a participant doesn’t respond in time, abort and release resources so the system can make progress elsewhere.</li>
-                <li><strong>Conflict detection</strong> – Detect conflicting transactions and serialize or reject them so the system doesn’t spin forever.</li>
-                <li><strong>Cycle detection and abort</strong> – When two (or more) shards each have a committed tx that depends on the other's state, that's a dependency cycle. Hyperscale-rs resolves overlaps in <strong>execution</strong> via <code>ConflictDetector</code> (<code>crates/execution/src/conflict.rs</code>) with a deterministic loser rule. The simulator's <code>--analyze-livelocks</code> flag (see <code>crates/simulator/src/livelock.rs</code>) only reports stuck txs after a run — it is not the live protocol path.</li>
-            </ul>
-        </div>
-
-        <div class="section">
-            <h2>Next: Hyperscale-rs</h2>
-            <p>This module is the <strong>conceptual intro</strong> to sharding and cross-shard transactions; <strong>Cross-Shard Transactions in Hyperscale-rs</strong> is the implementation. In the next module you’ll see how hyperscale-rs implements these ideas: provision-based coordination only (no 2PC coordinator)—the provisions crate (ProvisionCoordinator) and execution crate (five-phase protocol), and how protocol order (e.g. <code>ShardGroupId</code>) and <span data-glossary="livelock">livelock</span> prevention are handled. Continue to <a href="../hyperscale-rs/module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>.</p>
-        </div>
-
-        <div class="navigation">
-            <a href="../basic/module-03-distributed-systems.html" class="btn btn-secondary">← Distributed systems</a>
-            <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="../hyperscale-rs/module-05-cross-shard.html" class="btn btn-primary">Cross-shard tx →</a>
-        </div>
-    </div>
-
-    <script src="../../common/course-data.js"></script>
-    <script src="../../common/navigation.js"></script>
-    <script src="../../common/glossary.js"></script>
-    <script src="../../common/module-init.js" data-module-id="intermediate-02"></script>
+    <p>This module was removed from the course ladder. General sharding vocabulary and hyperscale-rs cross-shard mechanics now live in <a href="../hyperscale-rs/module-phase-04-cross-shard-tx.html">Phase 4: Cross-Shard Transactions</a> and <a href="../hyperscale-rs/module-01b-tx-flow.html">Transaction Flow</a>.</p>
 </body>
 </html>

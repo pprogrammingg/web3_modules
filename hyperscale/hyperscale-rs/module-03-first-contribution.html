@@ -39,22 +39,22 @@
 
         <div class="section module-tight-prose">
             <h2>1. Docs, tests, and end-to-end (this module’s focus)</h2>
-            <p>Documentation and small unit tests are still the lowest-risk way to learn layout, review culture, and Rust conventions—but <strong>this module’s assignment centers on integration / E2E tests</strong>: same core state machine as production, exercised through the simulation harness (fast, deterministic) and the production harness (real threads, network, storage). Line-by-line tracing of canonical tests lives in <a href="module-hs-production-e2e-harness.html">End-to-end tests: tracing code to flow</a>; read or skim it alongside Segments 1–2 below if you have not already.</p>
+            <p>Documentation and small unit tests are still the lowest-risk way to learn layout, review culture, and Rust conventions—but <strong>this module’s assignment centers on integration / E2E tests</strong>: same core state machine as production, exercised through the simulation harness (fast, deterministic) and the production harness (real threads, network, storage). Line-by-line tracing of canonical tests lives in <a href="module-hs-simulation-harness-analysis.html">End-to-end tests: tracing code to flow</a>; read or skim it alongside Segments 1–2 below if you have not already.</p>
         </div>
 
         <div class="section">
             <h2>2. Practical Assignment</h2>
             <div class="assignment">
                 <h3>Assignment: four segments (~1 hour)</h3>
-                <p><strong>What “trace” means here:</strong> Segments 1–2 ask for <strong>numbered traces in your journal</strong>—steps tied to symbols and blocks you read in the source. That deliverable is prose, not extra prints in the repo. If you add <strong>temporary instrumentation</strong> while exploring, use <strong><code>tracing::debug!</code></strong> (see <code>use tracing::debug</code>) and run with <code>RUST_LOG=debug</code>, consistent with <a href="module-01-overview.html">module 1 — Trace flows end-to-end</a> and <a href="module-hs-production-e2e-harness.html">module 11</a>—not <code>println!</code>, which bypasses log filtering and is easy to leave behind by mistake.</p>
-                <p>Work in order. Each segment is sized for <strong>about 10–25 minutes</strong>—one small win per sitting: a trace you can narrate, a command whose story you understand, then two tight contributions. Checkboxes save in this browser (resume anytime). Deep reference material lives in <a href="module-hs-production-e2e-harness.html">module 11 — End-to-end tests</a>; keep it open in another tab.</p>
+                <p><strong>What “trace” means here:</strong> Segments 1–2 ask for <strong>numbered traces in your journal</strong>—steps tied to symbols and blocks you read in the source. That deliverable is prose, not extra prints in the repo. If you add <strong>temporary instrumentation</strong> while exploring, use <strong><code>tracing::debug!</code></strong> (see <code>use tracing::debug</code>) and run with <code>RUST_LOG=debug</code>, consistent with <a href="module-01-overview.html">module 1 — Trace flows end-to-end</a> and <a href="module-hs-simulation-harness-analysis.html">module 11</a>—not <code>println!</code>, which bypasses log filtering and is easy to leave behind by mistake.</p>
+                <p>Work in order. Each segment is sized for <strong>about 10–25 minutes</strong>—one small win per sitting: a trace you can narrate, a command whose story you understand, then two tight contributions. Checkboxes save in this browser (resume anytime). Deep reference material lives in <a href="module-hs-simulation-harness-analysis.html">module 11 — End-to-end tests</a>; keep it open in another tab.</p>
 
                 <div class="assignment-step-block" id="assignment-segment-1">
                     <div class="assignment-segment-head">
                         <h4>Segment 1 — Simulation: trace one canonical E2E</h4>
                         <span class="assignment-time-pill" title="Adjust to your pace">⏱️ ~10–25 min</span>
                     </div>
-                    <p class="assignment-outcome"><strong>By the end:</strong> You ran <code>test_e2e_single_shard_transaction</code> (or another substantial test in the same file) and can name <em>where</em> setup ends and <em>where</em> the harness drives <code>IoLoop::step</code> toward commit.</p>
+                    <p class="assignment-outcome"><strong>By the end:</strong> You ran <code>test_e2e_single_shard_transaction</code> (or another substantial test in the same file) and can name <em>where</em> setup ends and <em>where</em> the harness drives <code>ShardLoop::run_step</code> toward commit.</p>
                     <p><strong>Where to open:</strong> <a href="#" data-file="crates/simulation/tests/e2e_tests.rs" target="_blank" rel="noopener"><code>crates/simulation/tests/e2e_tests.rs</code></a>. Jump to <code>fn test_e2e_single_shard_transaction</code> (editor search). Skim the module docs (<code>//!</code>) first—they frame what “good” means for this harness.</p>
                     <p class="e2e-code-caption"><strong>Anchor pattern</strong> — simulation tests usually spin a runner, advance simulated time, and inject work; your trace should follow that spine:</p>
                     <pre class="code-block-light"><code>// Illustrative shape — follow the real test body in e2e_tests.rs
@@ -63,7 +63,7 @@ fn test_e2e_single_shard_transaction() {
     // 1. Build SimulationRunner + SimulatedNetwork + storage fixtures
     // 2. Genesis / shard setup to match the scenario
     // 3. Submit tx / drive inputs (same APIs sibling tests use)
-    // 4. runner.run_until(...) or stepping loop — each tick hits IoLoop::step
+    // 4. runner.run_until(...) or stepping loop — each tick hits ShardLoop::run_step
     // 5. flush / settle — simulation flushes batches aggressively each step
     // 6. assert committed state, receipts, or cross-check invariants
 }</code></pre>
@@ -72,7 +72,7 @@ fn test_e2e_single_shard_transaction() {
                         <li><strong>Fixture arrives:</strong> you see <code>SimulationRunner</code> / builder calls and network/storage wiring.</li>
                         <li><strong>Clock domain:</strong> simulated <code>Duration</code> advances—no wall clock.</li>
                         <li><strong>Inputs:</strong> transactions or control messages enter the same paths production uses once inside <code>step</code>.</li>
-                        <li><strong>Step boundary:</strong> each iteration ultimately calls into <code>IoLoop::step</code> (find the call site in the runner loop).</li>
+                        <li><strong>Step boundary:</strong> each iteration ultimately calls into <code>ShardLoop::run_step</code> (find the call site in the runner loop).</li>
                         <li><strong>After step:</strong> simulation-style flushing drains batches immediately—tie this to what you read in module 11.</li>
                         <li><strong>Proof:</strong> assertions on balances, logs, or committed blocks—whatever this test encodes as “done.”</li>
                     </ol>
@@ -98,14 +98,14 @@ fn test_production_runner_with_network() {
     // 1. ProductionRunner::build / temp dirs / RocksDB open
     // 2. Network + storage adapters — Libp2p path, not SimulatedNetwork
     // 3. Genesis and shard bootstrap (may run on async side before pin)
-    // 4. spawn_pinned_loop → run_pinned_loop drives IoLoop::step on std::thread
+    // 4. spawn_shard_loop → run_shard_loop drives ShardLoop::run_step on std::thread
     // 5. Submit work; wall-clock batch flushing (flush_expired_batches)
     // 6. Graceful shutdown + asserts on live behavior
 }</code></pre>
                     <p><strong>Can you run it?</strong> <strong>Yes,</strong> on a normal developer machine that already builds the workspace: it is a standard <code>cargo test</code> integration test. Expect a <strong>slower compile</strong> and test runtime than simulation; native deps (for example RocksDB) must build. Use a single test thread while iterating:</p>
                     <pre class="code-block-light"><code>RUST_LOG=debug cargo test -p hyperscale-production --test e2e_tests test_production_runner_with_network -- --test-threads=1 --nocapture</code></pre>
                     <p class="assignment-run-note">If the binary fails to link on your machine, finish this segment using <strong>module 11’s walkthrough + reading the test source</strong>, write your numbered trace anyway, and note the blocker in your journal—maintainers see this occasionally; CI still proves the path.</p>
-                    <p><strong>Numbered trace:</strong> Again <strong>6–10 steps</strong>, plain English. Explicitly call out one moment where <strong>Tokio/async</strong> hands work to the <strong>pinned <code>io-loop</code></strong> (channels), per module 11.</p>
+                    <p><strong>Numbered trace:</strong> Again <strong>6–10 steps</strong>, plain English. Explicitly call out one moment where <strong>Tokio/async</strong> hands work to the <strong>pinned <code>shard-loop</code></strong> (channels), per module 11.</p>
                     <ul class="assignment-checklist">
                         <li><label class="assignment-check-card" for="assign-trace-prod"><input type="checkbox" id="assign-trace-prod" data-assignment-check="trace-prod" /> <span class="assignment-check-label">Segment 2 done — I ran or deeply read the prod test and wrote a 6–10 step trace contrasting sim vs prod wiring.</span></label></li>
                     </ul>

@@ -37,9 +37,9 @@
             <h2>Why This Diagram?</h2>
             <p>Hyperscale-rs is a <strong>consensus layer</strong>, not a full blockchain stack. This diagram shows the end-to-end path of a transaction from the user to finality, and which parts Hyperscale touches versus which are outside (e.g. wallet, Radix Engine semantics, network client). Hover over each step to see which crates implement it.</p>
             <p><strong>Level 1 placement:</strong> You’ve done Blockchain and Consensus in generic web3 modules; this module gives a single-shard Hyperscale map before systems theory. <strong>Deep dives:</strong> after this map, optional <strong>phase modules</strong> zoom into step groups (start with <a href="module-phase-01-submit-to-mempool.html">Phase 1: Submit → Mempool</a>). Then: <strong>Distributed Systems</strong>, <strong>State Machines</strong>, OSS first PR, Overview, Crate Groups.</p>
-            <p><strong>Where BFT comes in:</strong> Steps 1–6 get the tx into the system (user, network, node, cross-shard determination, <span data-glossary="mempool">mempool</span>, and for cross-shard txs, travel to involved <span data-glossary="sharding">shards</span>). <strong>BFT consensus runs from step 7</strong> (proposer selection) through step 11 (block committed) <em>per <span data-glossary="sharding">shard</span></em>. Steps 12–14 are execution, then (for cross-shard) coordination &amp; composition, then finality.</p>
+            <p><strong>Where BFT comes in:</strong> Steps 1–6 get the tx into the system (user, network, node, cross-shard determination, <span data-glossary="mempool">mempool</span>, and for cross-shard txs, travel to involved <span data-glossary="sharding">shards</span>). <strong>BFT consensus runs from step 7</strong> (proposer selection) through step 11 (<span data-glossary="block commit">block commit</span>) <em>per <span data-glossary="sharding">shard</span></em>. Steps 12–14 are execution, then (for cross-shard) coordination &amp; composition, then finality.</p>
             <div class="info section-tight">
-                <p><strong>Single-shard vs multi-shard (canonical split):</strong> Steps 1–6 are the same. From step 7 onward, <strong>BFT runs per shard</strong> (each shard has its own proposer, block, votes, QC, commit). <strong>Single-shard:</strong> After step 11 (block committed), step 12 (execution) runs immediately—no provisioning. <strong>Multi-shard:</strong> After step 11, the execution crate <strong>registers</strong> the tx with ProvisionCoordinator and waits for <strong>ProvisioningComplete</strong> (quorum of StateProvisions from each required shard); then it runs the five-phase protocol (State Provisioning → Provision Verification → Deterministic Execution → Vote Aggregation → Finalization). There is <strong>no 2PC coordinator</strong> in hyperscale-rs; atomicity is provision-based. See <a href="module-05-cross-shard.html">Cross-Shard Transactions</a> for detail.</p>
+                <p><strong>Single-shard vs multi-shard (canonical split):</strong> Steps 1–6 are the same. From step 7 onward, <strong>BFT runs per shard</strong> (each shard has its own proposer, block, votes, QC, commit). <strong>Single-shard:</strong> After step 11 (<span data-glossary="block commit">block commit</span>), step 12 (execution) runs immediately—no provisioning. <strong>Multi-shard:</strong> After step 11, the execution crate <strong>registers</strong> the tx with ProvisionCoordinator and waits for <strong>ProvisioningComplete</strong> (quorum of StateProvisions from each required shard); then it runs the five-phase protocol (State Provisioning → Provision Verification → Deterministic Execution → Vote Aggregation → Finalization). There is <strong>no 2PC coordinator</strong> in hyperscale-rs; atomicity is provision-based. See <a href="module-phase-04-cross-shard-tx.html">Phase 4: Cross-Shard Transactions</a> and <a href="module-phase-03-execution-waves.html">Phase 3: Execution &amp; Waves</a> for detail.</p>
             </div>
         </div>
 
@@ -161,7 +161,7 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" data-crate="bft" target="_blank" rel="noopener">bft</a> — view, leader election</li>
+                                    <li><a href="#" data-crate="shard" target="_blank" rel="noopener">shard</a> — view, leader election</li>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">core</a> — traits, time</li>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">types</a> — block, validator set</li>
                                 </ul>
@@ -179,7 +179,7 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" data-crate="bft" target="_blank" rel="noopener">bft</a> — proposal logic</li>
+                                    <li><a href="#" data-crate="shard" target="_blank" rel="noopener">shard</a> — proposal logic</li>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">types</a> — Block, BlockHeader</li>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">node</a> — routes protocol events, timers, <code>try_event_driven_proposal</code></li>
                                 </ul>
@@ -197,7 +197,7 @@
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" data-crate="bft" target="_blank" rel="noopener">bft</a> — block validation logic and voting; collects votes</li>
+                                    <li><a href="#" data-crate="shard" target="_blank" rel="noopener">shard</a> — block validation logic and voting; collects votes</li>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">types</a> — Block, Vote, signatures</li>
                                 </ul>
                             </div>
@@ -214,11 +214,11 @@
                             <div class="flow-step-popup">
                                 <h4>Crates &amp; code</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" data-crate="bft" target="_blank" rel="noopener">bft</a> — vote collection, QC build request, <code>latest_qc</code>, block build with <code>parent_qc</code></li>
+                                    <li><a href="#" data-crate="shard" target="_blank" rel="noopener">shard</a> — vote collection, QC build request, <code>latest_qc</code>, block build with <code>parent_qc</code></li>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/types" data-crate="types" target="_blank" rel="noopener">types</a> — <code>BlockHeader.parent_qc</code> in <code>block.rs</code>, <code>QuorumCertificate</code></li>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">core</a> — <code>Action::PersistAndBroadcastVote</code>, <code>Action::VerifyAndBuildQuorumCertificate</code> in <code>action.rs</code></li>
                                 </ul>
-                                <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem;"><strong>Locations:</strong> BFT coordinator in <code>bft/src/coordinator.rs</code> (QC bookkeeping, <code>try_propose</code>, commit pipeline). QC aggregation helpers in <code>bft/src/action_handlers.rs</code> + <code>bft/src/vote_set.rs</code> (<code>build_qc</code>). Line numbers drift—search for the symbol names.</p>
+                                <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem;"><strong>Locations:</strong> <code>ShardCoordinator</code> in <a href="#" data-file="crates/shard/src/coordinator.rs" target="_blank" rel="noopener">shard/src/coordinator.rs</a> (QC bookkeeping, <code>try_propose</code>, commit pipeline). QC aggregation in <a href="#" data-file="crates/shard/src/action_handlers.rs" target="_blank" rel="noopener">action_handlers.rs</a> + <a href="#" data-file="crates/shard/src/vote_set.rs" target="_blank" rel="noopener">vote_set.rs</a> (<code>build_qc</code>). Line numbers drift—search for the symbol names.</p>
                             </div>
                         </div>
                     </div>
@@ -228,13 +228,13 @@
                     <div class="flow-step hyperscale">
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
-                            <div class="flow-step-title">11. Block committed</div>
+                            <div class="flow-step-title">11. <span data-glossary="block commit">Block commit</span></div>
                             <div class="flow-step-desc"><strong>Who:</strong> Every validator <strong>node</strong> in the shard (not only the proposer). Once the commit rule is satisfied (e.g. two-chain: this block and the next have QCs), each node commits. <strong>Commit mechanics:</strong> (1) accept the block as final, (2) append it to the local chain, (3) trigger execution (run the transactions in the block), (4) trigger persistence (write to storage). All honest nodes do this in sync with the agreed order. <a href="module-phase-02-propose-vote-commit.html">Phase 2</a> — commit &amp; mempool transitions.</div>
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">node</a> — CommitBlock action, composition</li>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" data-crate="bft" target="_blank" rel="noopener">bft</a> — commit rule</li>
+                                    <li><a href="#" data-crate="shard" target="_blank" rel="noopener">shard</a> — commit rule</li>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/core" data-crate="core" target="_blank" rel="noopener">core</a> — Action::CommitBlock</li>
                                 </ul>
                                 <p class="outside-note">“Node” = any validator running the NodeStateMachine in this shard; the proposer is one of them. All commit the same block in the same order.</p>
@@ -287,11 +287,11 @@
                         <div class="flow-step-lane hyperscale"></div>
                         <div class="flow-step-body">
                             <div class="flow-step-title">14. Finality &amp; persistence</div>
-                            <div class="flow-step-desc">BFT gives one-round finality (no reorg after QC). State/storage may be in-node or external. Cross-shard finality ties to Phase 4; persistence ops tie to <a href="module-hs-production-e2e-harness.html">Phase 6</a>.</div>
+                            <div class="flow-step-desc">BFT gives one-round finality (no reorg after QC). State/storage may be in-node or external. Cross-shard finality ties to Phase 4; persistence ops tie to <a href="module-hs-simulation-harness-analysis.html#production-harness">E2E harness (prod)</a>.</div>
                             <div class="flow-step-popup">
                                 <h4>Crates</h4>
                                 <ul>
-                                    <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/bft" data-crate="bft" target="_blank" rel="noopener">bft</a> — finality rule</li>
+                                    <li><a href="#" data-crate="shard" target="_blank" rel="noopener">shard</a> — finality rule</li>
                                     <li><a href="https://github.com/flightofthefox/hyperscale-rs/tree/main/crates/node" data-crate="node" target="_blank" rel="noopener">node</a> — state, persistence</li>
                                 </ul>
                             </div>
@@ -305,17 +305,17 @@
                 <h3>Clarifying the flow (multi-shard and proposer)</h3>
                 <p>A few common points to keep straight:</p>
                 <ul>
-                    <li><strong>Proposer is per shard, per round.</strong> The node that receives the tx (e.g. via RPC) belongs to some shard, but that does <em>not</em> make it the proposer. Proposer is chosen <strong>deterministically per shard</strong> (e.g. round-robin by view). So for shard A, “the proposer for this round” is one validator in A; for shard B, it’s one validator in B. They are different nodes. The receiving node just ingests the tx (steps 3–6); the tx lands in <strong>mempool(s)</strong> of every involved shard. The proposer <strong>pulls</strong> from its shard’s mempool when <code>BftCoordinator::try_propose</code> runs after new mempool/QC/provision activity — it doesn’t “receive the tx” specially.</li>
+                    <li><strong>Proposer is per shard, per round.</strong> The node that receives the tx (e.g. via RPC) belongs to some shard, but that does <em>not</em> make it the proposer. Proposer is chosen <strong>deterministically per shard</strong> (e.g. round-robin by view). So for shard A, “the proposer for this round” is one validator in A; for shard B, it’s one validator in B. They are different nodes. The receiving node just ingests the tx (steps 3–6); the tx lands in <strong>mempool(s)</strong> of every involved shard. The proposer <strong>pulls</strong> from its shard’s mempool when <code>ShardCoordinator::try_propose</code> runs after new mempool/QC/provision activity — it doesn’t “receive the tx” specially.</li>
                     <li><strong>Who enqueues in which mempool?</strong> The node that receives the tx (e.g. RPC node) belongs to one shard. It can enqueue the tx in <strong>its own shard’s mempool</strong> (if the tx touches that shard). It cannot directly enqueue into another shard’s mempool — that shard’s mempool lives on that shard’s nodes. So for cross-shard: the receiving node enqueues in its shard’s mempool (step 5) and <strong>sends</strong> the tx (or sub-tx) to the other involved shards (step 6). Nodes in those shards receive it and enqueue it in <strong>their</strong> mempools. So the tx ends up in the mempools of every involved shard, but “enqueue in mempools of every involved shard” is done by the receiving node for its shard and by the other shards’ nodes when they receive the tx.</li>
                     <li><strong>Tx does not “broadcast until it lands on the proposer.”</strong> Once the tx is in the mempools (as above), each shard’s proposer pulls from <em>that shard’s</em> mempool on the next successful <code>try_propose</code> and builds a block. The proposer broadcasts the <strong>block (header)</strong> to <strong>validators in that shard only</strong>, not to other shards.</li>
                     <li><strong>Proposer sends a block to its shard, not “the block” to all shards.</strong> The proposer for <strong>shard S</strong> builds <strong>one block</strong> (header with <code>parent_qc</code> = QC for previous block in S’s chain, plus txs from S’s mempool). It broadcasts that block (or header; full block is assembled via gossip) to <strong>validators in shard S only</strong>. So: one block per shard, broadcast inside that shard. Other shards have their own proposers and their own blocks at the same “logical” time.</li>
                     <li><strong>Voting and execution order.</strong> Validators in <strong>that shard</strong> vote on the <strong>block</strong> (BFT: do we agree on this block?). That yields a QC for that shard’s block. Then the block is committed (step 11). <strong>After</strong> commit, execution runs (step 12): the transactions in the block are run (e.g. via Radix Engine). So: BFT agrees on block → commit → then execute. There is no “each shard votes on validity and reports to the proposer” in the sense of one global proposer; each shard votes on its own block and gets its own QC.</li>
                     <li><strong>Cross-shard: no single “proposer finalizes with all shards’ QCs.”</strong> Each shard has its <strong>own</strong> chain and its <strong>own</strong> QC. For a cross-shard tx, the tx (or sub-tx) is in each involved shard’s mempool; each shard may include it in its block; each shard runs BFT (propose → vote → QC → commit) and then execution. <strong>Atomicity across shards</strong> is achieved by the <strong>provision-based protocol</strong> (step 13): StateProvisions from source shards, ProvisionCoordinator checklist (quorum per required shard), then deterministic execution and certificate aggregation in a fixed order. There is <strong>no 2PC</strong>—no prepare/commit/abort coordinator. There is no single block that “includes the votes (QC) of each shard” — each shard’s block has its own QC in the <em>next</em> block’s header (the normal two-chain rule per shard).</li>
-                    <li><strong>What is the coordinator?</strong> In hyperscale-rs there is no 2PC coordinator; cross-shard flow uses <strong>ProvisionCoordinator</strong> only (provision-based protocol). For the full picture (protocol order, five phases, conflict detection), see the <strong>Intermediate</strong> module <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>.</li>
+                    <li><strong>What is the coordinator?</strong> In hyperscale-rs there is no 2PC coordinator; cross-shard flow uses <strong>ProvisionCoordinator</strong> only (provision-based protocol). For the full picture (protocol order, five phases, conflict detection), see <a href="module-phase-04-cross-shard-tx.html">Phase 4: Cross-Shard Transactions</a> and <a href="module-phase-03-execution-waves.html">Phase 3: Execution &amp; Waves</a>.</li>
                 </ul>
             </div>
 
-            <p class="info section-tight" style="margin-top: 1rem;">For <strong>how cross-shard atomicity works</strong> (provision-based protocol: StateProvision → ProvisionCoordinator → execution), <strong>ProvisionCoordinator</strong> (no 2PC coordinator in hyperscale-rs), <strong>how order is fixed</strong>, manifest vs protocol order, and <strong>concepts</strong> (shards, proposer, NodeID, finality), see the Intermediate module <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>.</p>
+            <p class="info section-tight" style="margin-top: 1rem;">For <strong>how cross-shard atomicity works</strong> (provision-based protocol: StateProvision → ProvisionCoordinator → execution), <strong>how order is fixed</strong> (by <code>ShardGroupId</code>, not manifest line order), and <strong>concepts</strong> (shards, proposer, NodeID, finality), see <a href="module-phase-04-cross-shard-tx.html">Phase 4</a> and <a href="module-phase-03-execution-waves.html">Phase 3</a>.</p>
 
         <div class="section">
             <h2>Crate groupings (code reading order)</h2>
@@ -345,13 +345,13 @@
         <div class="section" id="messaging-transports-inventory">
             <h2>Messaging &amp; transports inventory</h2>
             <p>There is <strong>no</strong> standalone course module titled &ldquo;Messaging and Transports.&rdquo; Messaging and notifications are covered <strong>across</strong> this page (end-to-end path), <a href="../basic/module-04-state-machines.html">State machines &amp; event-driven architecture</a> (how <code>Event</code> / <code>Action</code> and channels compose), the <strong>libp2p</strong> modules in the Hyperscale basic/intermediate/advanced tracks, and the file links in the tables below. Treat these tables as a <strong>reading map</strong>: concrete struct names, lock types (<code>Arc&lt;Mutex&lt;HashSet&lt;…&gt;&gt;&gt;</code> vs alternatives), and exact eviction rules can shift between commits — when in doubt, set breakpoints on the linked paths.</p>
-            <p><strong>How to read the columns.</strong> <em>Message source / destination</em> are logical actors (threads, coordinators, peers). <em>Transport</em> is how bits move (RPC, gossip, in-process call). <em>Lifecycle storage</em> is where the payload or derived state usually sits until the next phase. <em>Pruning / flushing / drainage</em> is what makes that storage go away or become irrelevant. The last column, <strong>Handlers · registration · done</strong>, answers: (a) which functions / traits / closures participate, (b) when they are wired (skip the row if it is always the same boring answer), and (c) how the callee signals completion back into the pinned <code>IoLoop</code> / state machine.</p>
-            <p><strong>Source alignment.</strong> Handler tables below match <a href="#" data-file="crates/node/src/io_loop/network_handlers.rs" target="_blank" rel="noopener">network_handlers.rs</a> and <a href="#" data-file="crates/node/src/io_loop/init.rs" target="_blank" rel="noopener">init.rs</a> in the <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> repo (<code>data-file</code> links open the cited crate paths).</p>
+            <p><strong>How to read the columns.</strong> <em>Message source / destination</em> are logical actors (threads, coordinators, peers). <em>Transport</em> is how bits move (RPC, gossip, in-process call). <em>Lifecycle storage</em> is where the payload or derived state usually sits until the next phase. <em>Pruning / flushing / drainage</em> is what makes that storage go away or become irrelevant. The last column, <strong>Handlers · registration · done</strong>, answers: (a) which functions / traits / closures participate, (b) when they are wired (skip the row if it is always the same boring answer), and (c) how the callee signals completion back into the pinned <code>ShardLoop</code> / state machine.</p>
+            <p><strong>Source alignment.</strong> Handler tables below match <a href="#" data-file="crates/node/src/process_io/network_handlers.rs" target="_blank" rel="noopener">network_handlers.rs</a> and <a href="#" data-file="crates/node/src/process_io/mod.rs" target="_blank" rel="noopener">init.rs</a> in the <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> repo (<code>data-file</code> links open the cited crate paths).</p>
             <p><strong>Suggested pacing.</strong> Each subsection is sized for roughly <strong>8–25 minutes</strong>. The full inventory is about <strong>65–95 minutes</strong> if you read the registry plus all four flow chunks in order; skip what you already know.</p>
             <nav class="messaging-inventory-toc" aria-label="Messaging inventory sections">
                 <ol style="margin: 0.75rem 0 1.25rem 1.25rem; line-height: 1.6;">
                     <li><a href="#messaging-network-registry">Typed network inbound registry</a> — every <code>register_*</code> in one place (~8–12 min)</li>
-                    <li><a href="#messaging-edge-ioloop">Edge &amp; IoLoop</a> — RPC and gossip into the runner (~12–18 min)</li>
+                    <li><a href="#messaging-edge-ioloop">Edge &amp; ShardLoop</a> — RPC and gossip into the runner (~12–18 min)</li>
                     <li><a href="#messaging-node-mempool">Node interior &amp; mempool</a> — pure state machine hop and the tx pool (~12–18 min)</li>
                     <li><a href="#messaging-bft-persist">BFT mesh, commit, disk</a> — proposals, votes, persistence (~15–22 min)</li>
                     <li><a href="#messaging-execution-ops">Execution, cross-shard, ops</a> — after commit, timers, sim, sync (~15–22 min)</li>
@@ -359,7 +359,7 @@
             </nav>
 
             <h3 id="messaging-network-registry">0. Typed network inbound registry (~8–12 min)</h3>
-            <p>Every <strong>typed</strong> inbound path registered on the <code>Network</code> trait is wired in <a href="#" data-file="crates/node/src/io_loop/network_handlers.rs" target="_blank" rel="noopener">network_handlers.rs</a> and invoked from <a href="#" data-file="crates/node/src/io_loop/init.rs" target="_blank" rel="noopener"><code>IoLoop::register_inbound_handlers</code></a> → <code>register_request_handler</code>, <code>register_gossip_handlers</code>, <code>register_notification_handlers</code>. Registration happens <strong>once per node</strong> before the main loop processes traffic — on both <strong>genesis and resume</strong> paths (see comments in <code>init.rs</code>); it is not repeated each round.</p>
+            <p>Every <strong>typed</strong> inbound path registered on the <code>Network</code> trait is wired in <a href="#" data-file="crates/node/src/process_io/network_handlers.rs" target="_blank" rel="noopener">network_handlers.rs</a> and invoked from <a href="#" data-file="crates/node/src/process_io/mod.rs" target="_blank" rel="noopener"><code>ShardLoop::register_inbound_handlers</code></a> → <code>register_request_handler</code>, <code>register_gossip_handlers</code>, <code>register_notification_handlers</code>. Registration happens <strong>once per node</strong> before the main loop processes traffic — on both <strong>genesis and resume</strong> paths (see comments in <code>init.rs</code>); it is not repeated each round.</p>
             <p>The <code>Network</code> trait (<a href="#" data-file="crates/network/src/traits.rs" target="_blank" rel="noopener">crates/network/src/traits.rs</a>) names the dispatch hooks: <code>GossipHandler::on_message</code>, <code>NotificationHandler::on_notification</code>, <code>RequestHandler::handle_request</code>. Outbound <code>Network::request(..., on_response)</code> uses a <strong>per-call</strong> <code>FnOnce(Result&lt;R::Response, RequestError&gt;) -&gt; ResponseVerdict</code> (not listed row-by-row here); that callback is typically registered at fetch time and completes by pushing a <code>NodeInput</code> onto the same <code>event_sender</code> channel as gossip.</p>
             <div class="table-wrap table-wrap--reflow">
                 <table class="hs-suggested-study-table messaging-registry-table">
@@ -391,8 +391,8 @@
                 </table>
             </div>
 
-            <h3 id="messaging-edge-ioloop">1. Edge &amp; IoLoop (~12–18 min)</h3>
-            <p>How a transaction first enters the process: user RPC vs peer gossip. Both converge on <a href="#" data-file="crates/node/src/io_loop/mod.rs" target="_blank" rel="noopener">IoLoop</a> before anything synchronous runs in the state machine.</p>
+            <h3 id="messaging-edge-ioloop">1. Edge &amp; ShardLoop (~12–18 min)</h3>
+            <p>How a transaction first enters the process: user RPC vs peer gossip. Both converge on <a href="#" data-file="crates/node/src/shard_loop/mod.rs" target="_blank" rel="noopener">ShardLoop</a> before anything synchronous runs in the state machine.</p>
             <div class="table-wrap table-wrap--reflow">
                 <table class="flow-steps flow-steps-wide-first messaging-inventory-table">
                     <thead>
@@ -416,34 +416,34 @@
                                 <ul class="handler-detail-list">
                                     <li><strong>Symbols:</strong> Framework route / handler in <code>crates/production</code> (not a <code>Network::register_*</code> hook).</li>
                                     <li><strong>Registered:</strong> When the RPC server is started (node bring-up); independent of <code>register_inbound_handlers</code>.</li>
-                                    <li><strong>Done:</strong> Completes to the client with an HTTP response; any enqueue to <code>IoLoop</code> is an internal follow-up in the production crate.</li>
+                                    <li><strong>Done:</strong> Completes to the client with an HTTP response; any enqueue to <code>ShardLoop</code> is an internal follow-up in the production crate.</li>
                                 </ul>
                             </td>
                         </tr>
                         <tr>
                             <td>RPC or gateway worker</td>
-                            <td><a href="#" data-file="crates/node/src/io_loop/mod.rs" target="_blank" rel="noopener">IoLoop</a> (pinned / dedicated runner thread)</td>
+                            <td><a href="#" data-file="crates/node/src/shard_loop/mod.rs" target="_blank" rel="noopener">ShardLoop</a> (pinned / dedicated runner thread)</td>
                             <td>In-process queue: <code>NodeInput</code> (or equivalent) from the production runner — not libp2p</td>
                             <td>Bounded in-memory queue between &ldquo;network / RPC world&rdquo; and the thread that drives the state machine; backpressure policy is deployment-specific</td>
-                            <td>Drained as IoLoop runs <code>step</code>; on shutdown, remaining items are dropped with teardown. Under overload, policy may drop or reject before enqueue (inspect runner).</td>
+                            <td>Drained as ShardLoop runs <code>step</code>; on shutdown, remaining items are dropped with teardown. Under overload, policy may drop or reject before enqueue (inspect runner).</td>
                             <td>
                                 <ul class="handler-detail-list">
-                                    <li><strong>Symbols:</strong> Production code sends <code>NodeInput::SubmitTransaction</code> (see <code>IoLoop</code> match arms); channel pair with <code>event_sender</code> / receiver.</li>
-                                    <li><strong>Registered:</strong> Channel endpoints created when the runner builds <code>IoLoop</code>, before <code>run()</code>.</li>
+                                    <li><strong>Symbols:</strong> Production code sends <code>NodeInput::SubmitTransaction</code> (see <code>ShardLoop</code> match arms); channel pair with <code>event_sender</code> / receiver.</li>
+                                    <li><strong>Registered:</strong> Channel endpoints created when the runner builds <code>ShardLoop</code>, before <code>run()</code>.</li>
                                     <li><strong>Done:</strong> <code>send</code> on the crossbeam channel; consumer marks work complete when that input is processed in <code>step</code> and any follow-on actions for that turn are dispatched.</li>
                                 </ul>
                             </td>
                         </tr>
                         <tr>
                             <td>Remote validator (same shard)</td>
-                            <td>IoLoop</td>
-                            <td>libp2p gossipsub over QUIC (validator mesh, separate from wallet HTTP) → <a href="#" data-file="crates/node/src/io_loop/network_handlers.rs" target="_blank" rel="noopener">network_handlers</a> → <code>NodeInput::TransactionGossipReceived</code></td>
+                            <td>ShardLoop</td>
+                            <td>libp2p gossipsub over QUIC (validator mesh, separate from wallet HTTP) → <a href="#" data-file="crates/node/src/process_io/network_handlers.rs" target="_blank" rel="noopener">network_handlers</a> → <code>NodeInput::TransactionGossipReceived</code></td>
                             <td>Adapter receive path + validation staging before a <a href="#" data-file="crates/core/src/protocol_event.rs" target="_blank" rel="noopener">ProtocolEvent</a> is emitted; dedupe / &ldquo;already seen&rdquo; structures often live near gossip ingress (pattern: set or map keyed by message id / hash — exact type varies)</td>
-                            <td>Duplicates rejected early (never reach mempool). After acceptance, gossip-derived state may be short-lived; some paths <span data-glossary="tombstone">tombstone</span> or remember ids briefly for idempotency — verify in <a href="#" data-file="crates/node/src/io_loop/step/tx_validation.rs" target="_blank" rel="noopener">tx_validation.rs</a>.</td>
+                            <td>Duplicates rejected early (never reach mempool). After acceptance, gossip-derived state may be short-lived; some paths <span data-glossary="tombstone">tombstone</span> or remember ids briefly for idempotency — verify in <a href="#" data-file="crates/node/src/shard_loop/step/tx_validation.rs" target="_blank" rel="noopener">tx_validation.rs</a>.</td>
                             <td>
                                 <ul class="handler-detail-list">
                                     <li><strong>Symbols:</strong> <code>register_gossip_handler::&lt;TransactionGossip&gt;</code> closure (<code>GossipHandler::on_message</code>); then <code>handle_gossip_received_tx_for_validation</code> → <code>queue_validation</code> → <code>flush_validation_batch</code> spawns <code>DispatchPool::TxValidation</code> closure (<code>tx_validation.rs</code>).</li>
-                                    <li><strong>Registered:</strong> Gossip closure: table §0 (once before loop). Validation pool: bound when <code>IoLoop</code> / dispatch is constructed.</li>
+                                    <li><strong>Registered:</strong> Gossip closure: table §0 (once before loop). Validation pool: bound when <code>ShardLoop</code> / dispatch is constructed.</li>
                                     <li><strong>Done:</strong> Gossip path returns <code>GossipVerdict::Accept</code> to the network layer. Validation worker <code>send(NodeInput::TransactionValidated { … })</code> or <code>TransactionValidationsFailed</code>; <code>handle_transaction_validated</code> then <code>feed_event(ProtocolEvent::TransactionValidated …)</code>.</li>
                                 </ul>
                             </td>
@@ -470,14 +470,14 @@
                         <tr>
                             <td>Decoded network / RPC input</td>
                             <td><a href="#" data-file="crates/node/src/state/mod.rs" target="_blank" rel="noopener">NodeStateMachine</a></td>
-                            <td>Synchronous <code>handle(event) -&gt; Vec&lt;Action&gt;</code> after IoLoop dequeues (see <a href="#" data-file="crates/core/src/traits.rs" target="_blank" rel="noopener">StateMachine</a> trait)</td>
+                            <td>Synchronous <code>handle(event) -&gt; Vec&lt;Action&gt;</code> after ShardLoop dequeues (see <a href="#" data-file="crates/core/src/traits.rs" target="_blank" rel="noopener">StateMachine</a> trait)</td>
                             <td>No durable queue inside the pure state machine — only stack-local work and returned actions</td>
                             <td>Not applicable per event: actions are returned immediately to the runner for side effects.</td>
                             <td>
                                 <ul class="handler-detail-list">
                                     <li><strong>Symbols:</strong> <code>StateMachine::handle</code> / <code>NodeStateMachine::handle</code> (not a libp2p callback).</li>
                                     <li><strong>Registered:</strong> Trait impl bound when the state machine struct is built — not at <code>register_inbound_handlers</code> time.</li>
-                                    <li><strong>Done:</strong> Synchronous return of <code>Vec&lt;Action&gt;</code>; <code>IoLoop::process_actions</code> runs immediately in the caller thread (no channel round-trip for the pure step).</li>
+                                    <li><strong>Done:</strong> Synchronous return of <code>Vec&lt;Action&gt;</code>; <code>ShardLoop::process_actions</code> runs immediately in the caller thread (no channel round-trip for the pure step).</li>
                                 </ul>
                             </td>
                         </tr>
@@ -497,13 +497,13 @@
                         </tr>
                         <tr>
                             <td>Mempool (ordered candidates)</td>
-                            <td><a href="#" data-file="crates/bft/src/coordinator.rs" target="_blank" rel="noopener">BftCoordinator</a> (<code>try_propose</code>, proposal build)</td>
+                            <td><a href="#" data-file="crates/shard/src/coordinator.rs" target="_blank" rel="noopener">ShardCoordinator</a> (<code>try_propose</code>, proposal build)</td>
                             <td>Direct calls from node composition into BFT; not a second network hop</td>
                             <td>Proposal construction buffers (pending txs pulled for the next block header / body)</td>
                             <td>Superseded when a different proposal wins the round, or when the view advances without committing that candidate.</td>
                             <td>
                                 <ul class="handler-detail-list">
-                                    <li><strong>Symbols:</strong> <code>BftCoordinator::try_propose</code>, <code>on_proposal_built</code>, <code>on_qc_formed</code>, … (see <code>coordinator.rs</code>); node glue in <a href="#" data-file="crates/node/src/state/proposal.rs" target="_blank" rel="noopener">state/proposal.rs</a> / <a href="#" data-file="crates/node/src/state/bft.rs" target="_blank" rel="noopener">state/bft.rs</a>.</li>
+                                    <li><strong>Symbols:</strong> <code>ShardCoordinator::try_propose</code>, <code>on_proposal_built</code>, <code>on_qc_formed</code>, … (see <code>coordinator.rs</code>); node glue in <a href="#" data-file="crates/node/src/state/proposal.rs" target="_blank" rel="noopener">state/proposal.rs</a> / <a href="#" data-file="crates/node/src/state/shard.rs" target="_blank" rel="noopener">state/shard.rs</a>.</li>
                                     <li><strong>Registered:</strong> BFT struct is composed into the node state at init; methods run when events/timers schedule them — same for genesis and resume.</li>
                                     <li><strong>Done:</strong> Returns <code>Vec&lt;Action&gt;</code> inline; heavy crypto / build work is delegated separately (next section).</li>
                                 </ul>
@@ -531,12 +531,12 @@
                         <tr>
                             <td>Current round proposer</td>
                             <td>All validators on the shard</td>
-                            <td>Gossip notifications: block header path (see <a href="#" data-file="crates/messages/src/notification/mod.rs" target="_blank" rel="noopener">messages::notification</a>)</td>
+                            <td>Gossip notifications: block header path (see <a href="#" data-file="crates/types/src/network/notification (gossip payloads)" target="_blank" rel="noopener">messages::notification</a>)</td>
                             <td>Encode buffers on send; peers hold BFT &ldquo;pending proposal&rdquo; / header caches until QC or timeout</td>
                             <td>Replaced by higher-round headers or cleared after QC commits the height; view-change paths discard stale pending work.</td>
                             <td>
                                 <ul class="handler-detail-list">
-                                    <li><strong>Symbols:</strong> Sender side: <code>BftCoordinator::on_proposal_built</code> + delegated actions (<code>Action::BroadcastBlockHeader</code>, …) handled by <code>handle_bft_action</code> in <a href="#" data-file="crates/node/src/io_loop/actions.rs" target="_blank" rel="noopener">io_loop/actions.rs</a>. Receivers: <code>register_notification_handler::&lt;BlockHeaderNotification&gt;</code> (§0).</li>
+                                    <li><strong>Symbols:</strong> Sender side: <code>ShardCoordinator::on_proposal_built</code> + delegated actions (<code>Action::BroadcastBlockHeader</code>, …) handled by <code>handle_shard_action</code> in <a href="#" data-file="crates/node/src/shard_loop/actions.rs" target="_blank" rel="noopener">shard_loop/actions.rs</a>. Receivers: <code>register_notification_handler::&lt;BlockHeaderNotification&gt;</code> (§0).</li>
                                     <li><strong>Registered:</strong> Inbound notification closure: once (§0). Delegated spawn: each time matching <code>Action</code>s are emitted.</li>
                                     <li><strong>Done:</strong> Delegated work uses <code>ActionContext::notify</code> → <code>event_sender.send(NodeInput::…)</code>; libp2p send itself is async, but the app callback finishes when the <code>send</code> enqueues the next input.</li>
                                 </ul>
@@ -546,11 +546,11 @@
                             <td>Each validator after verifying header</td>
                             <td>Proposer + peers</td>
                             <td>Gossip: <code>BlockVote</code> (and related notification variants in <code>messages</code>)</td>
-                            <td>Vote bookkeeping in BFT — e.g. <a href="#" data-file="crates/bft/src/vote_keeper.rs" target="_blank" rel="noopener">vote_keeper.rs</a>, <a href="#" data-file="crates/bft/src/pending.rs" target="_blank" rel="noopener">pending.rs</a>, <a href="#" data-file="crates/bft/src/vote_set.rs" target="_blank" rel="noopener">vote_set.rs</a> for QC formation</td>
+                            <td>Vote bookkeeping in BFT — e.g. <a href="#" data-file="crates/shard/src/vote_keeper.rs" target="_blank" rel="noopener">vote_keeper.rs</a>, <a href="#" data-file="crates/shard/src/pending.rs" target="_blank" rel="noopener">pending.rs</a>, <a href="#" data-file="crates/shard/src/vote_set.rs" target="_blank" rel="noopener">vote_set.rs</a> for QC formation</td>
                             <td>Pruned when <strong>QC is built</strong> for the height, or when round / view timers cause cleanup of stale vote maps.</td>
                             <td>
                                 <ul class="handler-detail-list">
-                                    <li><strong>Symbols:</strong> <code>register_notification_handler::&lt;BlockVoteNotification&gt;</code> → <code>NodeInput::Protocol(BlockVoteReceived …)</code>; state routes to <code>BftCoordinator::on_block_vote</code>.</li>
+                                    <li><strong>Symbols:</strong> <code>register_notification_handler::&lt;BlockVoteNotification&gt;</code> → <code>NodeInput::Protocol(BlockVoteReceived …)</code>; state routes to <code>ShardCoordinator::on_block_vote</code>.</li>
                                     <li><strong>Registered:</strong> Notification table §0 (same timing for all rows there — not repeated below).</li>
                                     <li><strong>Done:</strong> Notification closure completes synchronously after <code>send</code>; vote aggregation &ldquo;finishes&rdquo; when the later <code>handle</code> pass returns the next <code>Action</code>s (e.g. toward QC).</li>
                                 </ul>
@@ -564,8 +564,8 @@
                             <td><strong>Archival / compaction</strong> is operator policy, not mempool-style eviction. Unlike RAM pools, on-disk data is retained until configured pruning.</td>
                             <td>
                                 <ul class="handler-detail-list">
-                                    <li><strong>Symbols:</strong> <code>IoLoop::process_action</code> for inline effects; <code>dispatch_delegated_action</code> + <code>handle_bft_action</code> / crypto verify actions for heavy paths; <code>feed_event</code> from commit pipeline (e.g. <code>ProtocolEvent::BlockPersisted</code> in <a href="#" data-file="crates/node/src/io_loop/step/protocol_event.rs" target="_blank" rel="noopener">step/protocol_event.rs</a>).</li>
-                                    <li><strong>Registered:</strong> Delegated pool wiring at <code>IoLoop</code> construction; per-action spawn is dynamic.</li>
+                                    <li><strong>Symbols:</strong> <code>ShardLoop::process_action</code> for inline effects; <code>dispatch_delegated_action</code> + <code>handle_shard_action</code> / crypto verify actions for heavy paths; <code>feed_event</code> from commit pipeline (e.g. <code>ProtocolEvent::BlockPersisted</code> in <a href="#" data-file="crates/node/src/shard_loop/step/protocol_event.rs" target="_blank" rel="noopener">step/protocol_event.rs</a>).</li>
+                                    <li><strong>Registered:</strong> Delegated pool wiring at <code>ShardLoop</code> construction; per-action spawn is dynamic.</li>
                                     <li><strong>Done:</strong> Inline arms finish before <code>process_action</code> returns. Delegated arms call <code>notify</code> to enqueue <code>NodeInput</code> for a later <code>step</code>; block-commit batching uses <code>feed_event</code> / flush per module docs.</li>
                                 </ul>
                             </td>
@@ -597,8 +597,8 @@
                             <td>Drained when the wave completes and transaction / receipt certificates are settled for the affected txs; conflict resolution may drop loser txs per <a href="#" data-file="crates/execution/src/conflict.rs" target="_blank" rel="noopener">ConflictDetector</a> rules.</td>
                             <td>
                                 <ul class="handler-detail-list">
-                                    <li><strong>Symbols:</strong> <code>handle_execution_action</code> (<code>io_loop/actions.rs</code> → <code>dispatch_delegated_action</code>); execution crate <code>on_*</code> routines driven by <code>ProtocolEvent</code>s after commit.</li>
-                                    <li><strong>Registered:</strong> Delegated pool at <code>IoLoop</code> build; work is scheduled when <code>ExecuteTransactions</code> / verify-cert <code>Action</code>s appear.</li>
+                                    <li><strong>Symbols:</strong> <code>handle_execution_action</code> (<code>shard_loop/actions.rs</code> → <code>dispatch_delegated_action</code>); execution crate <code>on_*</code> routines driven by <code>ProtocolEvent</code>s after commit.</li>
+                                    <li><strong>Registered:</strong> Delegated pool at <code>ShardLoop</code> build; work is scheduled when <code>ExecuteTransactions</code> / verify-cert <code>Action</code>s appear.</li>
                                     <li><strong>Done:</strong> Worker calls the same <code>notify</code> closure → <code>NodeInput</code> on <code>event_sender</code>; often <code>Action::Continuation(…)</code> / follow-up <code>ProtocolEvent</code> pattern — see execution action handlers.</li>
                                 </ul>
                             </td>
@@ -612,7 +612,7 @@
                             <td>
                                 <ul class="handler-detail-list">
                                     <li><strong>Symbols:</strong> <code>register_notification_handler::&lt;ProvisionsNotification&gt;</code> (§0); <code>handle_provisions_action</code> for delegated provision fetches; node routes <code>ProtocolEvent::ProvisionsReceived</code> into the provision coordinator.</li>
-                                    <li><strong>Registered:</strong> Notification row §0; provision action handler registered via the same dispatch / <code>IoLoop</code> wiring as other delegated actions.</li>
+                                    <li><strong>Registered:</strong> Notification row §0; provision action handler registered via the same dispatch / <code>ShardLoop</code> wiring as other delegated actions.</li>
                                     <li><strong>Done:</strong> Inbound: synchronous <code>send</code> after verify. Coordinator progress: synchronous state-machine steps plus delegated <code>notify</code> for async verify/fetch legs.</li>
                                 </ul>
                             </td>
@@ -625,7 +625,7 @@
                             <td>One-shot timers fire then unregister; many are <strong>cancelled on view advance</strong> so stale timeouts cannot commit old rounds.</td>
                             <td>
                                 <ul class="handler-detail-list">
-                                    <li><strong>Symbols:</strong> State machine emits <code>Action::SetTimer</code> / <code>CancelTimer</code>; <code>IoLoop</code> buffers <code>TimerOp</code> in <code>pending_timer_ops</code> (<code>mod.rs</code>); runner installs OS / logical timers.</li>
+                                    <li><strong>Symbols:</strong> State machine emits <code>Action::SetTimer</code> / <code>CancelTimer</code>; <code>ShardLoop</code> buffers <code>TimerOp</code> in <code>pending_timer_ops</code> (<code>mod.rs</code>); runner installs OS / logical timers.</li>
                                     <li><strong>Registered:</strong> Runner-specific: production binds wall-clock callbacks that enqueue timer <code>NodeInput</code>s; sim injects timer events — both are <strong>after</strong> loop start, not part of §0.</li>
                                     <li><strong>Done:</strong> Firing is modeled as a normal <code>NodeInput</code> / <code>ProtocolEvent</code> into <code>step</code>; cancellation clears the op without a callback.</li>
                                 </ul>
@@ -633,7 +633,7 @@
                         </tr>
                         <tr>
                             <td>Simulator workload driver</td>
-                            <td>IoLoop / fake network</td>
+                            <td>ShardLoop / fake network</td>
                             <td>Synthetic events from <a href="#" data-file="crates/simulator/src/runner.rs" target="_blank" rel="noopener">simulator</a> / <a href="#" data-file="crates/simulation/src/runner.rs" target="_blank" rel="noopener">simulation</a> instead of real sockets</td>
                             <td>Scheduled event lists and in-memory &ldquo;network&rdquo; queues</td>
                             <td>Emptied per simulation step or at scenario end; use <a href="#" data-file="crates/simulator/src/livelock.rs" target="_blank" rel="noopener">livelock analyzer</a> post-run for stuck txs.</td>
@@ -648,7 +648,7 @@
                         <tr>
                             <td>Sync / fetch protocol (catch-up)</td>
                             <td>Peer nodes</td>
-                            <td>Request/response over libp2p (see <a href="#" data-file="crates/node/src/io_loop/protocol/mod.rs" target="_blank" rel="noopener">io_loop/protocol</a>) — distinct from mempool gossip</td>
+                            <td>Request/response over libp2p (see <a href="#" data-file="crates/node/src/shard_io/mod.rs" target="_blank" rel="noopener">shard_loop/protocol</a>) — distinct from mempool gossip</td>
                             <td>Chunk buffers, block body staging, integrity checks before commit</td>
                             <td>Temporary buffers freed after successful import; failed sync attempts may retry with backoff (runner-specific).</td>
                             <td>
@@ -662,7 +662,7 @@
                     </tbody>
                 </table>
             </div>
-            <p class="hs-suggested-study-lead" style="margin-top: 1rem;"><strong>Why this is not a single &ldquo;messaging crate&rdquo; story.</strong> User ingress, gossip, BFT notifications, execution sidecars, and persistence each use different transports and lifetimes. The <a href="#" data-crate="messages" target="_blank" rel="noopener">messages</a> crate focuses on <strong>serialization and notification types</strong>; <a href="#" data-crate="node" target="_blank" rel="noopener">node</a> wires them into <code>Event</code>s; <a href="#" data-crate="mempool" target="_blank" rel="noopener">mempool</a> and <a href="#" data-crate="bft" target="_blank" rel="noopener">bft</a> own the longest-lived RAM pools until commit or eviction.</p>
+            <p class="hs-suggested-study-lead" style="margin-top: 1rem;"><strong>Why this is not a single &ldquo;messaging crate&rdquo; story.</strong> User ingress, gossip, shard notifications, execution sidecars, and persistence each use different transports and lifetimes. Gossip payloads live under <code>hyperscale_types::network</code>; <a href="#" data-crate="node" target="_blank" rel="noopener">node</a> registers handlers in <code>process_io/network_handlers.rs</code>; <a href="#" data-crate="mempool" target="_blank" rel="noopener">mempool</a> and <a href="#" data-crate="shard" target="_blank" rel="noopener">shard</a> own the longest-lived RAM pools until commit or eviction.</p>
         </div>
 
         <div class="section">
@@ -701,11 +701,11 @@
                         </tr>
                         <tr>
                             <td>Submit + gossip ingress</td>
-                            <td><a href="#" data-file="crates/node/src/io_loop/mod.rs" target="_blank" rel="noopener">crates/node/src/io_loop/mod.rs</a> — <code>SubmitTransaction</code>, validation pipeline</td>
+                            <td><a href="#" data-file="crates/node/src/shard_loop/mod.rs" target="_blank" rel="noopener">crates/node/src/shard_loop/mod.rs</a> — <code>SubmitTransaction</code>, validation pipeline</td>
                         </tr>
                         <tr>
                             <td>Node state machine</td>
-                            <td><a href="#" data-file="crates/node/src/state/mod.rs" target="_blank" rel="noopener">crates/node/src/state/mod.rs</a>, <a href="#" data-file="crates/node/src/state/transactions.rs" target="_blank" rel="noopener">crates/node/src/state/transactions.rs</a> — <code>ProtocolEvent::TransactionValidated</code>; <code>state/bft.rs</code> for commit/QC dispatch</td>
+                            <td><a href="#" data-file="crates/node/src/state/mod.rs" target="_blank" rel="noopener">crates/node/src/state/mod.rs</a>, <a href="#" data-file="crates/node/src/state/transactions.rs" target="_blank" rel="noopener">crates/node/src/state/transactions.rs</a> — <code>ProtocolEvent::TransactionValidated</code>; <code>state/shard.rs</code> for commit/QC dispatch</td>
                         </tr>
                         <tr>
                             <td>Production RPC / runner</td>
@@ -717,7 +717,7 @@
         </div>
 
         <div class="navigation">
-            <a href="../basic/module-02-consensus-basics.html" class="btn btn-secondary">← Previous Module</a>
+            <a href="../basic/module-03-distributed-systems.html" class="btn btn-secondary">← Distributed systems</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
             <a href="module-phase-01-submit-to-mempool.html" class="btn btn-primary">Phase 1 deep dive →</a>
         </div>

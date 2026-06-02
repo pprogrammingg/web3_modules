@@ -27,12 +27,15 @@ echo ""
 echo "== 4b. module-page-contract (curriculum module shell + no deprecated inline) =="
 node tests/module-page-contract.js
 
+echo "== 4c. hyperscale-reflect-contract (course vs hyperscale-rs baseline) =="
+node tests/hyperscale-reflect-contract.js
+
 echo ""
-echo "== 4c. mobile-contract (viewport, table-wrap, shared CSS mobile rules) =="
+echo "== 4d. mobile-contract (viewport, table-wrap, shared CSS mobile rules) =="
 node tests/mobile-contract.js
 
 echo ""
-echo "== 4d. module-surface-contract (CSS cascade: no grey/white module patchwork) =="
+echo "== 4e. module-surface-contract (CSS cascade: no grey/white module patchwork) =="
 node tests/module-surface-contract.js
 
 echo ""

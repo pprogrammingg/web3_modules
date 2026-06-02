@@ -59,7 +59,7 @@
             <p><strong>Tracing:</strong> Use <code>tracing::debug!</code> (or <code>debug!</code> with <code>use tracing::debug</code>). Run the sim with <code>RUST_LOG=debug</code> so these logs show up. Remove or comment out the lines before committing.</p>
 
             <h3>Flow 1: Transaction submit (workload → sim runner → node → mempool)</h3>
-            <p><strong>Overview:</strong> The simulator workload submits a transaction via <code>schedule_initial_event(..., NodeInput::SubmitTransaction { tx })</code>; the node's <code>IoLoop</code> receives it, gossips to shards, and runs the validation batch pipeline. Raw gossip arrives as <code>NodeInput::TransactionGossipReceived</code> (stays inside <code>IoLoop</code>), valid txs surface as <code>NodeInput::TransactionValidated</code>, which becomes <code>ProtocolEvent::TransactionValidated</code> for <code>NodeStateMachine</code>; mempool admission happens in <code>on_transaction_gossip</code>. You see submit → validation → protocol event → pool.</p>
+            <p><strong>Overview:</strong> The simulator workload submits a transaction via <code>schedule_initial_event(..., NodeInput::SubmitTransaction { tx })</code>; the node's <code>ShardLoop</code> receives it, gossips to shards, and runs the validation batch pipeline. Raw gossip arrives as <code>NodeInput::TransactionGossipReceived</code> (stays inside <code>ShardLoop</code>), valid txs surface as <code>NodeInput::TransactionValidated</code>, which becomes <code>ProtocolEvent::TransactionValidated</code> for <code>NodeStateMachine</code>; mempool admission happens in <code>on_transaction_gossip</code>. You see submit → validation → protocol event → pool.</p>
 
             <p><strong>1. Where to add <code>debug!</code></strong></p>
             <div class="table-wrap">
@@ -76,12 +76,12 @@
                     <tr>
                         <td>2</td>
                         <td>Node I/O loop: <code>NodeInput::SubmitTransaction</code> arm, top of block (shard set + gossip).</td>
-                        <td><code>tracing::debug!(tx_hash = ?tx_hash, shards = ?shards, "io_loop: SubmitTransaction received, gossiping to shards");</code></td>
+                        <td><code>tracing::debug!(tx_hash = ?tx_hash, shards = ?shards, "shard_loop: SubmitTransaction received, gossiping to shards");</code></td>
                     </tr>
                     <tr>
                         <td>3</td>
-                        <td><code>IoLoop::step</code>: <code>NodeInput::TransactionGossipReceived</code> arm (<code>crates/node/src/io_loop/mod.rs</code> + <code>io_loop/step/tx_validation.rs</code>) — queues batched validation for inbound gossip; locally submitted txs skip this arm because step 2 already queued validation.</td>
-                        <td><code>tracing::debug!(tx_hash = ?tx_hash, "io_loop: gossip tx received, queued for validation");</code></td>
+                        <td><code>ShardLoop::run_step</code>: <code>NodeInput::TransactionGossipReceived</code> arm (<code>crates/node/src/shard_loop/mod.rs</code> + <code>shard_loop/step/tx_validation.rs</code>) — queues batched validation for inbound gossip; locally submitted txs skip this arm because step 2 already queued validation.</td>
+                        <td><code>tracing::debug!(tx_hash = ?tx_hash, "shard_loop: gossip tx received, queued for validation");</code></td>
                     </tr>
                     <tr>
                         <td>4</td>
@@ -119,7 +119,7 @@
                 <tbody>
                     <tr><td>1</td><td>Workload submits tx to shard nodes</td></tr>
                     <tr><td>2</td><td>Simulation runner receives SubmitTransaction and gossips</td></tr>
-                    <tr><td>3</td><td>Inbound gossip tx queued for validation (<code>IoLoop</code>)</td></tr>
+                    <tr><td>3</td><td>Inbound gossip tx queued for validation (<code>ShardLoop</code>)</td></tr>
                     <tr><td>4</td><td><code>ProtocolEvent::TransactionValidated</code> handed to mempool</td></tr>
                     <tr><td>5</td><td>Tx added to pool (existing or your debug)</td></tr>
                 </tbody>
@@ -234,7 +234,7 @@
             <p>The rest of this module uses the <strong>simulator</strong> (<code>hyperscale-sim</code>): one process, simulated time, in-memory network. To run <strong>real validator nodes</strong> (separate processes, real libp2p, real RocksDB, real RPC), you use the production runner and launch scripts. Below: what it takes and how to do it.</p>
 
             <h3>Production threading (brief)</h3>
-            <p>Validators use the same <code>IoLoop</code> / state machine as simulation, but in production that loop runs on a <strong>dedicated <code>std::thread</code></strong> (the <code>io-loop</code> thread), optionally <strong>pinned to a <span data-glossary="cpu core affinity">CPU core</span></strong> for steadier scheduling, while <strong>Tokio</strong> runs libp2p, timers, and related async work; heavy work is often <strong>offloaded to thread pools</strong> and results return via <strong>channels</strong>. This is not a special “test-only” loop—it is how live nodes advance consensus. For a full explanation (<code>run_pinned_loop</code>, <code>core_affinity::set_for_current</code>, simulation vs production), see <a href="module-hs-production-e2e-harness.html">End-to-end tests: tracing code to flow</a>. A compact “threading ladder” of terms lives in <a href="module-hs-improved-simulation-tests.html">State Machines &amp; Event-Driven Architecture</a>.</p>
+            <p>Validators use the same <code>ShardLoop</code> / state machine as simulation, but in production that loop runs on a <strong>dedicated <code>std::thread</code></strong> (the <code>shard-loop</code> thread), optionally <strong>pinned to a <span data-glossary="cpu core affinity">CPU core</span></strong> for steadier scheduling, while <strong>Tokio</strong> runs libp2p, timers, and related async work; heavy work is often <strong>offloaded to thread pools</strong> and results return via <strong>channels</strong>. This is not a special “test-only” loop—it is how live nodes advance consensus. For a full explanation (<code>run_shard_loop</code>, <code>core_affinity::set_for_current</code>, simulation vs production), see <a href="module-hs-simulation-harness-analysis.html">E2E harnesses (simulation + production)</a>. A compact “threading ladder” of terms lives in <a href="module-hs-improved-simulation-tests.html">State Machines &amp; Event-Driven Architecture</a>.</p>
 
             <h3>Requirements</h3>
             <ul>
@@ -286,7 +286,7 @@
 
         <div class="section">
             <h2>Important crates for overall flows</h2>
-            <p>When studying single-shard and multi-shard flows, focus on the <strong>node</strong>, <strong>mempool</strong>, <strong>bft</strong>, <strong>execution</strong>, and <strong>types</strong> crates; multi-shard adds <strong>provisions</strong> and execution’s cross-shard / <strong>conflict</strong> paths (<code>ConflictDetector</code> in <code>crates/execution/src/conflict.rs</code>). For simulation tracing, use the <strong>simulator</strong> (workload, submit; optional <code>--analyze-livelocks</code>) and <strong>simulation</strong> (runner, network, action dispatch) crates — paths in the study table.</p>
+            <p>When studying single-shard and multi-shard flows, focus on <strong>node</strong>, <strong>mempool</strong>, <strong>shard</strong> (per-shard consensus), <strong>beacon</strong> (validator set / topology), <strong>execution</strong>, and <strong>types</strong>; multi-shard adds <strong>provisions</strong> and <code>ConflictDetector</code> in <code>crates/execution/src/conflict.rs</code>. For simulation tracing, use <strong>simulator</strong> and <strong>simulation</strong> (<code>NodeHost</code>, <code>ShardEvent</code> queue) — paths in the study table.</p>
             <p>See <a href="module-01b-tx-flow.html">Transaction Flow</a> for the stage diagram and crate-group table.</p>
         </div>
 
@@ -316,7 +316,7 @@
                         </tr>
                         <tr>
                             <td>Flow 1 — steps 2–4</td>
-                            <td><a href="#" data-file="crates/node/src/io_loop/mod.rs" target="_blank" rel="noopener">crates/node/src/io_loop/mod.rs</a>, <a href="#" data-file="crates/node/src/io_loop/step/tx_validation.rs" target="_blank" rel="noopener">crates/node/src/io_loop/step/tx_validation.rs</a> (<code>SubmitTransaction</code>, gossip ingress, validation batches), <a href="#" data-file="crates/node/src/io_loop/network_handlers.rs" target="_blank" rel="noopener">crates/node/src/io_loop/network_handlers.rs</a> (wire → <code>TransactionGossipReceived</code>), <a href="#" data-file="crates/node/src/state/transactions.rs" target="_blank" rel="noopener">crates/node/src/state/transactions.rs</a> (<code>ProtocolEvent::TransactionValidated</code> → mempool)</td>
+                            <td><a href="#" data-file="crates/node/src/shard_loop/mod.rs" target="_blank" rel="noopener">crates/node/src/shard_loop/mod.rs</a>, <a href="#" data-file="crates/node/src/shard_loop/step/tx_validation.rs" target="_blank" rel="noopener">crates/node/src/shard_loop/step/tx_validation.rs</a> (<code>SubmitTransaction</code>, gossip ingress, validation batches), <a href="#" data-file="crates/node/src/process_io/network_handlers.rs" target="_blank" rel="noopener">crates/node/src/process_io/network_handlers.rs</a> (wire → <code>TransactionGossipReceived</code>), <a href="#" data-file="crates/node/src/state/transactions.rs" target="_blank" rel="noopener">crates/node/src/state/transactions.rs</a> (<code>ProtocolEvent::TransactionValidated</code> → mempool)</td>
                         </tr>
                         <tr>
                             <td>Flow 1 — step 5</td>
@@ -328,7 +328,7 @@
                         </tr>
                         <tr>
                             <td>Flow 2</td>
-                            <td><a href="#" data-file="crates/simulation/src/runner.rs" target="_blank" rel="noopener">crates/simulation/src/runner.rs</a>, <a href="#" data-file="crates/node/src/state/mod.rs" target="_blank" rel="noopener">crates/node/src/state/mod.rs</a>, <a href="#" data-crate="bft" target="_blank" rel="noopener">crates/bft</a></td>
+                            <td><a href="#" data-file="crates/simulation/src/runner.rs" target="_blank" rel="noopener">crates/simulation/src/runner.rs</a>, <a href="#" data-file="crates/node/src/state/mod.rs" target="_blank" rel="noopener">crates/node/src/state/mod.rs</a>, <a href="#" data-crate="shard" target="_blank" rel="noopener">crates/shard</a></td>
                         </tr>
                         <tr>
                             <td>Flow 3</td>
@@ -336,7 +336,7 @@
                         </tr>
                         <tr>
                             <td>Conceptual crates</td>
-                            <td><a href="#" data-crate="node" target="_blank" rel="noopener">node</a>, <a href="#" data-crate="mempool" target="_blank" rel="noopener">mempool</a>, <a href="#" data-crate="bft" target="_blank" rel="noopener">bft</a>, <a href="#" data-crate="execution" target="_blank" rel="noopener">execution</a>, <a href="#" data-crate="types" target="_blank" rel="noopener">types</a>, <a href="#" data-crate="provisions" target="_blank" rel="noopener">provisions</a>, <a href="#" data-file="crates/execution/src/conflict.rs" target="_blank" rel="noopener">execution/conflict.rs</a>, <a href="#" data-crate="simulator" target="_blank" rel="noopener">simulator</a>, <a href="#" data-crate="simulation" target="_blank" rel="noopener">simulation</a></td>
+                            <td><a href="#" data-crate="node" target="_blank" rel="noopener">node</a>, <a href="#" data-crate="mempool" target="_blank" rel="noopener">mempool</a>, <a href="#" data-crate="shard" target="_blank" rel="noopener">shard</a>, <a href="#" data-crate="beacon" target="_blank" rel="noopener">beacon</a>, <a href="#" data-crate="execution" target="_blank" rel="noopener">execution</a>, <a href="#" data-crate="types" target="_blank" rel="noopener">types</a>, <a href="#" data-crate="provisions" target="_blank" rel="noopener">provisions</a>, <a href="#" data-file="crates/execution/src/conflict.rs" target="_blank" rel="noopener">execution/conflict.rs</a>, <a href="#" data-crate="simulator" target="_blank" rel="noopener">simulator</a>, <a href="#" data-crate="simulation" target="_blank" rel="noopener">simulation</a></td>
                         </tr>
                     </tbody>
                 </table>

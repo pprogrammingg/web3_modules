@@ -15,23 +15,81 @@
     <div class="course-content">
         <div class="course-header">
             <h1>Phase 4: Cross-Shard Transactions</h1>
-            <p class="course-header-lede">Big-flow steps 6, 13–14: gossip to all touched shards, provision-based atomicity (no 2PC), receipts, <code>ConflictDetector</code>.</p>
-            <div class="course-meta"><span>⏱️ ~2 h (outline)</span></div>
+            <p class="course-header-lede">In-depth walk through big-flow <strong>steps 6, 13–14</strong>: how one user transaction reaches every shard it touches, how <strong>provisions</strong> replace a central 2PC coordinator, and how execution waves resume after remote state is proven. Builds on <a href="module-phase-01-submit-to-mempool.html">Phase 1</a> gossip, <a href="module-phase-02-propose-vote-commit.html">Phase 2</a> per-shard BFT, and <a href="module-phase-03-execution-waves.html">Phase 3</a> waves.</p>
+            <div class="course-meta">
+                <span>⏱️ ~1.5–2 hours</span>
+                <span>📊 In-depth</span>
+                <span>🎯 Hyperscale-rs</span>
+            </div>
         </div>
+
+        <div class="hs-phase-hero">
+            <span class="hs-phase-hero-tag">Tx flow phases</span>
+            <div class="hs-phase-scope">
+                <div class="hs-phase-scope-block">
+                    <span class="hs-phase-scope-label">In scope</span>
+                    <ol class="hs-phase-flow" aria-label="Phase 4 in-scope pipeline">
+                        <li><span class="hs-phase-flow-chip">Multi-shard gossip</span></li>
+                        <li><span class="hs-phase-flow-chip">Per-shard BFT</span></li>
+                        <li><span class="hs-phase-flow-chip">CommittedBlockHeader</span></li>
+                        <li><span class="hs-phase-flow-chip">StateProvision</span></li>
+                        <li><span class="hs-phase-flow-chip">ProvisionCoordinator</span></li>
+                        <li><span class="hs-phase-flow-chip">Wave dispatch</span></li>
+                    </ol>
+                </div>
+                <div class="hs-phase-scope-block hs-phase-scope-block--out">
+                    <span class="hs-phase-scope-label">Out of scope</span>
+                    <div class="hs-phase-scope-tags">
+                        <a href="module-hs-simulation-harness-analysis.html" class="hs-scope-pill out">Sim harness EventKey (Phase 5)</a>
+                        <a href="module-hs-simulation-harness-analysis.html#production-harness" class="hs-scope-pill out">Prod harness (Part II)</a>
+                        <a href="module-phase-03-execution-waves.html#radix-engine-boundary" class="hs-scope-pill out">Radix boundary (Phase 3)</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <nav class="hs-phase-roadmap" aria-label="Tx flow phase modules">
             <a href="module-phase-01-submit-to-mempool.html"><span class="phase-num">Phase 1</span>Submit → mempool</a>
             <a href="module-phase-02-propose-vote-commit.html"><span class="phase-num">Phase 2</span>Propose → commit</a>
             <a href="module-phase-03-execution-waves.html"><span class="phase-num">Phase 3</span>Execution &amp; waves</a>
             <a href="module-phase-04-cross-shard-tx.html" class="is-current"><span class="phase-num">Phase 4</span>Cross-shard tx</a>
             <a href="module-hs-simulation-harness-analysis.html"><span class="phase-num">Harness</span>Sim E2E</a>
-            <a href="module-hs-production-e2e-harness.html"><span class="phase-num">Harness</span>Prod E2E</a>
+            <a href="module-hs-simulation-harness-analysis.html#production-harness"><span class="phase-num">Harness</span>Prod E2E</a>
         </nav>
+
         <div class="section">
-            <h2>1 — Gossip to every touched shard (big-flow step 6)</h2>
-            <p class="module-footnote module-footnote--tight">Proof snippets below are trimmed from the <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> tree. Same ingress path as Phase 1 — multi-shard is “more shards in the loop.” Ellipsis (<code>...</code>) hides boilerplate; follow <code>data-file</code> links for full sources.</p>
+            <h2>Maps to the big diagram</h2>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-first">
+                    <thead><tr><th>Big flow step</th><th>This phase</th></tr></thead>
+                    <tbody>
+                        <tr><td>6 Tx to each touched shard</td><td>§1 — multi-shard gossip from declared reads/writes</td></tr>
+                        <tr><td>7–11 BFT per shard</td><td>§2 — independent committees (Phase 2 replay)</td></tr>
+                        <tr><td>12 Execution (cross-shard)</td><td>§5–6 — provisions then wave dispatch (<a href="module-phase-03-execution-waves.html">Phase 3</a>)</td></tr>
+                        <tr><td>13–14 Coordination &amp; composition</td><td>§3–4 — <code>ProvisionCoordinator</code>, no 2PC</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>0 — Prerequisite mental model</h2>
+            <ul class="module-tight-prose">
+                <li><strong>No global mempool.</strong> Each shard committee has its own mempool and BFT instance. A cross-shard tx is the <em>same</em> bytes replicated to every shard it touches; admission is local.</li>
+                <li><strong>No 2PC coordinator.</strong> Atomicity comes from provision-based composition: remote shards commit read/write snapshots in their blocks, target shards verify merkle proofs, then waves execute together. There is no single “transaction manager” process.</li>
+                <li><strong>Trust remote state via headers + QC.</strong> Target shards learn source-shard commits through <code>CommittedBlockHeaderGossip</code> (header + certifying QC + sender BLS attestation). Provisions reference committed <code>state_root</code> and inclusion proofs — not honor-system RPC.</li>
+                <li><strong>Time is still BFT time.</strong> Provision deadlines and execution timeouts use weighted timestamps from commits, aligned with Phase 3.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>1 — Step 6: gossip to every touched shard</h2>
+            <p class="module-footnote module-footnote--tight">Proof snippets are trimmed from the <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> tree.</p>
+            <p>When a node accepts a user transaction, it computes the shard set from <code>declared_reads ∪ declared_writes</code> (hash-modulo routing of <code>NodeId</code>). For each shard in that set, it enqueues gossip — same validation path as Phase 1, repeated per destination committee.</p>
+            <p>A transaction is “cross-shard” when that set has more than one shard id. Single-shard txs never leave the local committee for admission (though they still use the same code path with a set of size one).</p>
             <div class="hs-phase-proof">
-                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — declared reads ∪ writes → per-shard gossip batch</p>
-                <div class="code-block"><pre><code class="language-rust">// crates/node/src/io_loop/step/tx_validation.rs — handle_submit_transaction
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — per-shard enqueue after submit</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/node/src/shard_loop/step/tx_validation.rs — handle_submit_transaction
 let shards: BTreeSet&lt;ShardGroupId&gt; = tx.declared_reads().iter()
     .chain(tx.declared_writes().iter())
     .map(|node_id| shard_for_node(node_id, num_shards)).collect();
@@ -44,25 +102,149 @@ pub fn is_cross_shard_transaction(&amp;self, tx: &amp;RoutableTransaction) -&gt;
 }</code></pre></div>
             </div>
         </div>
+
         <div class="section">
-            <h2>2 — Per-shard mempool &amp; BFT (steps 7–11 each shard)</h2>
-            <p>Each shard committee runs Phase 1 admission and Phase 2 propose/vote/commit independently. No global mempool — only bytes replication + local admission.</p>
+            <h2>2 — Steps 7–11: each shard runs its own BFT</h2>
+            <p>After gossip, every involved shard runs Phase 1 admission and Phase 2 propose → vote → QC → commit <strong>independently</strong>. Heights, rounds, and leaders are per shard. A slow shard does not stop another shard’s chain from advancing, but a cross-shard tx cannot execute on shard B until B has the provision data it needs from shard A’s commits.</p>
+            <p>There is no cross-shard block proposal — only cross-shard <em>messages</em> (gossip, provisions, execution certificates, committed headers).</p>
         </div>
+
         <div class="section">
-            <h2>3 — Provisions &amp; atomic composability (steps 13–14)</h2>
-            <p>After commits, validators emit <code>StateProvision</code> messages; <code>ProvisionCoordinator</code> tracks quorum per required shard before execution proceeds (provision-based — no 2PC coordinator).</p>
+            <h2>3 — Committed headers: how target shards learn source commits</h2>
+            <p>When a block commits on shard S, the block <strong>proposer</strong> gossips <code>CommittedBlockHeader { header, qc }</code> globally (<code>BroadcastCommittedBlockHeader</code>). Receiving shards verify the sender’s BLS attestation over <code>committed_block_header_message(shard, height, block_hash)</code>, then ingest the header through the remote-headers pipeline.</p>
+            <p>That header carries the <code>state_root</code> and <code>provision_root</code> remote validators need to check inclusion proofs. This is separate from block-vote BLS (Phase 2) and from user-tx Ed25519 (Phase 1).</p>
+            <div class="hs-gotcha">
+                <strong>Gotcha — proposer vs every validator:</strong> Every validator commits locally on two-chain; only the proposer is required to broadcast the committed header for cross-shard liveness. Slow or Byzantine proposers trigger fallback fetch paths in <code>RemoteHeaderCoordinator</code>.
+            </div>
             <div class="hs-phase-proof">
-                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — commit fans out to provisions coordinator</p>
-                <div class="code-block"><pre><code class="language-rust">// crates/node/src/state/bft.rs — on_block_committed
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — proposer-only broadcast after commit</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/shard/src/coordinator.rs — commit_one_buffered_block
+if block.header().proposer() == topology_snapshot.local_validator_id() {
+    let committed_header = CommittedBlockHeader::new(block.header().clone(), qc);
+    actions.push(Action::BroadcastCommittedBlockHeader { committed_header });
+}</code></pre></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>4 — Provisions: <code>ProvisionCoordinator</code> and quorum per shard</h2>
+            <p>After a source block commits, validators emit <strong>state provisions</strong> — payloads that prove specific substate for cross-shard readers. The <code>ProvisionCoordinator</code> tracks, per requirement, which remote shards have delivered verified provision data before execution may proceed.</p>
+            <p>Provisions can also be **included in block bodies** via <code>provision_root</code> so all validators on a shard share the same bytes (Byzantine-safe replication). The coordinator prunes committed hashes from the proposer queue, drops past-deadline garbage (prevents endless view-change loops on unverifiable proposals), and schedules fallback fetches when headers are late.</p>
+            <div class="hs-phase-proof">
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — commit fan-out includes provisions</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/node/src/state/shard.rs — on_block_committed
 actions.extend(
     self.provisions.on_block_committed(self.topology.snapshot(), certified),
-);</code></pre></div>
-                <div class="code-block"><pre><code class="language-rust">// crates/core/src/protocol_event.rs (variant)
-StateProvisionsVerified { ... }
-// crates/core/src/action.rs — verify/build provisions off-thread</code></pre></div>
+);
+self.outbound_provisions.on_block_committed(certified.qc().weighted_timestamp());</code></pre></div>
+                <div class="code-block"><pre><code class="language-rust">// crates/provisions/src/coordinator.rs — on_block_committed (excerpt)
+let committed: HashSet&lt;ProvisionHash&gt; =
+    block.provisions().iter().map(|p| p.hash()).collect();
+self.queue.on_block_committed(&amp;committed);
+actions.extend(self.expected.check_timeouts(local_ts).into_iter().map(...));</code></pre></div>
             </div>
-            <p>Deep dive: <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a> · concepts: <a href="../intermediate/module-01-sharding.html">Sharding concepts</a>.</p>
         </div>
+
+        <div class="section">
+            <h2>5 — Five-phase execution protocol (no 2PC)</h2>
+            <p>The execution crate documents the cross-shard lifecycle explicitly. Phases 1–2 are provisioning + conflict detection; Phase 3 is wave-atomic Radix dispatch; Phases 4–5 are execution votes and cross-shard finalization. All of it is driven by events and timeouts on each validator — not a centralized coordinator.</p>
+            <ol class="module-tight-prose">
+                <li><strong>State provisioning</strong> — proposer broadcasts proofs; targets verify against committed headers.</li>
+                <li><strong>Conflict detection</strong> — <code>ConflictDetector</code> aborts overlapping txs deterministically.</li>
+                <li><strong>Wave-atomic execution</strong> — <code>ExecuteCrossShardTransactions</code> when every required provision is present.</li>
+                <li><strong>Vote aggregation</strong> — wave leader builds EC at 2f+1 on receipt root.</li>
+                <li><strong>Finalization</strong> — collect remote shard proofs; <code>finalize_wave</code> → <code>FinalizedWave</code>.</li>
+            </ol>
+            <div class="hs-phase-proof">
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — module docs at top of execution coordinator</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/execution/src/coordinator.rs (file header, abbreviated)
+// Phase 1: State Provisioning — provisions committed via provision_root
+// Phase 2: Conflict Detection — ConflictDetector at commit
+// Phase 3: Wave-Atomic Execution — ExecuteTransactions / ExecuteCrossShardTransactions
+// Phase 4: Vote Aggregation — execution votes → EC
+// Phase 5: Finalization — WaveCertificate / FinalizedWave</code></pre></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>6 — Hooking back to Phase 3 waves</h2>
+            <p>On commit, cross-shard txs register <code>record_required</code> shard sets and may abort early if conflicts demand it. <code>WaveState::absorb_ready_provisions</code> transitions the wave when the last remote shard reports in. Until then, the wave stays idle and <code>WAVE_TIMEOUT</code> may abort the whole wave — freeing the cluster from waiting forever on a missing remote.</p>
+            <p>When provisions land mid-block, later events call back into execution to dispatch and scan for votes — the wave machine is incremental, not “commit only once.”</p>
+        </div>
+
+        <div class="section">
+            <h2>7 — Manifest order vs protocol order (not in Phase 3)</h2>
+            <p>The <strong>Radix Engine</strong> runs manifest instructions sequentially (step 2 depends on step 1). Hyperscale consensus does <strong>not</strong> preserve that instruction order. Instruction analysis walks the manifest and collects <code>declared_reads</code> and <code>declared_writes</code> as <strong>sets</strong> of <span class="glossary-term" data-glossary="nodeid">NodeId</span>s; shard sets come from <code>shard_for_node</code> and are stored in <code>BTreeSet</code> order — coordination proceeds by <strong><code>ShardGroupId</code></strong>, not “account shard first, then LP shard.”</p>
+            <p>Prerequisites between shards are enforced by <strong>provisions</strong>, not by manifest line numbers: shard B cannot finish until it has quorum proofs from every other shard in <code>required_shards</code>.</p>
+            <div class="hs-phase-proof">
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — topology shard sets</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/types/src/topology/snapshot.rs (conceptual)
+// consensus_shards — unique shards of declared_writes
+// provisioning_shards — read-only shards not in consensus set
+// all_shards_for_transaction — union, ordered by ShardGroupId</code></pre></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>8 — Receipt tiers and diagnostics</h2>
+            <p>Execution votes sign over a <strong>global receipt root</strong> built from per-tx outcomes. The type layer separates <code>GlobalReceipt</code>, <code>ConsensusReceipt</code>, and execution metadata — see <code>crates/types/src/receipt/mod.rs</code>. Phase 3 covers wave finalization; this section is the reading map if you are tracing bytes on the wire.</p>
+            <p>For <strong>post-simulation stuck-tx analysis</strong> (not the live protocol path), the simulator exposes <code>--analyze-livelocks</code> via <code>crates/simulator/src/livelock.rs</code>. Live overlap breaking remains <code>ConflictDetector</code> in <code>crates/execution/src/conflict.rs</code>.</p>
+        </div>
+
+        <div class="section">
+            <h2>9 — Design Q&amp;A (curated)</h2>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">Is there a global transaction coordinator?</p>
+                <p><strong>No.</strong> Composition is provision-based: each shard’s BFT commits local evidence; targets verify proofs; execution waves finalize with multi-shard EC agreement. That is the “atomic composability” story without a classic 2PC leader.</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">Why gossip the tx to shards that only read remote state?</p>
+                <p>Because admission, mempool ordering, and BFT inclusion are per-shard. A read on shard B still requires B’s validators to see and validate the transaction bytes under B’s rules before it can execute there after provisions arrive.</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">What if the source shard committed but the header gossip is slow?</p>
+                <p><code>ProvisionCoordinator</code> records expectations and, after timeout, emits fallback <code>Fetch(RemoteProvisions)</code> (and related abandon paths on cleanup). Execution can also flush expected provisions under sync urgency. The system favors liveness with deterministic timeouts over waiting on one gossip path.</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">How is this different from Phase 2 committed-header crypto?</p>
+                <p>Phase 2 explained three BLS paths (votes, parent QC, committed-header relay). Phase 4 uses the third so shard B can trust shard A’s <code>state_root</code> before accepting provisions — then provisions unlock Phase 3 execution on B.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>10 — Design debate: provision-based vs 2PC</h2>
+            <div class="hs-debate">
+                <div class="hs-debate-col pro">
+                    <h4>Provision-based</h4>
+                    <p>No single point of failure; each shard’s QC evidence is locally verifiable; aligns with sharded BFT replication.</p>
+                </div>
+                <div class="hs-debate-col con">
+                    <h4>Cost</h4>
+                    <p>More moving parts (headers, proofs, timeouts, conflict aborts). Debugging “stuck cross-shard tx” needs the full pipeline diagram.</p>
+                    <p><strong>Mitigation:</strong> Follow expectations in <code>ProvisionCoordinator</code> + execution <code>expected_certs</code> metrics; sim livelock analysis tools.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>11 — Phase 4 checklist</h2>
+            <ul>
+                <li>Submit path gossips to all shards in <code>declared_reads ∪ declared_writes</code></li>
+                <li>Each shard: Phase 1 admit + Phase 2 commit independently</li>
+                <li>Proposer broadcasts <code>CommittedBlockHeader</code>; receivers verify sender BLS + QC</li>
+                <li><code>ProvisionCoordinator</code> tracks quorum / timeouts / queue prune on commit</li>
+                <li>Execution waves dispatch only when provisions + conflict rules satisfied</li>
+                <li><strong>Next:</strong> E2E harness observability → <a href="module-hs-simulation-harness-analysis.html">sim harness</a></li>
+            </ul>
+            <p>Broader tx diagram: <a href="module-01b-tx-flow.html">Transaction Flow</a> · Radix boundary: <a href="module-phase-03-execution-waves.html#radix-engine-boundary">Phase 3 §4</a>.</p>
+        </div>
+
+        <div class="section">
+            <h2>Quiz — Phase 4</h2>
+            <p>Pass threshold 70%. Assumes Phases 1–3 plus this module.</p>
+            <div id="quiz-phase-04" class="quiz-container"></div>
+        </div>
+
         <div class="module-actions">
             <button type="button" class="btn btn-primary" id="complete-module-btn">Mark module complete</button>
         </div>
@@ -71,11 +253,109 @@ StateProvisionsVerified { ... }
             <a href="module-hs-simulation-harness-analysis.html" class="btn btn-primary">Simulation harness →</a>
         </nav>
     </div>
+
     <script src="../../common/course-data.js"></script>
     <script src="../../common/hyperscale-flow-data.js"></script>
     <script src="../../common/hyperscale-links.js"></script>
     <script src="../../common/navigation.js"></script>
     <script src="../../common/glossary.js"></script>
     <script src="../../common/module-init.js" data-module-id="hs-phase-04"></script>
+    <script>
+        (function () {
+            const quizQuestions = [
+                {
+                    question: "How does a cross-shard transaction reach all involved shards after local submit?",
+                    options: [
+                        "A central router forwards one copy",
+                        "The ShardLoop enqueues TransactionGossip separately for each shard in declared_reads ∪ declared_writes",
+                        "Only the write shard receives it",
+                        "CommittedBlockHeaderGossip carries the user tx bytes"
+                    ],
+                    correct: 1,
+                    explanation: "tx_validation builds a BTreeSet of shard ids and enqueues per shard — same admit path as Phase 1."
+                },
+                {
+                    question: "Cross-shard atomicity in hyperscale-rs is achieved primarily by:",
+                    options: [
+                        "A global two-phase commit coordinator",
+                        "Provision-based composition with per-shard BFT commits and verified proofs",
+                        "Locking all shards during submit",
+                        "Single mega-block across shards"
+                    ],
+                    correct: 1,
+                    explanation: "Provisions + conflict detector + wave-atomic execution — no 2PC leader in repo."
+                },
+                {
+                    question: "Who typically broadcasts CommittedBlockHeader after a local block commit?",
+                    options: [
+                        "Every validator always",
+                        "The block proposer for that shard",
+                        "The user's wallet",
+                        "MempoolCoordinator"
+                    ],
+                    correct: 1,
+                    explanation: "commit_one_buffered_block pushes BroadcastCommittedBlockHeader only when local validator is header.proposer()."
+                },
+                {
+                    question: "ProvisionCoordinator::on_block_committed helps prevent endless view changes by:",
+                    options: [
+                        "Skipping BFT entirely",
+                        "Pruning committed provisions from the proposer queue and dropping past-deadline uncommitted provisions",
+                        "Deleting all mempools",
+                        "Forcing immediate finalize_wave on every tx"
+                    ],
+                    correct: 1,
+                    explanation: "Queue prune on commit + drop_past_deadline avoids reproposing unverifiable stale provisions."
+                },
+                {
+                    question: "A cross-shard wave can ExecuteCrossShardTransactions when:",
+                    options: [
+                        "Immediately at mempool Pending",
+                        "Required provisions are verified for every needed remote shard (and conflicts resolved)",
+                        "Only after all shards reach the same block height number",
+                        "When QC(H) exists for the user tx hash"
+                    ],
+                    correct: 1,
+                    explanation: "WaveState.dispatch_if_ready checks provisioning tracker; single-shard wave 0 skips remote wait."
+                },
+                {
+                    question: "ConflictDetector resolves overlapping cross-shard locks by:",
+                    options: [
+                        "Random validator lottery",
+                        "Deterministic abort: lower tx hash loses",
+                        "Pausing all shards until manual ops",
+                        "Re-running Phase 2 vote"
+                    ],
+                    correct: 1,
+                    explanation: "Bidirectional overlap checks; loser aborted into WaveState so waves do not deadlock."
+                },
+                {
+                    question: "Per-shard BFT for a cross-shard tx means:",
+                    options: [
+                        "One committee decides for all shards",
+                        "Each touched shard runs its own height/round/proposer timeline",
+                        "Heights are globally synchronized by clock",
+                        "Only the home shard commits"
+                    ],
+                    correct: 1,
+                    explanation: "Independent shard committees; cross-shard messages tie them together, not one BFT instance."
+                },
+                {
+                    question: "Trusted remote state_root on shard B before executing a cross-shard tx usually comes from:",
+                    options: [
+                        "B's mempool guess",
+                        "Committed header + QC from shard A (gossip or fetch) and verified provision proofs",
+                        "User Ed25519 alone",
+                        "Block vote message on shard B"
+                    ],
+                    correct: 1,
+                    explanation: "CommittedBlockHeader carries attested header+QC; provisions prove inclusion against that state."
+                }
+            ];
+            if (typeof initializeQuiz === 'function') {
+                initializeQuiz('quiz-phase-04', quizQuestions, 70);
+            }
+        })();
+    </script>
 </body>
 </html>

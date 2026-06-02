@@ -146,7 +146,7 @@
                         </tr>
                         <tr>
                             <td>Tx finalized metric</td>
-                            <td><a href="#" data-file="crates/node/src/io_loop/actions.rs" target="_blank" rel="noopener">crates/node/src/io_loop/actions.rs</a> — <code>record_transaction_finalized(latency_secs, cross_shard)</code></td>
+                            <td><a href="#" data-file="crates/node/src/shard_loop/actions.rs" target="_blank" rel="noopener">crates/node/src/shard_loop/actions.rs</a> — <code>record_transaction_finalized(latency_secs, cross_shard)</code></td>
                         </tr>
                     </tbody>
                 </table>
@@ -183,7 +183,7 @@ cargo run --release --bin hyperscale-sim -- --seed 42 -s 2 -v 4 -d 60 --tps 1000
 
         <div class="section project-step" id="lab-3">
             <h3>Lab 3 — Map sim metrics to code (15 min read-only)</h3>
-            <p>Open <code>crates/simulator/src/metrics/mod.rs</code> and find where <code>print_summary</code> formats TPS and latency. Then skim one production hook: <code>record_transaction_finalized</code> in <code>crates/node/src/io_loop/actions.rs</code> (study table above).</p>
+            <p>Open <code>crates/simulator/src/metrics/mod.rs</code> and find where <code>print_summary</code> formats TPS and latency. Then skim one production hook: <code>record_transaction_finalized</code> in <code>crates/node/src/shard_loop/actions.rs</code> (study table above).</p>
             <p>In your journal, complete:</p>
             <ul>
                 <li><strong>One</strong> sim-only metric you trust for regression tests</li>
@@ -208,7 +208,7 @@ cargo run --release --bin hyperscale-sim -- --seed 42 -s 2 -v 4 -d 60 --tps 1000
         </div>
 
         <div class="navigation">
-            <a href="module-09-timing.html" class="btn btn-secondary">← Timing</a>
+            <a href="module-hs-improved-cross-shard-production-tests.html" class="btn btn-secondary">← Cross-shard production E2E</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
             <a href="../basic/module-05-libp2p.html" class="btn btn-primary">libp2p →</a>
             <a href="../index.html" class="btn btn-secondary">Back to Course</a>

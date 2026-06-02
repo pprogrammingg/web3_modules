@@ -15,68 +15,341 @@
     <div class="course-content">
         <div class="course-header">
             <h1>Phase 3: Execution &amp; Finalized Waves</h1>
-            <p class="course-header-lede">Big-flow step 12 (single shard): <code>on_block_committed</code>, execution engine boundary, waves, <code>VOTE_RETRY_TIMEOUT</code>, <code>WAVE_TIMEOUT</code>.</p>
-            <div class="course-meta"><span>⏱️ ~1.5 h (outline)</span></div>
+            <p class="course-header-lede">In-depth walk through big-flow <strong>step 12</strong> on one shard: what happens <em>after</em> <a href="module-phase-02-propose-vote-commit.html">Phase 2</a> commits a block — execution coordinator, waves, execution certificates, and how <code>FinalizedWave</code> receipts flow back into the next proposal. Human story first; Rust excerpts are evidence.</p>
+            <div class="course-meta">
+                <span>⏱️ ~1.5–2 hours</span>
+                <span>📊 In-depth</span>
+                <span>🎯 Hyperscale-rs</span>
+            </div>
         </div>
+
+        <div class="hs-phase-hero">
+            <span class="hs-phase-hero-tag">Tx flow phases</span>
+            <div class="hs-phase-scope">
+                <div class="hs-phase-scope-block">
+                    <span class="hs-phase-scope-label">In scope</span>
+                    <ol class="hs-phase-flow" aria-label="Phase 3 in-scope pipeline">
+                        <li><span class="hs-phase-flow-chip">BlockCommitted</span></li>
+                        <li><span class="hs-phase-flow-chip">assign_waves</span></li>
+                        <li><span class="hs-phase-flow-chip">ExecuteTransactions</span></li>
+                        <li><span class="hs-phase-flow-chip">Execution votes → EC</span></li>
+                        <li><span class="hs-phase-flow-chip">finalize_wave</span></li>
+                        <li><span class="hs-phase-flow-chip">FinalizedWavesAdmitted</span></li>
+                    </ol>
+                </div>
+                <div class="hs-phase-scope-block hs-phase-scope-block--out">
+                    <span class="hs-phase-scope-label">Out of scope</span>
+                    <div class="hs-phase-scope-tags">
+                        <a href="module-phase-04-cross-shard-tx.html" class="hs-scope-pill out">Full cross-shard provision protocol (Phase 4)</a>
+                        <a href="module-phase-02-propose-vote-commit.html" class="hs-scope-pill out">BFT propose / vote / commit</a>
+                        <a href="module-phase-01-submit-to-mempool.html" class="hs-scope-pill out">RPC + mempool admit</a>
+                        <a href="#radix-engine-boundary" class="hs-scope-pill out">Radix Engine boundary (below)</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <nav class="hs-phase-roadmap" aria-label="Tx flow phase modules">
             <a href="module-phase-01-submit-to-mempool.html"><span class="phase-num">Phase 1</span>Submit → mempool</a>
             <a href="module-phase-02-propose-vote-commit.html"><span class="phase-num">Phase 2</span>Propose → commit</a>
             <a href="module-phase-03-execution-waves.html" class="is-current"><span class="phase-num">Phase 3</span>Execution &amp; waves</a>
             <a href="module-phase-04-cross-shard-tx.html"><span class="phase-num">Phase 4</span>Cross-shard tx</a>
             <a href="module-hs-simulation-harness-analysis.html"><span class="phase-num">Harness</span>Sim E2E</a>
-            <a href="module-hs-production-e2e-harness.html"><span class="phase-num">Harness</span>Prod E2E</a>
+            <a href="module-hs-simulation-harness-analysis.html#production-harness"><span class="phase-num">Harness</span>Prod E2E</a>
         </nav>
+
         <div class="section">
-            <h2>1 — After commit: execution coordinator</h2>
-            <p class="module-footnote module-footnote--tight">Proof snippets below are trimmed from the <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> tree. Ellipsis (<code>...</code>) hides boilerplate; follow <code>data-file</code> links for full sources.</p>
-            <p>Phase 2’s <code>BlockCommitted</code> fans out to <code>ExecutionCoordinator::on_block_committed</code> — chain time advances from the QC’s <code>weighted_timestamp</code>, then waves/certs/timeouts are processed.</p>
+            <h2>Maps to the big diagram</h2>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-first">
+                    <thead><tr><th>Big flow step</th><th>This phase</th></tr></thead>
+                    <tbody>
+                        <tr><td>11 Block commit (prerequisite)</td><td><a href="module-phase-02-propose-vote-commit.html">Phase 2</a> — <code>BlockCommitted</code> fires</td></tr>
+                        <tr><td>12 Execution</td><td>§1–7 — <code>ExecutionCoordinator</code>, waves, EC, <code>FinalizedWave</code></td></tr>
+                        <tr><td>13–14 Cross-shard coordination</td><td>§8 preview → <a href="module-phase-04-cross-shard-tx.html">Phase 4</a></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>0 — Prerequisite mental model</h2>
+            <ul class="module-tight-prose">
+                <li><strong><span class="glossary-term" data-glossary="block commit">Block commit</span> ≠ “Radix finished.”</strong> Phase 2 made the block part of the committed chain and moved included txs to <code>Committed</code> in the mempool. Phase 3 is where the <strong>execution state machine</strong> runs manifests, collects outcomes, and produces <code>FinalizedWave</code> certificates that a <em>later</em> proposer can put in a block body.</li>
+                <li><strong>Every validator runs execution locally</strong> after its own commit — same pattern as BFT: no central executor. Peers must make the same wave splits and timeout decisions given the same committed blocks and chain time.</li>
+                <li><strong>Chain time for execution</strong> is the QC <code>weighted_timestamp</code> from the last committed block, not your laptop clock. Timeouts like <code>WAVE_TIMEOUT</code> and vote-retry windows are measured against that stamp so all honest nodes abort or retry together.</li>
+                <li><strong>Waves group txs</strong> that share the same cross-shard provision dependency shape within one block. Single-shard txs land in wave <code>0</code> and can execute immediately at commit; cross-shard txs wait until provisions arrive (Phase 4).</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>1 — Where execution sits in the commit fan-out</h2>
+            <p class="module-footnote module-footnote--tight">Proof snippets are trimmed from the <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> tree. Ellipsis (<code>...</code>) hides boilerplate.</p>
+            <p>When <code>ProtocolEvent::BlockCommitted</code> arrives, the node orchestrator in <code>crates/node/src/state/shard.rs</code> notifies subsystems in a fixed order. Execution is deliberately <strong>after</strong> mempool and provision bookkeeping on that block, so conflict detection and queue pruning see the committed provision hashes first.</p>
+            <p>After execution runs, the orchestrator calls <code>bft.queue_ready_proposal()</code> again — finalized waves (and freed in-flight counts) may mean the leader should try another block soon.</p>
             <div class="hs-phase-proof">
-                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — commit hooks execution before/ alongside mempool bookkeeping</p>
-                <div class="code-block"><pre><code class="language-rust">// crates/execution/src/coordinator.rs — on_block_committed
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — commit order: mempool → remote headers → provisions → execution → proposal latch</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/node/src/state/shard.rs — on_block_committed
+self.shard_coordinator.on_block_committed_verification(block_hash);
+actions.extend(self.mempool.on_block_committed(..., certified));
+actions.extend(self.remote_headers.on_block_committed(..., certified));
+actions.extend(self.provisions.on_block_committed(..., certified));
+self.outbound_provisions.on_block_committed(certified.qc().weighted_timestamp());
+actions.extend(self.apply_block_to_execution(certified));
+self.shard_coordinator.queue_ready_proposal();</code></pre></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>2 — <code>ExecutionCoordinator::on_block_committed</code></h2>
+            <p>The execution crate’s coordinator advances <code>committed_height</code> and <code>committed_ts</code> from the certifying QC, then advances the provisioning clock. Even empty blocks run timeout sweeps (execution-cert fallbacks, vote retries, pruning) so lagging remote shards do not stall forever.</p>
+            <p>For a <strong>live</strong> block (normal path with full body), it calls <code>setup_waves_and_dispatch</code>: assign txs to waves, create <code>WaveState</code> machines, register cross-shard txs with the conflict detector, and emit <code>ExecuteTransactions</code> / <code>ExecuteCrossShardTransactions</code> when a wave is already fully provisioned.</p>
+            <div class="hs-gotcha">
+                <strong>Gotcha — <code>Block::Sealed</code> sync path:</strong> Synced blocks may record wave assignments without re-dispatching Radix work; the certificates in the block body are already the source of truth for those heights.
+            </div>
+            <div class="hs-phase-proof">
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — chain time + clock advance at commit</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/execution/src/coordinator.rs — on_block_committed (start)
 if height &gt; self.committed_height {
     self.committed_height = height;
     self.committed_ts = certified.qc().weighted_timestamp();
 }
 self.provisioning.advance_clock(self.committed_ts);
-actions.extend(self.check_exec_cert_timeouts(topology));</code></pre></div>
+actions.extend(self.check_exec_cert_timeouts(topology));
+actions.extend(self.check_vote_retry_timeouts(topology));</code></pre></div>
             </div>
         </div>
+
         <div class="section">
-            <h2>2 — Finalized waves &amp; timeouts</h2>
-            <p>Single-shard txs progress through execution waves; <code>WAVE_TIMEOUT</code> can abort a wave if provisions/certs do not arrive in time (see <code>wave_state.rs</code> module docs).</p>
+            <h2>3 — Waves: assignment and wave <code>0</code></h2>
+            <p><code>assign_waves</code> partitions the block’s transactions by which shards they touch. Wave id <code>0</code> means single-shard: no remote provision set. Cross-shard txs get non-zero wave ids and start in “waiting for provisions” until Phase 4 data arrives.</p>
+            <p>At wave creation, single-shard waves mark themselves provisioned immediately; the coordinator can dispatch Radix execution in the same commit tick. Cross-shard waves call <code>absorb_ready_provisions</code> and only dispatch when every required remote shard has supplied verified provision data.</p>
             <div class="hs-phase-proof">
-                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — wave deadline constant referenced in wave state machine</p>
-                <div class="code-block"><pre><code class="language-rust">// crates/execution/src/wave_state.rs (module docs)
-// ... WAVE_TIMEOUT deadline if still not provisioned — entire wave aborts
-use hyperscale_types::{ ..., WAVE_TIMEOUT, WaveCertificate, WaveId, ... };</code></pre></div>
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — wave loop: assign → WaveState → dispatch_if_ready</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/execution/src/coordinator.rs — setup_waves_and_dispatch
+let waves = assign_waves(topology, block_height, transactions);
+for (wave_id, txs) in waves {
+    let is_single_shard = wave_id.is_zero();
+    let mut wave_state = WaveState::new(wave_id.clone(), block_hash, block_ts, txs, is_single_shard);
+    if !is_single_shard {
+        wave_state.absorb_ready_provisions(&amp;self.provisioning, block_ts);
+    }
+    if let Some(action) = wave_state.dispatch_if_ready(&amp;self.provisioning) {
+        dispatch_actions.push(action);
+    }
+    self.waves.insert_wave(wave_id.clone(), wave_state);
+}</code></pre></div>
             </div>
         </div>
+
+        <div class="section" id="radix-engine-boundary">
+            <h2>4 — Hyperscale-rs vs Radix Engine (execution boundary)</h2>
+            <p><strong>Hyperscale-rs</strong> orders transactions (BFT), coordinates cross-shard provisions, and drives <em>when</em> execution runs. It does not interpret Radix manifests or run Radix Engine instructions.</p>
+            <p><strong>Radix Engine</strong> (external) takes a transaction (e.g. a Radix manifest), runs instructions (<code>CallMethod</code>, <code>TakeFromWorktop</code>, …), and updates Radix-style state. Hyperscale-rs may <strong>analyze</strong> a tx for <code>declared_reads</code> / <code>declared_writes</code> (shard routing), then order and coordinate it; the VM runs in the engine, often via a separate worker the node calls.</p>
+            <p>The <code>execution</code> crate wires committed blocks to that engine: single-shard apply-in-order; cross-shard uses ProvisionCoordinator then <code>ExecutionCoordinator</code> waves (see <a href="module-phase-04-cross-shard-tx.html">Phase 4</a>). State views and persistence may live in storage crates; canonical execution transitions are engine-owned.</p>
+            <p>The coordinator emits <code>Action::ExecuteTransactions</code>; shard_loop workers return <code>ProtocolEvent::ExecutionComplete</code>. Phase 3 is <strong>orchestration + agreement on outcomes</strong> (waves, ECs, <code>FinalizedWave</code>)—not VM opcode semantics.</p>
+        </div>
+
         <div class="section">
-            <h2>3 — <code>ConflictDetector</code> (cross-shard overlap)</h2>
-            <p>Registers local cross-shard txs and stored provisions; detects bidirectional node overlap (deadlock-style conflicts). Full protocol in <a href="module-phase-04-cross-shard-tx.html">Phase 4</a>.</p>
+            <h2>5 — Execution votes, wave leader, and execution certificates</h2>
+            <p>When every non-aborted tx in a wave has an outcome (or <code>WAVE_TIMEOUT</code> fires), <code>scan_complete_waves</code> yields <code>CompletionData</code>. The shard_loop signs and gossips execution votes; the <strong>wave leader</strong> (deterministic function of <code>wave_id</code> and committee) aggregates BLS votes into an <strong>execution certificate (EC)</strong> when 2f+1 power agrees on the same receipt root.</p>
+            <p>Cross-shard waves also track expected ECs from remote shards (via block headers and fallback fetch). When all participating shards are covered, the wave can finalize locally.</p>
+            <div class="hs-gotcha">
+                <strong>Gotcha — vote retry:</strong> If the leader rotates or votes are slow, <code>VOTE_RETRY_TIMEOUT</code> schedules resends so liveness does not depend on one peer’s gossip luck. That is separate from <code>WAVE_TIMEOUT</code>, which aborts the whole wave if provisioning or progress stalls too long.
+            </div>
             <div class="hs-phase-proof">
-                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — explicit two-way timing in struct docs</p>
-                <div class="code-block"><pre><code class="language-rust">// crates/execution/src/conflict.rs
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — wave leader creates VoteTracker; early votes replayed</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/execution/src/coordinator.rs — setup_waves_and_dispatch
+let leader = wave_leader(&amp;wave_id, topology.local_committee());
+if topology.local_validator_id() == leader {
+    let tracker = VoteTracker::new(wave_id.clone(), block_hash, quorum);
+    self.waves.insert_tracker(wave_id.clone(), tracker);
+    votes_to_replay.extend(self.early.drain_votes_for_wave(&amp;wave_id));
+}</code></pre></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>6 — <code>finalize_wave</code> and <code>FinalizedWavesAdmitted</code></h2>
+            <p><code>finalize_wave</code> removes the in-flight <code>WaveState</code>, builds a <code>FinalizedWave</code> (execution certificate + receipt bundle), stores it in <code>FinalizedWaveStore</code>, and emits <code>ProtocolEvent::FinalizedWavesAdmitted</code>. That event is the handoff back to BFT: the next <code>try_propose</code> can select those certificates into a block body, which updates the JMT/state root during <code>build_proposal</code>.</p>
+            <p>Waves fetched from peers go through <code>admit_finalized_wave</code> + BLS verify first; locally finalized waves skip that extra gate because they were built from already-verified ECs.</p>
+            <div class="hs-phase-proof">
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — finalize emits admission continuation</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/execution/src/coordinator.rs — finalize_wave
+let finalized_arc = Arc::new(wave.into_finalized());
+self.finalized.insert(wave_id.clone(), Arc::clone(&amp;finalized_arc));
+vec![Action::Continuation(
+    ProtocolEvent::FinalizedWavesAdmitted { waves: vec![finalized_arc] },
+)]</code></pre></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>7 — Mempool terminals and certificates in the same block</h2>
+            <p>Phase 2 already noted: when a committed block carries <code>certificates()</code>, mempool can move txs to <code>Completed</code> or <code>Aborted</code> in the same <code>on_block_committed</code> pass. Execution drove those certificates in an <em>earlier</em> height’s waves; this block is the ledger record everyone agrees on.</p>
+            <p>Until that certificate is proposed and committed, execution progress and mempool status are related but not identical instants on your node.</p>
+        </div>
+
+        <div class="section">
+            <h2>8 — <code>ConflictDetector</code> preview (full story in Phase 4)</h2>
+            <p>Cross-shard txs declare read/write node sets. When a remote provision commits, the detector checks overlap with local cross-shard txs (and vice versa). Conflicting txs abort deterministically (lower tx hash loses) so the cluster does not deadlock waiting on incompatible locks.</p>
+            <p>Phase 4 explains how provisions arrive; Phase 3 shows the detector runs at wave setup on commit.</p>
+            <div class="hs-phase-proof">
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — bidirectional registration in module docs</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/execution/src/conflict.rs (module-level)
 /// When provisions commit → checked against registered local txs
-/// When local tx registers → checked against stored provision data
-pub fn register_tx(&amp;mut self, tx_hash: TxHash, topology: &amp;TopologySnapshot,
-    declared_reads: &amp;[NodeId], declared_writes: &amp;[NodeId]) -&gt; Vec&lt;DetectedConflict&gt; { ... }</code></pre></div>
+/// When local tx registers → checked against stored provision data</code></pre></div>
             </div>
-            <p>See also <a href="module-06-execution.html">Transaction Execution &amp; Radix Engine</a>.</p>
         </div>
+
+        <div class="section">
+            <h2>9 — Design Q&amp;A (curated)</h2>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">Why does execution wait until after <code>BlockCommitted</code>?</p>
+                <p>Consensus first agrees on ordering and header fields (including the claimed <code>state_root</code> from the proposer’s build). Execution replays committed txs against that anchor. Running Radix before commit would let validators diverge on speculative state that might never be finalized.</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">What is a “wave” in one sentence?</p>
+                <p>A batch of transactions in the same committed block that share the same provision dependency pattern and execute/vote/finalize together under one execution certificate.</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">Who runs Radix — coordinator or engine?</p>
+                <p>The <code>ExecutionCoordinator</code> schedules <code>ExecuteTransactions</code> actions; the engine/shard_loop workers run the VM and return results as events. The coordinator stays deterministic and free of signing keys for execution votes (those are handled in the shard_loop).</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">How do finalized waves get into the chain?</p>
+                <p><code>FinalizedWavesAdmitted</code> feeds the BFT/mempool “ready” inputs; the leader’s next <code>try_propose</code> includes selected <code>FinalizedWave</code> entries in the block body. Peers verify receipts against the EC when validating the proposal, and the state root in the header must match recomputation via <code>prepare_block_commit</code>.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>10 — Phase 3 checklist</h2>
+            <ul>
+                <li><code>BlockCommitted</code> runs mempool, provisions, then <code>execution.on_block_committed</code></li>
+                <li>Single-shard txs dispatch at commit; cross-shard wait on provisions (Phase 4)</li>
+                <li>Wave leader aggregates execution votes into EC; <code>finalize_wave</code> → <code>FinalizedWavesAdmitted</code></li>
+                <li>Timeouts use <code>committed_ts</code> (QC weighted time), not wall clock</li>
+                <li><strong>Next:</strong> cross-shard gossip + provision quorum → <a href="module-phase-04-cross-shard-tx.html">Phase 4</a></li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Quiz — Phase 3</h2>
+            <p>Pass threshold 70%. Assumes Phases 1–2 plus this module.</p>
+            <div id="quiz-phase-03" class="quiz-container"></div>
+        </div>
+
         <div class="module-actions">
             <button type="button" class="btn btn-primary" id="complete-module-btn">Mark module complete</button>
         </div>
         <nav class="navigation module-nav">
-            <a href="module-phase-02-propose-vote-commit.html" class="btn btn-secondary">← Phase 2</a>
+            <a href="module-09-timing.html" class="btn btn-secondary">← Timing</a>
             <a href="module-phase-04-cross-shard-tx.html" class="btn btn-primary">Phase 4 →</a>
         </nav>
     </div>
+
     <script src="../../common/course-data.js"></script>
     <script src="../../common/hyperscale-flow-data.js"></script>
     <script src="../../common/hyperscale-links.js"></script>
     <script src="../../common/navigation.js"></script>
     <script src="../../common/glossary.js"></script>
     <script src="../../common/module-init.js" data-module-id="hs-phase-03"></script>
+    <script>
+        (function () {
+            const quizQuestions = [
+                {
+                    question: "When does ExecutionCoordinator::on_block_committed run relative to mempool on the same block?",
+                    options: [
+                        "Before mempool sees BlockCommitted",
+                        "After mempool and provisions handlers on that block",
+                        "Only on the proposer node",
+                        "Only when the block has zero transactions"
+                    ],
+                    correct: 1,
+                    explanation: "state/shard.rs on_block_committed orders mempool → remote_headers → provisions → apply_block_to_execution."
+                },
+                {
+                    question: "What timestamp drives WAVE_TIMEOUT and vote-retry deadlines on a validator?",
+                    options: [
+                        "System wall clock (Instant::now)",
+                        "The committed block QC's weighted_timestamp (committed_ts)",
+                        "The user's transaction notary timestamp only",
+                        "The ViewChangeTimer interval"
+                    ],
+                    correct: 1,
+                    explanation: "ExecutionCoordinator stores committed_ts from the certifying QC so timeouts are BFT-deterministic."
+                },
+                {
+                    question: "Single-shard transactions in a newly committed live block typically:",
+                    options: [
+                        "Wait for CommittedBlockHeaderGossip from another shard",
+                        "Belong to wave 0 and can dispatch ExecuteTransactions at commit if provisioned",
+                        "Skip execution entirely until phase 4",
+                        "Require a separate PBFT vote per tx"
+                    ],
+                    correct: 1,
+                    explanation: "wave_id.is_zero() marks single-shard waves; they are provisioned at creation and dispatch_if_ready can fire immediately."
+                },
+                {
+                    question: "Who aggregates execution votes into an execution certificate (EC) for a wave?",
+                    options: [
+                        "Any validator at random",
+                        "The deterministic wave leader for that wave_id",
+                        "Only the block proposer from BFT",
+                        "The RPC submitter"
+                    ],
+                    correct: 1,
+                    explanation: "wave_leader(wave_id, committee) creates the VoteTracker; leader collects 2f+1 on the receipt root."
+                },
+                {
+                    question: "What does finalize_wave emit for the rest of the node?",
+                    options: [
+                        "Action::CommitBlock immediately",
+                        "ProtocolEvent::FinalizedWavesAdmitted with FinalizedWave payloads",
+                        "A new BlockVote for the wave id",
+                        "TransactionGossip to all shards"
+                    ],
+                    correct: 1,
+                    explanation: "finalize_wave stores FinalizedWave and Continuation(FinalizedWavesAdmitted) latches proposal inputs."
+                },
+                {
+                    question: "Block commit in Phase 2 vs execution complete in Phase 3 — best distinction:",
+                    options: [
+                        "They are the same instant on all nodes",
+                        "Commit is consensus finality of the block; execution completes outcomes for txs and later certs get proposed in a later block",
+                        "Execution always finishes before commit",
+                        "Only the proposer executes"
+                    ],
+                    correct: 1,
+                    explanation: "Commit includes txs in the chain; Radix + EC + FinalizedWave can span later heights' proposal bodies."
+                },
+                {
+                    question: "ConflictDetector primarily prevents:",
+                    options: [
+                        "Invalid Ed25519 on submit",
+                        "Cross-shard lock cycles by aborting the lower-hash tx deterministically",
+                        "QC aggregation failures",
+                        "Mempool duplicate gossip"
+                    ],
+                    correct: 1,
+                    explanation: "Bidirectional node overlap checks at register_tx / provision commit time break deadlock-style conflicts."
+                },
+                {
+                    question: "After execution processes a committed block, why does bft.queue_ready_proposal() run again?",
+                    options: [
+                        "To replay Phase 1 RPC",
+                        "New finalized waves / in-flight changes may mean the leader should build the next block",
+                        "To reset genesis",
+                        "Because ViewChangeTimer fired"
+                    ],
+                    correct: 1,
+                    explanation: "on_block_committed ends with queue_ready_proposal so event-driven try_propose can pick up new inputs."
+                }
+            ];
+            if (typeof initializeQuiz === 'function') {
+                initializeQuiz('quiz-phase-03', quizQuestions, 70);
+            }
+        })();
+    </script>
 </body>
 </html>

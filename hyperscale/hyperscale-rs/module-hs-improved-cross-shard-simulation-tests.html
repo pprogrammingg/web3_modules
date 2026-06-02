@@ -21,7 +21,7 @@
         <div class="section project-hero">
             <h2>Why this project</h2>
             <p style="margin:0;line-height:1.65;">
-                After <a href="module-05-cross-shard.html">Cross-Shard Transactions in Hyperscale-rs</a>, you run the
+                After <a href="module-phase-04-cross-shard-tx.html">Phase 4: Cross-Shard Transactions</a>, you run the
                 <strong>deterministic multi-shard simulation E2E</strong> in the repo:
                 <code>test_e2e_cross_shard_transaction</code> (six validators, <code>multi_shard_config()</code>).
                 You add trace markers, print per-shard committed heights and transaction status, and relate the polling loop
@@ -34,7 +34,7 @@
             <ul>
                 <li>Local <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> clone with <code>cargo test</code> working.</li>
                 <li>Completed <a href="module-hs-improved-simulation-tests.html">Single-Shard Simulation E2E hands-on</a> (markers, <code>run_until</code>, stats).</li>
-                <li>Skim <a href="module-05-cross-shard.html">cross-shard reading module</a> so provisions and receipt tiers are fresh.</li>
+                <li>Skim <a href="module-phase-04-cross-shard-tx.html">Phase 4</a> (and <a href="module-phase-03-execution-waves.html">Phase 3</a>) so provisions and receipt tiers are fresh.</li>
             </ul>
         </div>
 
@@ -84,7 +84,7 @@
             <h3>Step 5 — Stretch (optional)</h3>
             <ul>
                 <li>Temporarily increase <code>num_shards</code> in <code>multi_shard_config()</code> only in a local branch and document why the seed search loop must find accounts on distinct shards.</li>
-                <li>Compare one line from this test’s final assertions with the provision narrative in <a href="module-05-cross-shard.html">Cross-Shard Transactions</a>.</li>
+                <li>Compare one line from this test’s final assertions with the provision narrative in <a href="module-phase-04-cross-shard-tx.html">Phase 4</a>.</li>
             </ul>
         </div>
 
@@ -103,7 +103,7 @@
         </div>
 
         <div class="navigation">
-            <a href="module-05-cross-shard.html" class="btn btn-secondary">← Cross-shard reading</a>
+            <a href="module-phase-04-cross-shard-tx.html" class="btn btn-secondary">← Phase 4</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
             <a href="module-hs-improved-cross-shard-production-tests.html" class="btn btn-primary">Cross-shard production E2E →</a>
             <a href="../index.html" class="btn btn-secondary">Back to Course</a>

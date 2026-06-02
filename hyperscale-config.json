@@ -16,7 +16,8 @@
     },
     "keyCrates": {
       "core": "crates/core/src",
-      "bft": "crates/bft/src",
+      "shard": "crates/shard/src",
+      "beacon": "crates/beacon/src",
       "node": "crates/node/src",
       "execution": "crates/execution/src",
       "mempool": "crates/mempool/src",

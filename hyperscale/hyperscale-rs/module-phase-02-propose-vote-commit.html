@@ -45,6 +45,7 @@
                         <a href="module-phase-04-cross-shard-tx.html" class="hs-scope-pill out">Cross-shard provisions (Phase 4)</a>
                         <a href="module-hs-simulation-harness-analysis.html" class="hs-scope-pill out">Sim EventKey (Phase 5)</a>
                         <a href="module-09-timing.html" class="hs-scope-pill out">Liveness timers</a>
+                        <a href="#" data-crate="beacon" class="hs-scope-pill out"><span class="glossary-term" data-glossary="beacon chain">Beacon chain</span></a>
                     </div>
                 </div>
             </div>
@@ -56,8 +57,12 @@
             <a href="module-phase-03-execution-waves.html"><span class="phase-num">Phase 3</span>Execution &amp; waves</a>
             <a href="module-phase-04-cross-shard-tx.html"><span class="phase-num">Phase 4</span>Cross-shard tx</a>
             <a href="module-hs-simulation-harness-analysis.html"><span class="phase-num">Harness</span>Sim E2E</a>
-            <a href="module-hs-production-e2e-harness.html"><span class="phase-num">Harness</span>Prod E2E</a>
+            <a href="module-hs-simulation-harness-analysis.html#production-harness"><span class="phase-num">Harness</span>Prod E2E</a>
         </nav>
+
+        <div class="section">
+            <p><strong>Repo note (2025 refactor):</strong> per-shard HotStuff-2 lives in the <code>shard</code> crate (<code>ShardCoordinator</code>, was <code>crates/bft</code>). A separate <span class="glossary-term" data-glossary="beacon chain">beacon chain</span> (<code>BeaconCoordinator</code>, <code>crates/beacon</code>) publishes the <span class="glossary-term" data-glossary="topology snapshot">topology snapshot</span> each epoch—who validates which shard. This phase focuses on <em>shard</em> propose→commit unless a step explicitly mentions beacon witnesses.</p>
+        </div>
 
         <div class="section">
             <h2>Maps to the big diagram</h2>
@@ -69,7 +74,7 @@
                         <tr><td>8 Block proposal</td><td>§2–4 — <code>try_propose</code>, <code>BuildProposal</code>, <code>on_proposal_built</code></td></tr>
                         <tr><td>9 Validators vote</td><td>§5 — <code>PersistAndBroadcastVote</code>, <code>BlockVote</code> gossip</td></tr>
                         <tr><td>10 QC formed</td><td>§6 — <code>VerifyAndBuildQuorumCertificate</code>, <code>on_qc_formed</code></td></tr>
-                        <tr><td>11 Block committed</td><td>§7–8 — two-chain rule, <code>CommitBlock</code>, mempool transitions</td></tr>
+                        <tr><td>11 <span class="glossary-term" data-glossary="block commit">Block commit</span></td><td>§9–10 — <span class="glossary-term" data-glossary="two-chain commit">two-chain rule</span>, <code>CommitBlock</code>, mempool transitions</td></tr>
                         <tr><td>12+ Execution</td><td><a href="module-phase-03-execution-waves.html">Phase 3</a></td></tr>
                     </tbody>
                 </table>
@@ -81,7 +86,7 @@
             <ul class="module-tight-prose">
                 <li><strong>One BFT instance per shard</strong> — validators in the committee run the same protocol locally; progress requires quorum (typically 2f+1 of n=3f+1).</li>
                 <li><strong>Height</strong> = block slot index; <strong><span class="glossary-term" data-glossary="view">round (view)</span></strong> = attempt number at that height. The round advances via <span class="glossary-term" data-glossary="implicit view change">implicit view change</span> when the <code>ViewChangeTimer</code> fires—not on a “proposal timer.” Details: <a href="module-09-timing.html">timing module</a>.</li>
-                <li><strong>Proposals are event-driven, not clock-driven.</strong> Hyperscale-rs does not fire a periodic “time to propose” alarm. Instead, whenever something actually changes what could go into the next block—a new mempool transaction, a learned QC, completed cross-shard provisions, or a fresh commit—the node sets a lightweight latch with <code>queue_ready_proposal()</code>: “inputs may have changed; check whether we should build.” After the current <code>NodeInput</code> is handled and its actions are dispatched, <code>try_event_driven_proposal</code> gathers ready material and, if this validator is the leader for the current height and round, calls <code>try_propose</code>. When the round is stuck (slow leader, missing QC), <span class="glossary-term" data-glossary="view change">view change</span> bumps the round so <code>proposer_for(height, round)</code> picks the next leader—there is <strong>no</strong> <code>ProposalTimer</code> in the codebase today.</li>
+                <li><strong>Proposals are event-driven, not clock-driven.</strong> Hyperscale-rs does not fire a periodic “time to propose” alarm. Instead, whenever something actually changes what could go into the next block—a new mempool transaction, a learned QC, completed cross-shard provisions, or a fresh <span class="glossary-term" data-glossary="block commit">block commit</span>—the node sets a lightweight latch with <code>queue_ready_proposal()</code>: “inputs may have changed; check whether we should build.” After the current <code>NodeInput</code> is handled and its actions are dispatched, <code>try_event_driven_proposal</code> gathers ready material and, if this validator is the leader for the current height and round, calls <code>try_propose</code>. When the round is stuck (slow leader, missing QC), <span class="glossary-term" data-glossary="view change">view change</span> bumps the round so <code>proposer_for(height, round)</code> picks the next leader—there is <strong>no</strong> <code>ProposalTimer</code> in the codebase today.</li>
                 <li><strong>Quorum certificates ride the chain, not a separate wire.</strong> When enough validators agree on block H, they produce a quorum certificate—QC(H). You might expect a dedicated “here is QC(H)” gossip message; in practice, hyperscale-rs mostly does not work that way. The next proposer carries QC(H) inside block H+1’s header as <code>parent_qc</code>, so the certificate spreads with normal block gossip. If you aggregated votes yourself, you may already hold QC(H) before H+1 lands—but if you are tracing “where did everyone learn QC(H)?”, follow <code>parent_qc</code> on the child block, not a standalone QC broadcast.</li>
             </ul>
         </div>
@@ -117,9 +122,36 @@ pub fn should_propose(&amp;self, height: BlockHeight, round: Round) -&gt; bool {
             <p><strong>The BFT coordinator</strong> is the consensus brain every validator runs locally—not a person elected over the network. It remembers pending blocks, votes, certificates, timeouts, and commit rules. Each peer has its own copy; they must converge given the same messages.</p>
             <p><strong>The QC builder</strong> is whichever validator first collects enough votes on a block hash—often the proposer, but not by rule. Others usually learn the resulting certificate from the <em>next</em> block’s parent link instead of a dedicated QC broadcast.</p>
             <div class="hs-phase-proof">
-                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — <code>BftCoordinator</code> is per-node state machine state, not a network role</p>
-                <div class="code-block"><pre><code class="language-rust">// crates/bft/src/coordinator.rs — struct BftCoordinator { ... }
-// crates/node/src/state/mod.rs — NodeStateMachine owns self.bft: BftCoordinator</code></pre></div>
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — <code>ShardCoordinator</code> is per-node state machine state, not a network role</p>
+                <div class="code-block"><pre><code class="language-rust">// crates/shard/src/coordinator.rs — struct ShardCoordinator { ... }
+// crates/node/src/state/mod.rs — NodeStateMachine owns shard_coordinator: ShardCoordinator</code></pre></div>
+            </div>
+            <div class="hs-phase-proof">
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — QC builder = first local quorum, not proposer-only (<a href="#" data-file="crates/shard/src/vote_keeper.rs" target="_blank" rel="noopener">vote_keeper.rs</a>, <a href="#" data-file="crates/node/src/state/shard.rs" target="_blank" rel="noopener">state/shard.rs</a>)</p>
+                <div class="code-block"><pre><code class="language-rust">// Every validator runs the same vote handler — no should_propose gate
+ProtocolEvent::BlockVoteReceived { vote } =&gt; {
+    self.shard_coordinator.on_block_vote(self.topology.snapshot(), vote)
+}
+
+// accept_vote → maybe_trigger_verification when quorum is possible
+// (no proposer check anywhere in this path)
+pub fn accept_vote(...) -&gt; Vec&lt;Action&gt; {
+    ...
+    self.maybe_trigger_verification(topology, block_hash)
+}
+
+pub fn maybe_trigger_verification(...) -&gt; Vec&lt;Action&gt; {
+    if !vote_set.should_trigger_verification(total_power) {
+        return vec![];
+    }
+    vec![Action::VerifyAndBuildQuorumCertificate {
+        block_hash,
+        votes_to_verify,
+        verified_votes,
+        total_voting_power: total_power,
+        ...
+    }]
+}</code></pre></div>
             </div>
         </div>
 
@@ -139,7 +171,7 @@ pub fn should_propose(&amp;self, height: BlockHeight, round: Round) -&gt; bool {
                     </tbody>
                 </table>
             </div>
-            <p><strong>Events that flip the proposal <span class="glossary-term" data-glossary="proposal latch">latch</span>:</strong> new mempool admission, QC formed, block committed, genesis/recovery, provisions ready—anything that might change what the next block should contain. That latch is a single boolean (“try proposing soon”), not a queue of transactions.</p>
+            <p><strong>Events that flip the proposal <span class="glossary-term" data-glossary="proposal latch">latch</span>:</strong> new mempool admission, QC formed, <span class="glossary-term" data-glossary="block commit">block commit</span>, genesis/recovery, provisions ready—anything that might change what the next block should contain. That latch is a single boolean (“try proposing soon”), not a queue of transactions.</p>
         </div>
 
         <div class="section">
@@ -149,7 +181,7 @@ pub fn should_propose(&amp;self, height: BlockHeight, round: Round) -&gt; bool {
                     <div class="hs-phase-step-num">A</div>
                     <div>
                         <h3>Something changed—maybe we should propose</h3>
-                        <p>When a new tx lands in the <span class="glossary-term" data-glossary="mempool">mempool</span>, a <span class="glossary-term" data-glossary="quorum certificate">QC</span> forms, or a block commits, the node flips a small <span class="glossary-term" data-glossary="proposal latch">proposal latch</span>: “after I finish handling this event, check whether there is block material worth packaging.” That latch is not a queue of transactions—it is a reminder to look.</p>
+                        <p>When a new tx lands in the <span class="glossary-term" data-glossary="mempool">mempool</span>, a <span class="glossary-term" data-glossary="quorum certificate">QC</span> forms, or a <span class="glossary-term" data-glossary="block commit">block commit</span> happens, the node flips a small <span class="glossary-term" data-glossary="proposal latch">proposal latch</span>: “after I finish handling this event, check whether there is block material worth packaging.” That latch is not a queue of transactions—it is a reminder to look.</p>
                     </div>
                 </div>
                 <div class="hs-phase-step hyperscale">
@@ -170,22 +202,22 @@ pub fn should_propose(&amp;self, height: BlockHeight, round: Round) -&gt; bool {
             <p>There is still <strong>no alarm clock</strong> that proposes every N milliseconds—only this “something changed → gather → maybe build” dance, plus <span class="glossary-term" data-glossary="view change">view change</span> when the leader stalls.</p>
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — latch + post-dispatch <code>try_propose</code> (no ProposalTimer)</p>
-                <div class="code-block"><pre><code class="language-rust">// crates/bft/src/coordinator.rs
+                <div class="code-block"><pre><code class="language-rust">// crates/shard/src/coordinator.rs
 pub const fn queue_ready_proposal(&amp;mut self) {
     self.verification.queue_ready_proposal();
 }
 
 // crates/node/src/state/mod.rs — end of handle()
-if self.bft.take_ready_proposal() {
+if self.shard_coordinator.take_ready_proposal() {
     actions.extend(self.try_event_driven_proposal());
 }
 
 // crates/node/src/state/proposal.rs
 pub(super) fn try_event_driven_proposal(&amp;mut self) -&gt; Vec&lt;Action&gt; {
     let inputs = self.gather_proposal_inputs(...);
-    self.bft.try_propose(self.topology.snapshot(), &amp;inputs.ready_txs, ...)
+    self.shard_coordinator.try_propose(self.topology.snapshot(), &amp;inputs.ready_txs, ...)
 }</code></pre></div>
-                <div class="code-block"><pre><code class="language-rust">// crates/bft/src/coordinator.rs — try_propose (guards)
+                <div class="code-block"><pre><code class="language-rust">// crates/shard/src/coordinator.rs — try_propose (guards)
 if !self.can_propose(topology_snapshot, next_height, round) { return vec![]; }
 // can_propose: should_propose + no duplicate in-flight BuildProposal for (height, round)
 ...</code></pre></div>
@@ -203,7 +235,7 @@ if !self.can_propose(topology_snapshot, next_height, round) { return vec![]; }
             </div>
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — BFT emits <code>Action::BuildProposal</code>; runner/storage builds bytes</p>
-                <div class="code-block"><pre><code class="language-rust">// crates/bft/src/coordinator.rs — try_propose returns:
+                <div class="code-block"><pre><code class="language-rust">// crates/shard/src/coordinator.rs — try_propose returns:
 return self.build_and_dispatch_proposal(
     topology_snapshot, next_height, round, ProposalKind::Normal { ... },
 );
@@ -248,7 +280,7 @@ pub struct BlockManifest {
                 <p><strong>Equivocation</strong> = conflicting votes for the <em>same</em> height and round. <strong>Revote</strong> = voting again after a <em>new round</em> at the same height (leader timed out, new proposer) — allowed.</p>
             </div>
             <div class="hs-phase-proof">
-                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — vote notification + local VoteSet (<a href="#" data-file="crates/types/src/network/notification/block_vote.rs" target="_blank" rel="noopener">block_vote.rs</a>, <a href="#" data-file="crates/bft/src/vote_set.rs" target="_blank" rel="noopener">vote_set.rs</a>)</p>
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — vote notification + local VoteSet (<a href="#" data-file="crates/types/src/network/notification/block_vote.rs" target="_blank" rel="noopener">block_vote.rs</a>, <a href="#" data-file="crates/shard/src/vote_set.rs" target="_blank" rel="noopener">vote_set.rs</a>)</p>
                 <div class="code-block"><pre><code class="language-rust">// block_vote.rs — 2f+1 matching votes create a QuorumCertificate
 // Sent via unicast notification to committee members
 
@@ -264,7 +296,7 @@ Action::SignAndBroadcastBlockVote { block_hash, height, round, next_proposers, .
 
             <h3>What gives you a QC?</h3>
             <p><strong>2f+1 stake-weighted, cryptographically verified <code>BlockVote</code>s on the same <code>block_hash</code>.</strong> When <code>VoteSet</code> crosses that threshold, the node emits <code>Action::VerifyAndBuildQuorumCertificate</code> (often on the crypto worker pool). <code>verify_and_build_qc</code> checks the BLS batch and, if still at quorum, calls <code>build_qc_from_verified</code> to produce a <span class="glossary-term" data-glossary="quorum certificate">QuorumCertificate</span> value (aggregated signatures + metadata: height, round, block hash, parent hash, weighted timestamp).</p>
-            <p><strong>Who creates it?</strong> <strong>Whichever validator first accumulates quorum</strong> on that hash—the proposer has no monopoly. That node runs the same aggregation code; others may run it milliseconds later when their vote sets fill in. The result is returned as <code>ProtocolEvent::QuorumCertificateFormed</code> → <code>BftCoordinator::on_qc_formed</code> updates <code>latest_qc</code> on that machine.</p>
+            <p><strong>Who creates it?</strong> <strong>Whichever validator first accumulates quorum</strong> on that hash—the proposer has no monopoly. That node runs the same aggregation code; others may run it milliseconds later when their vote sets fill in. The result is returned as <code>ProtocolEvent::QuorumCertificateFormed</code> → <code>ShardCoordinator::on_qc_formed</code> updates <code>latest_qc</code> on that machine.</p>
 
             <h3>Does the QC go into the block that was just voted on?</h3>
             <p><strong>No.</strong> Block at height H is voted on; the QC you build certifies <strong>block H</strong>. That QC is stored as <code>latest_qc</code> locally and carried forward as the chain’s “highest certified block.” It is embedded in the <strong>next</strong> proposal:</p>
@@ -287,25 +319,63 @@ Action::SignAndBroadcastBlockVote { block_hash, height, round, next_proposers, .
                 <strong>Gotcha — QC vs vote:</strong> Votes are per-validator messages; the QC is the <em>aggregated proof</em> that quorum voted for one hash. There is no required standalone “QC gossip topic”—the next header’s <code>parent_qc</code> is the normal propagation path.
             </div>
             <div class="hs-phase-proof">
-                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — votes → QC → parent_qc on next build</p>
-                <div class="code-block"><pre><code class="language-rust">// action_handlers.rs — verify_and_build_qc
-if !VotePower::has_quorum(verified_power, total_voting_power) { return qc: None; }
-let qc = build_qc_from_verified(block_hash, height, round, parent_block_hash, ...);
+                <p class="hs-phase-proof-caption"><strong>In-repo proof (1/3)</strong> — votes are wire messages; QC is built locally (<a href="#" data-file="crates/types/src/network/notification/block_vote.rs" target="_blank" rel="noopener">block_vote.rs</a>, <a href="#" data-file="crates/shard/src/action_handlers.rs" target="_blank" rel="noopener">action_handlers.rs</a>)</p>
+                <div class="code-block"><pre><code class="language-rust">// block_vote.rs — votes gossip; QC is not a separate notification type
+/// Vote on a block proposal. 2f+1 matching votes create a `QuorumCertificate`.
+pub struct BlockVoteNotification { pub vote: BlockVote }
 
-// coordinator.rs — try_propose takes parent_qc from chain view for next height
-let (parent_block_hash, parent_qc) = self.chain_view(shard).proposal_parent();
+// action_handlers.rs — verify_and_build_qc runs on whichever node triggered it
+if !VotePower::has_quorum(verified_power, total_voting_power) {
+    return QcVerificationResult { qc: None, ... };
+}
+let qc = build_qc_from_verified(
+    block_hash, shard_group_id, height, round, parent_block_hash, ...);
 
-// types — QC at height N commits parent at N-1
-pub fn committable_hash(&amp;self) -&gt; Option&lt;BlockHash&gt; { Some(self.parent_block_hash) }</code></pre></div>
+// coordinator.rs — on_qc_result on that same node
+if let Some(qc) = qc {
+    return vec![Action::Continuation(
+        ProtocolEvent::QuorumCertificateFormed { block_hash, qc },
+    )];
+}</code></pre></div>
+            </div>
+            <div class="hs-phase-proof">
+                <p class="hs-phase-proof-caption"><strong>In-repo proof (2/3)</strong> — two ways to learn a QC: aggregate locally or read <code>parent_qc</code> (<a href="#" data-file="crates/shard/src/coordinator.rs" target="_blank" rel="noopener">coordinator.rs</a>)</p>
+                <div class="code-block"><pre><code class="language-rust">// Path A — you built QC locally (CommitSource::Aggregator)
+actions.extend(self.try_two_chain_commit(topology_snapshot, qc, CommitSource::Aggregator));
+
+/// Called from both `on_qc_formed` (when we build the QC locally) and
+/// `on_block_header` (when we learn about a QC via the next block's
+/// `parent_qc`). This ensures all validators commit regardless of whether
+/// they received votes directly.
+fn try_two_chain_commit(..., source: CommitSource) -&gt; Vec&lt;Action&gt; { ... }
+
+// Path B — you missed vote aggregation; child header carries the cert
+fn absorb_parent_qc_from_header(..., header: &amp;BlockHeader) -&gt; Vec&lt;Action&gt; {
+    if header.parent_qc().is_genesis() {
+        return actions;
+    }
+    // verify signature, adopt into latest_qc, try_two_chain_commit(..., CommitSource::Header)
+    ...
+}</code></pre></div>
+            </div>
+            <div class="hs-phase-proof">
+                <p class="hs-phase-proof-caption"><strong>In-repo proof (3/3)</strong> — next proposer embeds QC in header, not the block being voted on (<a href="#" data-file="crates/shard/src/proposal.rs" target="_blank" rel="noopener">proposal.rs</a>)</p>
+                <div class="code-block"><pre><code class="language-rust">// assemble_build_action — parent_qc certifies the parent block link
+let (parent_block_hash, parent_qc) = chain.proposal_parent();
+
+// types — QC at height N commits parent at N-1 (two-chain rule)
+pub fn committable_hash(&amp;self) -&gt; Option&lt;BlockHash&gt; {
+    Some(self.parent_block_hash)
+}</code></pre></div>
             </div>
         </div>
 
         <div class="section">
-            <h2>9 — Commit: what “block committed” means (step 11)</h2>
-            <p><strong>Accurate two-chain rule in this repo:</strong> when your node holds a <span class="glossary-term" data-glossary="quorum certificate">QC</span> for block at height <strong>H+1</strong>, it may commit block <strong>H</strong> (the QC’s <code>parent_block_hash</code> / <code>committable_hash</code>). You do <strong>not</strong> need a QC on H+2 to commit H. Seeing block H+2 is only a convenient way to receive QC(H+1) inside <code>parent_qc</code>.</p>
-            <p><strong>“Committed” is not a decorative stamp on the header.</strong> On each validator, commit means:</p>
+            <h2>9 — <span class="glossary-term" data-glossary="block commit">Block commit</span>: what it means on each validator (step 11)</h2>
+            <p><strong>Accurate <span class="glossary-term" data-glossary="two-chain commit">two-chain rule</span> in this repo:</strong> when your node holds a <span class="glossary-term" data-glossary="quorum certificate">QC</span> for block at height <strong>H+1</strong>, it may <span class="glossary-term" data-glossary="block commit">commit</span> block <strong>H</strong> (the QC’s <code>parent_block_hash</code> / <code>committable_hash</code>). You do <strong>not</strong> need a QC on H+2 to commit H. Seeing block H+2 is only a convenient way to receive QC(H+1) inside <code>parent_qc</code>.</p>
+            <p><strong><span class="glossary-term" data-glossary="block commit">Block commit</span> is not a decorative stamp on the header.</strong> On each validator, commit means:</p>
             <ul class="module-tight-prose">
-                <li><code>committed_height</code> / <code>committed_hash</code> advance in <code>BftCoordinator</code>.</li>
+                <li><code>committed_height</code> / <code>committed_hash</code> advance in <code>ShardCoordinator</code>.</li>
                 <li><code>Action::CommitBlock</code> persists the certified block to local storage (blockstore / RocksDB path—deployment-specific).</li>
                 <li><code>ProtocolEvent::BlockCommitted</code> fans out: mempool status updates, execution coordinator hooks, provisions, remote headers—same logical moment, orchestrated on the pinned thread.</li>
                 <li>The header’s <span class="glossary-term" data-glossary="state root">state root</span> is now part of the committed chain view; JMT/JVT versions for execution evolve in later phases.</li>
@@ -313,7 +383,7 @@ pub fn committable_hash(&amp;self) -&gt; Option&lt;BlockHash&gt; { Some(self.par
             <p>Every honest validator runs this locally when its two-chain condition fires—the proposer does not “commit for the shard.”</p>
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — <code>try_two_chain_commit</code> and commit side effects</p>
-                <div class="code-block"><pre><code class="language-rust">// crates/bft/src/coordinator.rs
+                <div class="code-block"><pre><code class="language-rust">// crates/shard/src/coordinator.rs
 fn try_two_chain_commit(...) -&gt; Vec&lt;Action&gt; {
     // QC at height N → emit BlockReadyToCommit for parent block hash
     vec![Action::Continuation(ProtocolEvent::BlockReadyToCommit {
@@ -321,7 +391,7 @@ fn try_two_chain_commit(...) -&gt; Vec&lt;Action&gt; {
     })]
 }
 
-// crates/node/src/state/bft.rs — on_block_committed
+// crates/node/src/state/shard.rs — on_block_committed
 actions.extend(self.mempool.on_block_committed(...));
 actions.extend(self.execution.on_block_committed(...));</code></pre></div>
             </div>
@@ -329,7 +399,7 @@ actions.extend(self.execution.on_block_committed(...));</code></pre></div>
 
         <div class="section">
             <h2>10 — What <code>on_block_committed</code> does to the mempool</h2>
-            <p>Phase 1 left admitted txs in <code>Pending</code> on each validator’s local <span class="glossary-term" data-glossary="mempool">mempool</span>—a <code>BTreeMap&lt;TxHash, PoolEntry&gt;</code> (hash → body + status), mutated only on the pinned IoLoop thread. Phase 2’s commit is the moment consensus says “this block is canonical on <em>my</em> node.” The node then calls <code>MempoolCoordinator::on_block_committed</code> with the <code>CertifiedBlock</code> (block + the QC that justified committing it).</p>
+            <p>Phase 1 left admitted txs in <code>Pending</code> on each validator’s local <span class="glossary-term" data-glossary="mempool">mempool</span>—a <code>BTreeMap&lt;TxHash, PoolEntry&gt;</code> (hash → body + status), mutated only on the pinned ShardLoop thread. Phase 2’s <span class="glossary-term" data-glossary="block commit">block commit</span> is the moment consensus says “this block is canonical on <em>my</em> node.” The node then calls <code>MempoolCoordinator::on_block_committed</code> with the <code>CertifiedBlock</code> (block + the QC that justified committing it).</p>
 
             <h3>Three fates for transactions</h3>
             <p><strong>1. Tx is in the committed block.</strong> For each tx hash in <code>block.transactions()</code>, the mempool sets status to <code>Committed(height)</code> if it was still <code>Pending</code>, removes it from the “ready for proposal” set, and records state-node locks so conflicting txs cannot be proposed on top too early. It also emits <code>EmitTransactionStatus</code> so RPC clients can see the update. This is **consensus inclusion**, not “Radix finished”: the tx is now part of the committed chain on this validator, but execution may still be in flight.</p>
@@ -340,8 +410,8 @@ actions.extend(self.execution.on_block_committed(...));</code></pre></div>
             <h3>Chain time advances</h3>
             <p>The mempool stores <code>current_height</code> and <code>current_ts</code> from the committing block. <code>current_ts</code> is taken from the QC’s <code>weighted_timestamp</code>—the BFT-agreed clock for this shard, not wall clock on your laptop. That timestamp anchors validity-window checks (“is this tx still within its declared lifetime?”) and tombstone pruning on the <strong>cleanup timer</strong>. Until commit, Phase 1 expiry rules were provisional; after commit, the chain’s time base moves forward for everyone on this node.</p>
 
-            <h3>Why commit triggers another proposal latch</h3>
-            <p>After a successful commit, BFT often calls <code>queue_ready_proposal()</code> again. Committing block H frees the pipeline for height H+1: new QC parent, new ready txs that were waiting, new execution artifacts. The latch does not mean “re-propose the same block”—it means “the world changed; see if the leader should build the next one.”</p>
+            <h3>Why <span class="glossary-term" data-glossary="block commit">block commit</span> triggers another proposal latch</h3>
+            <p>After a successful <span class="glossary-term" data-glossary="block commit">block commit</span>, BFT often calls <code>queue_ready_proposal()</code> again. Committing block H frees the pipeline for height H+1: new QC parent, new ready txs that were waiting, new execution artifacts. The latch does not mean “re-propose the same block”—it means “the world changed; see if the leader should build the next one.”</p>
 
             <div class="hs-gotcha">
                 <strong>Gotcha — <code>Committed</code> ≠ sent to Radix yet.</strong> <code>Committed</code> means “included in a block this node treats as committed.” The execution coordinator (Phase 3) consumes that block to run manifests and advance waves; mempool status and execution progress are linked but not the same instant.
@@ -351,12 +421,12 @@ actions.extend(self.execution.on_block_committed(...));</code></pre></div>
                 <div class="code-block"><pre><code class="language-rust">// crates/mempool/src/coordinator.rs
 pool: BTreeMap&lt;TxHash, PoolEntry&gt;,  // status: TransactionStatus
 
-// crates/node/src/state/bft.rs — on_block_committed
+// crates/node/src/state/shard.rs — on_block_committed
 actions.extend(self.mempool.on_block_committed(self.topology.snapshot(), certified));</code></pre></div>
             </div>
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>Liveness timers (not proposal)</strong> — genesis arms ViewChange + Cleanup</p>
-                <div class="code-block"><pre><code class="language-rust">// crates/bft/src/coordinator.rs — initialize_genesis
+                <div class="code-block"><pre><code class="language-rust">// crates/shard/src/coordinator.rs — initialize_genesis
 self.queue_ready_proposal();
 Action::SetTimer { id: TimerId::ViewChange, ... }</code></pre></div>
             </div>
@@ -378,15 +448,27 @@ Action::SetTimer { id: TimerId::ViewChange, ... }</code></pre></div>
             </div>
             <div class="hs-qa-item">
                 <p class="hs-qa-q">Can a validator vote for two different blocks at the same height and round?</p>
-                <p>That is <strong>equivocation</strong> (safety violation if quorum builds on both). Protocol + ops assume BLS accountability and slashing narratives off-repo; honest code tracks one vote line per (height, round).</p>
+                <p><strong>Honest nodes: no.</strong> After the first vote at a height, <code>VoteKeeper::lock_decision</code> blocks voting for a different block hash until timeout unlock or QC-based unlock — even across rounds (see <code>test_vote_locking_prevents_conflicting_block</code> in <code>coordinator.rs</code>).</p>
+                <p><strong>Byzantine validators: yes, in theory.</strong> A vote is a BLS signature over <code>block_vote_message(shard, height, round, block_hash)</code>; a malicious validator can sign two different hashes at the same (height, round). That is <strong>equivocation</strong>. In-repo handling is deterministic: batch <code>verify_vote_batch</code> rejects forgeries (wrong message vs claimed hash); after verification, <code>record_received_vote</code> flags a second <em>different</em> block at the same (height, round) and logs <code>EQUIVOCATION DETECTED</code> (first verified vote wins in the map). Slashing / governance uses the pair of valid signatures as evidence — not an on-chain assumption inside this repo.</p>
+                <p><strong>Two proposals at the same height and round?</strong> An <em>honest</em> proposer does not double-build: <code>can_propose</code> skips duplicate in-flight (height, round). A <em>Byzantine</em> leader can still gossip two valid headers (same <code>proposer_for</code>, different bodies → different hashes); followers keep separate <code>VoteSet</code>s per <code>block_hash</code>. Safety if both got QCs relies on quorum intersection + 2-chain commit, not on “only one proposal exists on the wire.”</p>
             </div>
             <div class="hs-qa-item">
                 <p class="hs-qa-q">Does only the proposer commit?</p>
                 <p><strong>No.</strong> Every validator commits when its local two-chain condition fires — proposer is just the one who built the block at H.</p>
             </div>
             <div class="hs-qa-item">
-                <p class="hs-qa-q">BLS batch verify on block headers?</p>
-                <p>Committed-header gossip uses batch BLS verify for sender attestation (<code>CommittedBlockHeader</code>) — related to cross-shard light-client pattern, not the user-tx Ed25519 path from Phase 1.</p>
+                <p class="hs-qa-q">What does a validator “committing” a block mean technically? How is that state inferred and stored?</p>
+                <p><strong>Trigger (consensus, not proposer-only):</strong> When this node holds a <span class="glossary-term" data-glossary="qc">QC</span> for block <strong>H+1</strong>, the two-chain rule says block <strong>H</strong> is committable: <code>QuorumCertificate::committable_hash()</code> is the parent hash, <code>committable_height()</code> is <code>qc.height().prev()</code>. <code>try_two_chain_commit</code> emits <code>BlockReadyToCommit { block_hash, qc: certifying_qc }</code> — whether the QC was built locally or learned from block H+1’s <code>parent_qc</code>.</p>
+                <p><strong>In-memory BFT bookkeeping:</strong> <code>on_block_ready_to_commit</code> requires the assembled block at <code>committed_height + 1</code>, then <code>record_block_committed</code> advances <code>committed_height</code>, <code>committed_hash</code>, <code>committed_state_root</code>, registers txs/certs/provisions in the dedup index, and prunes old pending state.</p>
+                <p><strong>Durable chain write:</strong> The coordinator emits <code>Action::CommitBlock</code> (if this node already ran <code>VerifyStateRoot</code> and cached a <code>PreparedCommit</code>) or <code>CommitBlockByQcOnly</code> (recomputes JMT via <code>prepare_block_commit</code> in the shard_loop). <code>BlockCommitCoordinator</code> batches those into <code>commit_prepared_blocks</code> on embedded <strong>RocksDB</strong> (<code>RocksDbStorage</code> in production; <code>SimStorage</code> in simulation).</p>
+                <p><strong>Downstream “commit” handlers:</strong> After persistence (or immediately under low lag), <code>ProtocolEvent::BlockCommitted { certified }</code> runs the node orchestrator: mempool <code>Pending → Committed</code>, remote-header liveness, provision pruning, etc. The block <strong>proposer</strong> additionally <code>BroadcastCommittedBlockHeader</code> so other shards learn the header+QC; followers still commit from their own two-chain path when they have the data.</p>
+            </div>
+            <div class="hs-qa-item">
+                <p class="hs-qa-q">Is committed-header gossip verified the same way as block-vote BLS (Phase 2 voting)?</p>
+                <p><strong>No — three different crypto paths.</strong></p>
+                <p><strong>1. Block votes (consensus QC):</strong> Each vote signs <code>block_vote_message(shard, height, round, block_hash)</code>. When building a QC, <code>verify_vote_batch</code> uses <strong>same-message</strong> BLS batching — every signature in the batch must be over the <em>same</em> message for that block.</p>
+                <p><strong>2. Proposal headers (parent QC):</strong> When you accept a leader’s header, you verify its <code>parent_qc</code> via <code>VerifyQcSignature</code> (aggregated committee BLS on the <em>parent</em> block) before voting — that is QC verification, not “batch verify the header bytes.”</p>
+                <p><strong>3. After commit — <code>CommittedBlockHeaderGossip</code> (cross-shard):</strong> The proposer broadcasts <code>CommittedBlockHeader { header, qc }</code> plus <code>sender</code> and a <strong>relay attestation</strong>: BLS over <code>committed_block_header_message(shard, height, block_hash)</code> (domain-separated from vote messages). The <code>ShardLoop</code> queues gossips in a <code>committed_header_batch</code> accumulator and, on flush, verifies each sender signature on the crypto pool, then emits <code>RemoteHeaderReceived</code>. Remote shards still run QC checks on the embedded certificate before trusting <code>state_root</code> for provisions / light-client style proofs. This path does <strong>not</strong> use Phase 1’s per-transaction <strong>Ed25519</strong> checks.</p>
             </div>
         </div>
 
@@ -433,7 +515,7 @@ Action::SetTimer { id: TimerId::ViewChange, ... }</code></pre></div>
                 <li>Proposer known: <code>proposer_for(height, round)</code>; only that node dispatches <code>BuildProposal</code></li>
                 <li>Block built off storage via <code>build_proposal</code>; header gossip + votes</li>
                 <li>QC formed at 2f+1; learned via aggregation and/or next <code>parent_qc</code></li>
-                <li>Two-chain commit applied on every validator; <code>BlockCommitted</code> fired</li>
+                <li><span class="glossary-term" data-glossary="two-chain commit">Two-chain commit</span> applied on every validator; <code>BlockCommitted</code> fired</li>
                 <li>Included txs left <code>Pending</code> → <code>Committed</code> path; others stay <code>Pending</code></li>
                 <li><strong>Not yet:</strong> execution waves complete, cross-shard certs → Phases <a href="module-phase-03-execution-waves.html">3</a> / <a href="module-phase-04-cross-shard-tx.html">4</a></li>
             </ul>
@@ -450,7 +532,7 @@ Action::SetTimer { id: TimerId::ViewChange, ... }</code></pre></div>
         </div>
         <nav class="navigation module-nav">
             <a href="module-phase-01-submit-to-mempool.html" class="btn btn-secondary">← Phase 1</a>
-            <a href="module-phase-03-execution-waves.html" class="btn btn-primary">Phase 3 →</a>
+            <a href="module-09-timing.html" class="btn btn-primary">Timing →</a>
         </nav>
     </div>
 
@@ -477,13 +559,13 @@ Action::SetTimer { id: TimerId::ViewChange, ... }</code></pre></div>
                 {
                     question: "Who computes the block's state root and assembles BlockHeader + body bytes?",
                     options: [
-                        "BftCoordinator::try_propose directly",
-                        "hyperscale_bft::action_handlers::build_proposal (runner executes BuildProposal)",
+                        "ShardCoordinator::try_propose directly",
+                        "hyperscale_shard::action_handlers::build_proposal (runner executes BuildProposal)",
                         "MempoolCoordinator on admit",
                         "The RPC handler before SubmitTransaction"
                     ],
                     correct: 1,
-                    explanation: "try_propose emits BuildProposal; build_proposal is the pure storage routine. BftCoordinator orchestrates, it does not build the block value."
+                    explanation: "try_propose emits BuildProposal; build_proposal is the pure storage routine. ShardCoordinator orchestrates, it does not build the block value."
                 },
                 {
                     question: "Validator V votes for block B at (height=10, round=2). Round times out; new proposer at round=3. V votes for a different block B' at (10, 3). This is:",
@@ -543,13 +625,13 @@ Action::SetTimer { id: TimerId::ViewChange, ... }</code></pre></div>
                 {
                     question: "A Byzantine proposer spams different headers at the same (height, round). View-change suppression is limited by:",
                     options: [
-                        "proposal_interval in BftConfig",
+                        "proposal_interval in ShardConsensusConfig",
                         "MAX_PROGRESS_WAIT and rate-limited header activity resets (see timing constants)",
                         "Disabling gossip",
                         "Automatic mempool flush"
                     ],
                     correct: 1,
-                    explanation: "Protocol timing constants cap how long header spam can delay view change; there is no legacy proposal_interval timer in current BftConfig."
+                    explanation: "Protocol timing constants cap how long header spam can delay view change; there is no legacy proposal_interval timer in current ShardConsensusConfig."
                 }
             ];
             if (typeof initializeQuiz === 'function') {

@@ -188,9 +188,9 @@ T5: All nodes receive Block 11 → see QC(10) in header</code></pre></div>
 
             <h4>In hyperscale-rs (crate and line references)</h4>
             <ul>
-                <li><strong>(i)</strong> Block header carries <code>parent_qc</code>: <code>crates/types/src/block/header.rs</code> (<code>BlockHeader::parent_qc</code>).</li>
-                <li><strong>(ii)</strong> Votes are broadcast via <code>Action::PersistAndBroadcastVote</code> (<code>crates/core/src/action.rs</code>); vote emission originates from <code>BftCoordinator</code> paths in <code>crates/bft/src/coordinator.rs</code>.</li>
-                <li><strong>(iii)</strong> Quorum triggers <code>Action::VerifyAndBuildQuorumCertificate</code>; the runner calls <code>vote_set</code> / <code>action_handlers::verify_and_build_qc</code> (<code>crates/bft/src/vote_set.rs</code>, <code>crates/bft/src/action_handlers.rs</code>), then feeds <code>ProtocolEvent::QuorumCertificateFormed</code> back into <code>on_qc_formed</code>.</li>
+                <li><strong>(i)</strong> Block header carries <code>parent_qc</code>: <code>crates/types/src/shard/header.rs</code> (<code>BlockHeader::parent_qc</code>).</li>
+                <li><strong>(ii)</strong> Votes are broadcast via <code>Action::PersistAndBroadcastVote</code> (<code>crates/core/src/action.rs</code>); vote emission originates from <code>ShardCoordinator</code> paths in <code>crates/shard/src/coordinator.rs</code>.</li>
+                <li><strong>(iii)</strong> Quorum triggers <code>Action::VerifyAndBuildQuorumCertificate</code>; the runner calls <code>vote_set</code> / <code>action_handlers::verify_and_build_qc</code> (<code>crates/shard/src/vote_set.rs</code>, <code>crates/shard/src/action_handlers.rs</code>), then feeds <code>ProtocolEvent::QuorumCertificateFormed</code> back into <code>on_qc_formed</code>.</li>
                 <li><strong>(iv)</strong> Validators learn parent QCs from headers and gossiped certificates—follow <code>on_block_header</code> / QC ingestion in <code>coordinator.rs</code>.</li>
                 <li><strong>(v)</strong> The next proposal builds on <code>latest_qc</code> inside <code>try_propose</code> / <code>action_handlers::build_proposal</code>; exact line numbers drift—use ripgrep for <code>parent_qc</code> and <code>latest_qc</code>.</li>
             </ul>
@@ -344,14 +344,14 @@ The "two-chain" name comes from needing 2 consecutive blocks with QCs:
             <h3>Key Files to Explore</h3>
             <p>View these in the repo (links open the file on GitHub):</p>
             <ol>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/bft/src/lib.rs" target="_blank" rel="noopener">crates/bft/src/lib.rs</a> — module documentation</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/bft/src/coordinator.rs" target="_blank" rel="noopener">crates/bft/src/coordinator.rs</a> — BFT state machine implementation</li>
-                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/bft/src/vote_set.rs" target="_blank" rel="noopener">crates/bft/src/vote_set.rs</a> — vote collection and QC formation</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/shard/src/lib.rs" target="_blank" rel="noopener">crates/shard/src/lib.rs</a> — module documentation</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/shard/src/coordinator.rs" target="_blank" rel="noopener">crates/shard/src/coordinator.rs</a> — BFT state machine implementation</li>
+                <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/shard/src/vote_set.rs" target="_blank" rel="noopener">crates/shard/src/vote_set.rs</a> — vote collection and QC formation</li>
                 <li><a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/04-consensus-protocol.md" target="_blank" rel="noopener">guides/04-consensus-protocol.md</a> — detailed protocol documentation</li>
             </ol>
 
             <h3>Practical Exercise</h3>
-            <p>Open <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/bft/src/lib.rs" target="_blank" rel="noopener">crates/bft/src/lib.rs</a> in the repo and find:</p>
+            <p>Open <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/shard/src/lib.rs" target="_blank" rel="noopener">crates/shard/src/lib.rs</a> in the repo and find:</p>
             <ul>
                 <li>The definition of a quorum (how many votes needed?)</li>
                 <li>The commit rule (when does a block commit?)</li>
@@ -373,13 +373,13 @@ The "two-chain" name comes from needing 2 consecutive blocks with QCs:
                 <ol>
                     <li><strong>Read protocol docs and code in the repo</strong>:
                         <ul>
-                            <li>View <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/04-consensus-protocol.md" target="_blank" rel="noopener">guides/04-consensus-protocol.md</a> and <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/bft/src/lib.rs" target="_blank" rel="noopener">crates/bft/src/lib.rs</a> (module docs at top)</li>
+                            <li>View <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/guides/04-consensus-protocol.md" target="_blank" rel="noopener">guides/04-consensus-protocol.md</a> and <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/shard/src/lib.rs" target="_blank" rel="noopener">crates/shard/src/lib.rs</a> (module docs at top)</li>
                             <li>Take notes on key concepts</li>
                         </ul>
                     </li>
                     <li><strong>Trace a block through consensus</strong>:
                         <ul>
-                            <li>Open <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/bft/src/coordinator.rs" target="_blank" rel="noopener">crates/bft/src/coordinator.rs</a> in the repo</li>
+                            <li>Open <a href="https://github.com/flightofthefox/hyperscale-rs/blob/main/crates/shard/src/coordinator.rs" target="_blank" rel="noopener">crates/shard/src/coordinator.rs</a> in the repo</li>
                             <li>Find the block proposal function</li>
                             <li>Find the vote handling function</li>
                             <li>Find the QC formation logic</li>
@@ -417,7 +417,7 @@ The "two-chain" name comes from needing 2 consecutive blocks with QCs:
         <div class="navigation">
             <a href="module-01-blockchain-fundamentals.html" class="btn btn-secondary">← Blockchain fundamentals</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="../hyperscale-rs/module-01b-tx-flow.html" class="btn btn-primary">Transaction flow →</a>
+            <a href="module-03-distributed-systems.html" class="btn btn-primary">Distributed systems →</a>
         </div>
     </div>
 

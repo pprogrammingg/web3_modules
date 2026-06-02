@@ -22,6 +22,8 @@ const files = [
     ...collectJsFiles('common'),
     'scripts/sanity-pages.js',
     'scripts/reflect-changes.js',
+    'scripts/apply-hyperscale-repo-reflect.js',
+    'scripts/rebuild-hyperscale-course-data.js',
     'scripts/check-hyperscale-changes.js',
     'scripts/check-solana-changes.js',
     'verify-paths.js',

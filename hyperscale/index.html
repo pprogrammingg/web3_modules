@@ -14,7 +14,7 @@
     <div class="container">
         <header>
             <h1>🚀 Blockchain & Hyperscale-rs Learning Journey</h1>
-            <p class="subtitle">Eight levels (23 modules)—structured path toward elite decentralized protocol engineering (start with Hyperscale overview and state machines, then blockchain literacy and the tx-flow map)</p>
+            <p class="subtitle">Eight levels (19 modules)—structured path toward elite decentralized protocol engineering (generic foundations early, then tx-flow phases, harness labs, cross-shard E2E, performance, crypto)</p>
         </header>
 
         <div class="info elite-course-banner" style="margin: 1.25rem 0 2rem; padding: 1.35rem 1.5rem;">
@@ -27,12 +27,12 @@
                 </thead>
                 <tbody>
                     <tr><td>1</td><td>Basic → repo-ready</td><td><strong>Overview &amp; setup</strong>, state machines, blockchain fundamentals</td></tr>
-                    <tr><td>2</td><td>Basic → pipeline thinker</td><td>Consensus, <strong>tx-flow map</strong>, Phase 1</td></tr>
-                    <tr><td>3</td><td>In-depth → phases</td><td>Phases 2–4 (propose→cross-shard outline)</td></tr>
-                    <tr><td>4</td><td>In-depth → single-shard sim harness</td><td>Simulation harness + single-shard simulation E2E hands-on</td></tr>
-                    <tr><td>5</td><td>In-depth → single-shard prod &amp; sharding</td><td>Production harness, single-shard production E2E, CAP, sharding concepts</td></tr>
-                    <tr><td>6</td><td>In-depth → cross-shard E2E</td><td>Cross-shard reading + simulation &amp; production cross-shard E2E labs</td></tr>
-                    <tr><td>7</td><td>In-depth → execution &amp; measurement</td><td>Execution, timers, hands-on performance measurement</td></tr>
+                    <tr><td>2</td><td>Basic → pipeline thinker</td><td>Consensus, <strong>distributed systems</strong>, tx-flow map, Phase 1</td></tr>
+                    <tr><td>3</td><td>In-depth → phases</td><td>Phases 2–4 + <strong>timing</strong> (Radix boundary in Phase 3)</td></tr>
+                    <tr><td>4</td><td>In-depth → single-shard E2E</td><td>Combined sim + prod harness reading, simulation E2E hands-on</td></tr>
+                    <tr><td>5</td><td>In-depth → production E2E</td><td>Single-shard production hands-on lab</td></tr>
+                    <tr><td>6</td><td>In-depth → cross-shard E2E</td><td>Cross-shard simulation &amp; production E2E labs (theory in Phase 4)</td></tr>
+                    <tr><td>7</td><td>In-depth → measurement</td><td>hyperscale-sim performance lab</td></tr>
                     <tr><td>8</td><td>In-depth → networking &amp; crypto</td><td>libp2p, cryptography</td></tr>
                 </tbody>
             </table>
@@ -49,12 +49,12 @@
 
         <div class="info" style="margin: 2rem 0; padding: 1.5rem;">
             <h3 style="margin-top: 0;">Course Structure</h3>
-            <p>Levels <strong>1–7</strong> each list <strong>three modules</strong>; <strong>Level 8</strong> has two (libp2p and cryptography). <strong>Level 1</strong> places <strong>Hyperscale-rs overview &amp; setup</strong> and <strong>state machines</strong> before the transaction-flow map (Level 2). Single-shard BFT coordinator detail is in <strong>Phase 2</strong>, not a separate duplicate module.</p>
+            <p><strong>19 modules</strong> across eight levels. <strong>Level 1</strong> has three (overview, state machines, blockchain). <strong>Level 2</strong> has four (consensus, distributed systems, tx-flow, Phase 1). <strong>Level 3</strong> has four (Phases 2–4 plus timing). Per-shard <code>ShardCoordinator</code> detail is in <strong>Phase 2</strong>; <span class="glossary-term" data-glossary="beacon chain">beacon chain</span> / topology in glossary + Phase 2 scope; Radix boundary is in <strong>Phase 3</strong>.</p>
             <ul>
-                <li><strong>Levels 1–2</strong> — Orientation → consensus → tx-flow → Phase 1</li>
-                <li><strong>Levels 3–5</strong> — Phases 2–4 → single-shard harness labs → systems &amp; sharding</li>
-                <li><strong>Level 6</strong> — Cross-shard theory + cross-shard simulation &amp; production E2E hands-on</li>
-                <li><strong>Levels 7–8</strong> — Execution &amp; timers → perf lab → libp2p → crypto</li>
+                <li><strong>Levels 1–2</strong> — Orientation → consensus → CAP/safety/liveness → tx-flow → Phase 1</li>
+                <li><strong>Level 3</strong> — Phases 2–4 and timing (no duplicate execution module)</li>
+                <li><strong>Levels 4–6</strong> — Combined E2E harness reading → single-shard labs → cross-shard labs</li>
+                <li><strong>Levels 7–8</strong> — Performance lab → libp2p → crypto</li>
             </ul>
             <p>Hyperscale-rs–specific modules keep the <span style="background: #fef3c7; color: #92400e; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.9rem;">Hyperscale-rs</span> badge.</p>
         </div>
@@ -62,13 +62,13 @@
         <div class="timeline">
             <div class="timeline-section">
                 <h2>📚 Level 1</h2>
-                <p class="phase-description">Three modules: blockchain literacy → consensus vocabulary → single-shard transaction flow (hands-on OSS starts Level 2).</p>
+                <p class="phase-description">Overview → state machines → blockchain fundamentals.</p>
                 <div id="basic-modules"></div>
             </div>
 
             <div class="timeline-section">
                 <h2>🔧 Levels 2–7</h2>
-                <p class="phase-description">Tx-flow &amp; phases → single-shard harness labs → cross-shard E2E labs → execution &amp; measurement—three modules per level.</p>
+                <p class="phase-description">Levels 2–7 follow course order (module counts vary by level—see structure above).</p>
                 <div id="intermediate-modules"></div>
             </div>
 

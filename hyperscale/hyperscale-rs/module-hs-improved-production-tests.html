@@ -26,10 +26,10 @@
             <h2>Why this lab</h2>
             <p style="margin:0;line-height:1.65;">
                 You traced <code>test_production_runner_with_network</code> in
-                <a href="module-hs-production-e2e-harness.html">production E2E test case analysis</a>.
+                <a href="module-hs-simulation-harness-analysis.html#production-harness">production harness (Part II)</a>.
                 Here you <strong>change that integration test</strong>: add visible markers, assert what production wiring can show
                 <strong>without</strong> pretending the test already submits a user transaction, and document how real ingress
-                (<code>POST /api/v1/transactions</code> or <code>tx_submission_sender()</code>) would feed the same <code>IoLoop</code> path.
+                (<code>POST /api/v1/transactions</code> or <code>tx_submission_sender()</code>) would feed the same <code>ShardLoop</code> path.
             </p>
         </div>
 
@@ -107,9 +107,9 @@ info!("[lab] listen addresses: {:?}", addrs);</pre>
         </div>
 
         <div class="navigation">
-            <a href="module-hs-production-e2e-harness.html" class="btn btn-secondary">← Production harness</a>
+            <a href="module-hs-simulation-harness-analysis.html" class="btn btn-secondary">← E2E harnesses</a>
             <button id="complete-module-btn" class="btn btn-primary">Mark as Complete</button>
-            <a href="../basic/module-03-distributed-systems.html" class="btn btn-primary">Distributed systems →</a>
+            <a href="module-hs-improved-cross-shard-simulation-tests.html" class="btn btn-primary">Cross-shard simulation E2E →</a>
             <a href="../index.html" class="btn btn-secondary">Back to Course</a>
         </div>
     </div>
