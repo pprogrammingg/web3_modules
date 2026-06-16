@@ -44,7 +44,7 @@
                         <a href="module-phase-03-execution-waves.html" class="hs-scope-pill out">Execution waves (Phase 3)</a>
                         <a href="module-phase-04-cross-shard-tx.html" class="hs-scope-pill out">Cross-shard provisions (Phase 4)</a>
                         <a href="module-hs-simulation-harness-analysis.html" class="hs-scope-pill out">Sim EventKey (Phase 5)</a>
-                        <a href="module-09-timing.html" class="hs-scope-pill out">Liveness timers</a>
+                        <a href="module-timers-reference.html" class="hs-scope-pill out">Timers (after Phase 4)</a>
                         <a href="#" data-crate="beacon" class="hs-scope-pill out"><span class="glossary-term" data-glossary="beacon chain">Beacon chain</span></a>
                     </div>
                 </div>
@@ -56,6 +56,8 @@
             <a href="module-phase-02-propose-vote-commit.html" class="is-current"><span class="phase-num">Phase 2</span>Propose → commit</a>
             <a href="module-phase-03-execution-waves.html"><span class="phase-num">Phase 3</span>Execution &amp; waves</a>
             <a href="module-phase-04-cross-shard-tx.html"><span class="phase-num">Phase 4</span>Cross-shard tx</a>
+            <a href="module-block-fields-deep-dive.html"><span class="phase-num">Deep</span>Block fields</a>
+            <a href="module-timers-reference.html"><span class="phase-num">Time</span>Timers</a>
             <a href="module-hs-simulation-harness-analysis.html"><span class="phase-num">Harness</span>Sim E2E</a>
             <a href="module-hs-simulation-harness-analysis.html#production-harness"><span class="phase-num">Harness</span>Prod E2E</a>
         </nav>
@@ -85,7 +87,7 @@
             <h2>0 — Prerequisite mental model</h2>
             <ul class="module-tight-prose">
                 <li><strong>One BFT instance per shard</strong> — validators in the committee run the same protocol locally; progress requires quorum (typically 2f+1 of n=3f+1).</li>
-                <li><strong>Height</strong> = block slot index; <strong><span class="glossary-term" data-glossary="view">round (view)</span></strong> = attempt number at that height. The round advances via <span class="glossary-term" data-glossary="implicit view change">implicit view change</span> when the <code>ViewChangeTimer</code> fires—not on a “proposal timer.” Details: <a href="module-09-timing.html">timing module</a>.</li>
+                <li><strong>Height</strong> = block slot index; <strong><span class="glossary-term" data-glossary="view">round (view)</span></strong> = attempt number at that height. The round advances via <span class="glossary-term" data-glossary="implicit view change">implicit view change</span> when the <code>ViewChangeTimer</code> fires—not on a “proposal timer.” Details: <a href="module-timers-reference.html">timing module</a>.</li>
                 <li><strong>Proposals are event-driven, not clock-driven.</strong> Hyperscale-rs does not fire a periodic “time to propose” alarm. Instead, whenever something actually changes what could go into the next block—a new mempool transaction, a learned QC, completed cross-shard provisions, or a fresh <span class="glossary-term" data-glossary="block commit">block commit</span>—the node sets a lightweight latch with <code>queue_ready_proposal()</code>: “inputs may have changed; check whether we should build.” After the current <code>NodeInput</code> is handled and its actions are dispatched, <code>try_event_driven_proposal</code> gathers ready material and, if this validator is the leader for the current height and round, calls <code>try_propose</code>. When the round is stuck (slow leader, missing QC), <span class="glossary-term" data-glossary="view change">view change</span> bumps the round so <code>proposer_for(height, round)</code> picks the next leader—there is <strong>no</strong> <code>ProposalTimer</code> in the codebase today.</li>
                 <li><strong>Quorum certificates ride the chain, not a separate wire.</strong> When enough validators agree on block H, they produce a quorum certificate—QC(H). You might expect a dedicated “here is QC(H)” gossip message; in practice, hyperscale-rs mostly does not work that way. The next proposer carries QC(H) inside block H+1’s header as <code>parent_qc</code>, so the certificate spreads with normal block gossip. If you aggregated votes yourself, you may already hold QC(H) before H+1 lands—but if you are tracing “where did everyone learn QC(H)?”, follow <code>parent_qc</code> on the child block, not a standalone QC broadcast.</li>
             </ul>
@@ -172,6 +174,9 @@ pub fn maybe_trigger_verification(...) -&gt; Vec&lt;Action&gt; {
                 </table>
             </div>
             <p><strong>Events that flip the proposal <span class="glossary-term" data-glossary="proposal latch">latch</span>:</strong> new mempool admission, QC formed, <span class="glossary-term" data-glossary="block commit">block commit</span>, genesis/recovery, provisions ready—anything that might change what the next block should contain. That latch is a single boolean (“try proposing soon”), not a queue of transactions.</p>
+            <p class="module-footnote module-footnote--tight"><strong>Block anatomy</strong> — cards stack across the course in teaching order (Phase 1 <code>pre-block</code> → here). <span class="hs-block-legend-new" style="display:inline-block;vertical-align:middle;margin-right:0.25rem;"></span> green = new on <em>this</em> card; grey = you already saw it green on an earlier card; default muted = shown for context, introduced later. Hover underlined fields for glossary tooltips.</p>
+            <div class="hs-block-evolution-mount" data-block-evolution="genesis" aria-label="Block anatomy — genesis"></div>
+            <div class="hs-block-evolution-mount" data-block-evolution="propose" aria-label="Block anatomy — propose with txs"></div>
         </div>
 
         <div class="section">
@@ -246,7 +251,7 @@ return self.build_and_dispatch_proposal(
         <div class="section">
             <h2>6 — Other validators read the proposal (still step 8)</h2>
             <p>The leader does not email everyone a full block first. Peers receive a compact <strong>header</strong> (who proposed, parent certificate, cryptographic roots) and a <strong><span class="glossary-term" data-glossary="block manifest">manifest</span></strong>—essentially a packing list of tx hashes, wave ids, and provision hashes. Bodies can arrive afterward via fetch if something was missing locally.</p>
-            <p>Each follower checks: was this really the right proposer? do the roots and timestamps make sense? does the manifest match what we can reconstruct? If yes, the validator signs a committee <span class="glossary-term" data-glossary="block vote">vote</span> agreeing to that block hash. If pieces are still missing, the block waits in a pending slot until data shows up or the cleanup timer gives up (<a href="module-09-timing.html">timing module</a>).</p>
+            <p>Each follower checks: was this really the right proposer? do the roots and timestamps make sense? does the manifest match what we can reconstruct? If yes, the validator signs a committee <span class="glossary-term" data-glossary="block vote">vote</span> agreeing to that block hash. If pieces are still missing, the block waits in a pending slot until data shows up or the cleanup timer gives up (<a href="module-timers-reference.html">timing module</a>).</p>
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — manifest type and gossip shape</p>
                 <div class="code-block"><pre><code class="language-rust">// crates/types/src/block/manifest.rs
@@ -315,6 +320,8 @@ Action::SignAndBroadcastBlockVote { block_hash, height, round, next_proposers, .
                 <li>Later proposer for B’s child puts QC(B) in <code>parent_qc</code> of the new header.</li>
             </ol>
 
+            <div class="hs-block-evolution-mount" data-block-evolution="parent-qc" aria-label="Block anatomy — parent_qc on child"></div>
+
             <div class="hs-gotcha">
                 <strong>Gotcha — QC vs vote:</strong> Votes are per-validator messages; the QC is the <em>aggregated proof</em> that quorum voted for one hash. There is no required standalone “QC gossip topic”—the next header’s <code>parent_qc</code> is the normal propagation path.
             </div>
@@ -381,6 +388,7 @@ pub fn committable_hash(&amp;self) -&gt; Option&lt;BlockHash&gt; {
                 <li>The header’s <span class="glossary-term" data-glossary="state root">state root</span> is now part of the committed chain view; JMT/JVT versions for execution evolve in later phases.</li>
             </ul>
             <p>Every honest validator runs this locally when its two-chain condition fires—the proposer does not “commit for the shard.”</p>
+            <div class="hs-block-evolution-mount" data-block-evolution="commit" aria-label="Block anatomy — committed block"></div>
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — <code>try_two_chain_commit</code> and commit side effects</p>
                 <div class="code-block"><pre><code class="language-rust">// crates/shard/src/coordinator.rs
@@ -436,11 +444,11 @@ Action::SetTimer { id: TimerId::ViewChange, ... }</code></pre></div>
             <h2>11 — Design Q&amp;A (curated)</h2>
             <div class="hs-qa-item">
                 <p class="hs-qa-q">What is <span class="glossary-term" data-glossary="view change">view change</span> in hyperscale-rs?</p>
-                <p>Each <span class="glossary-term" data-glossary="view">round</span> names one proposer for the current height. If that leader does not drive the shard forward (no timely QC / proposal progress), the <code>ViewChangeTimer</code> expires and every node runs the same timeout handler: advance the round, reset the timer, and let the <em>next</em> validator in the round-robin try. That is <span class="glossary-term" data-glossary="implicit view change">implicit view change</span>—no separate PBFT-style view-change vote round. Hover the blue dotted terms for the glossary card; full timing constants live in <a href="module-09-timing.html">module-09-timing</a>.</p>
+                <p>Each <span class="glossary-term" data-glossary="view">round</span> names one proposer for the current height. If that leader does not drive the shard forward (no timely QC / proposal progress), the <code>ViewChangeTimer</code> expires and every node runs the same timeout handler: advance the round, reset the timer, and let the <em>next</em> validator in the round-robin try. That is <span class="glossary-term" data-glossary="implicit view change">implicit view change</span>—no separate PBFT-style view-change vote round. Hover the blue dotted terms for the glossary card; full timing constants live in <a href="module-timers-reference.html">Timers reference</a>.</p>
             </div>
             <div class="hs-qa-item">
                 <p class="hs-qa-q">Why no periodic proposal timer?</p>
-                <p>Proposals are driven by <em>new work</em> (mempool ready set, new QC, provisions). Liveness when the leader stalls is <code>ViewChangeTimer</code> → <span class="glossary-term" data-glossary="view change">view change</span> → new <code>proposer_for</code> — see <a href="module-09-timing.html">timing module</a>.</p>
+                <p>Proposals are driven by <em>new work</em> (mempool ready set, new QC, provisions). Liveness when the leader stalls is <code>ViewChangeTimer</code> → <span class="glossary-term" data-glossary="view change">view change</span> → new <code>proposer_for</code> — see <a href="module-timers-reference.html">timing module</a>.</p>
             </div>
             <div class="hs-qa-item">
                 <p class="hs-qa-q">Can the proposer censor txs in the block body?</p>
@@ -532,7 +540,7 @@ Action::SetTimer { id: TimerId::ViewChange, ... }</code></pre></div>
         </div>
         <nav class="navigation module-nav">
             <a href="module-phase-01-submit-to-mempool.html" class="btn btn-secondary">← Phase 1</a>
-            <a href="module-09-timing.html" class="btn btn-primary">Timing →</a>
+            <a href="module-phase-03-execution-waves.html" class="btn btn-primary">Phase 3 →</a>
         </nav>
     </div>
 
@@ -541,6 +549,8 @@ Action::SetTimer { id: TimerId::ViewChange, ... }</code></pre></div>
     <script src="../../common/hyperscale-links.js"></script>
     <script src="../../common/navigation.js"></script>
     <script src="../../common/glossary.js"></script>
+    <script src="../../common/block-evolution-data.js"></script>
+    <script src="../../common/block-evolution.js"></script>
     <script src="../../common/module-init.js" data-module-id="hs-phase-02"></script>
     <script>
         (function () {

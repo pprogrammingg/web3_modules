@@ -31,6 +31,10 @@ echo "== 4c. hyperscale-reflect-contract (course vs hyperscale-rs baseline) =="
 node tests/hyperscale-reflect-contract.js
 
 echo ""
+echo "== 4c2. block-evolution-reflect-contract (block fields vs clone header.rs) =="
+node tests/block-evolution-reflect-contract.js
+
+echo ""
 echo "== 4d. mobile-contract (viewport, table-wrap, shared CSS mobile rules) =="
 node tests/mobile-contract.js
 
@@ -45,6 +49,10 @@ node tests/test-quiz.js
 echo ""
 echo "== 5b. glossary contract (expand link + anchor ids) =="
 node tests/glossary-contract.js
+
+echo ""
+echo "== 5c. block-evolution contract (phase mounts + glossary keys) =="
+node tests/block-evolution-contract.js
 
 echo ""
 echo "== 6. mobile-test page present =="

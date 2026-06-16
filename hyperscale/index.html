@@ -14,7 +14,7 @@
     <div class="container">
         <header>
             <h1>🚀 Blockchain & Hyperscale-rs Learning Journey</h1>
-            <p class="subtitle">Eight levels (19 modules)—structured path toward elite decentralized protocol engineering (generic foundations early, then tx-flow phases, harness labs, cross-shard E2E, performance, crypto)</p>
+            <p class="subtitle">Seven levels (20 modules)—three per level on L1–L6; structured path toward elite decentralized protocol engineering</p>
         </header>
 
         <div class="info elite-course-banner" style="margin: 1.25rem 0 2rem; padding: 1.35rem 1.5rem;">
@@ -27,13 +27,12 @@
                 </thead>
                 <tbody>
                     <tr><td>1</td><td>Basic → repo-ready</td><td><strong>Overview &amp; setup</strong>, state machines, blockchain fundamentals</td></tr>
-                    <tr><td>2</td><td>Basic → pipeline thinker</td><td>Consensus, <strong>distributed systems</strong>, tx-flow map, Phase 1</td></tr>
-                    <tr><td>3</td><td>In-depth → phases</td><td>Phases 2–4 + <strong>timing</strong> (Radix boundary in Phase 3)</td></tr>
-                    <tr><td>4</td><td>In-depth → single-shard E2E</td><td>Combined sim + prod harness reading, simulation E2E hands-on</td></tr>
-                    <tr><td>5</td><td>In-depth → production E2E</td><td>Single-shard production hands-on lab</td></tr>
-                    <tr><td>6</td><td>In-depth → cross-shard E2E</td><td>Cross-shard simulation &amp; production E2E labs (theory in Phase 4)</td></tr>
-                    <tr><td>7</td><td>In-depth → measurement</td><td>hyperscale-sim performance lab</td></tr>
-                    <tr><td>8</td><td>In-depth → networking &amp; crypto</td><td>libp2p, cryptography</td></tr>
+                    <tr><td>2</td><td>Basic → pipeline thinker</td><td>Consensus, distributed systems, <strong>tx-flow map</strong></td></tr>
+                    <tr><td>3</td><td>In-depth → phases I–III</td><td>Phases 1–3 (mempool → propose → execution)</td></tr>
+                    <tr><td>4</td><td>In-depth → cross-shard + refs</td><td>Phase 4, <strong>block fields</strong> deep dive, <strong>timers</strong></td></tr>
+                    <tr><td>5</td><td>In-depth → single-shard E2E</td><td>Harness reading + simulation &amp; production labs</td></tr>
+                    <tr><td>6</td><td>In-depth → cross-shard &amp; perf</td><td>Cross-shard labs + performance measurement</td></tr>
+                    <tr><td>7</td><td>In-depth → networking &amp; crypto</td><td>libp2p, cryptography (2 modules)</td></tr>
                 </tbody>
             </table>
             <p style="margin-bottom: 0; font-size: 0.92rem; color: var(--text2);">Bands are guides, not gates—many people revisit levels as their role changes. Expect to iterate through the journey with us.</p>
@@ -49,12 +48,13 @@
 
         <div class="info" style="margin: 2rem 0; padding: 1.5rem;">
             <h3 style="margin-top: 0;">Course Structure</h3>
-            <p><strong>19 modules</strong> across eight levels. <strong>Level 1</strong> has three (overview, state machines, blockchain). <strong>Level 2</strong> has four (consensus, distributed systems, tx-flow, Phase 1). <strong>Level 3</strong> has four (Phases 2–4 plus timing). Per-shard <code>ShardCoordinator</code> detail is in <strong>Phase 2</strong>; <span class="glossary-term" data-glossary="beacon chain">beacon chain</span> / topology in glossary + Phase 2 scope; Radix boundary is in <strong>Phase 3</strong>.</p>
+            <p><strong>20 modules</strong> across seven levels (three per level on L1–L6). <strong>Level 1</strong>: overview, state machines, blockchain. <strong>Level 2</strong>: consensus, distributed systems, tx-flow. <strong>Level 3</strong>: Phases 1–3. <strong>Level 4</strong>: Phase 4, block-fields deep dive, timers. <strong>Level 5</strong>: E2E harness + single-shard labs. <strong>Level 6</strong>: cross-shard labs + performance. <strong>Level 7</strong>: libp2p and crypto.</p>
             <ul>
-                <li><strong>Levels 1–2</strong> — Orientation → consensus → CAP/safety/liveness → tx-flow → Phase 1</li>
-                <li><strong>Level 3</strong> — Phases 2–4 and timing (no duplicate execution module)</li>
-                <li><strong>Levels 4–6</strong> — Combined E2E harness reading → single-shard labs → cross-shard labs</li>
-                <li><strong>Levels 7–8</strong> — Performance lab → libp2p → crypto</li>
+                <li><strong>Levels 1–2</strong> — Foundations → tx-flow map</li>
+                <li><strong>Level 3</strong> — Phase drills through execution waves</li>
+                <li><strong>Level 4</strong> — Cross-shard + block commitments + chain time</li>
+                <li><strong>Levels 5–6</strong> — E2E harness labs → cross-shard → performance</li>
+                <li><strong>Level 7</strong> — libp2p → cryptography</li>
             </ul>
             <p>Hyperscale-rs–specific modules keep the <span style="background: #fef3c7; color: #92400e; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.9rem;">Hyperscale-rs</span> badge.</p>
         </div>
@@ -67,20 +67,20 @@
             </div>
 
             <div class="timeline-section">
-                <h2>🔧 Levels 2–7</h2>
-                <p class="phase-description">Levels 2–7 follow course order (module counts vary by level—see structure above).</p>
+                <h2>🔧 Levels 2–6</h2>
+                <p class="phase-description">Levels 2–6 follow course order (module counts vary by level—see structure above).</p>
                 <div id="intermediate-modules"></div>
             </div>
 
             <div class="timeline-section">
-                <h2>⚡ Level 8</h2>
+                <h2>⚡ Level 7</h2>
                 <p class="phase-description">libp2p introduction and cryptography in the node.</p>
                 <div id="advanced-modules"></div>
             </div>
 
             <div class="timeline-section">
                 <h2>🎯 Hyperscale-rs only (by level)</h2>
-                <p class="phase-description">Filtered view of the same <strong>Level 1–8</strong> path for Hyperscale-rs–tagged modules.</p>
+                <p class="phase-description">Filtered view of the same <strong>Level 1–7</strong> path for Hyperscale-rs–tagged modules.</p>
                 <div id="hyperscale-modules"></div>
             </div>
         </div>
@@ -107,7 +107,7 @@
             <h3>How to Use This Course</h3>
             <ol>
                 <li><strong>Start at Level 1</strong> - Even if you have some experience, the foundation modules anchor the rest of the path</li>
-                <li><strong>Progress by level number</strong> — Complete the modules in a level in order; Level 6 has four Hyperscale-facing steps (adds Rust optimizations between performance and E2E).</li>
+                <li><strong>Progress by level number</strong> — Complete the modules in a level in order; <strong>Level 4</strong> is three steps (harness read → sim lab → production lab).</li>
                 <li><strong>Complete All Sections</strong> - Read content, take quizzes, complete assignments</li>
                 <li><strong>Focus on Hyperscale-rs Modules</strong> - If your goal is to contribute to hyperscale-rs, prioritize those modules</li>
                 <li><strong>Take Your Time</strong> - Each module is designed for 1.5-2 hours. Don't rush!</li>

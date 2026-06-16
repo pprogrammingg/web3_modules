@@ -6,6 +6,8 @@ Single source of truth: **`common/hyperscale-flow-data.js`**. Teaching modules g
 
 **Module page shell** (nav, `.course-content`, tables, backgrounds) matches other tracks — see **`common/MODULE_PAGE.md`**. After CSS or module HTML changes, run **`bash tests/run-all.sh`** from the repo root (includes **hyperscale-reflect-contract** at step 4c).
 
+**Block anatomy cards** (Phase 1–4): cumulative `BlockHeader` + body fields at teaching steps via **`common/block-evolution-data.js`** + **`common/block-evolution.js`**. New fields render in pistachio green; earlier fields stay muted. Field hovers reuse **`glossary.js`** tooltips (same `data-glossary` / Expand link) — no duplicate `block-field-*` entries; existing terms gained aliases (`parent_qc`, `state_root`, …) and optional **`blockFieldMeta.phaseSteps`**. **Bird's-eye map:** **`module-01b-tx-flow.html`** (`data-block-birdseye`) renders **`BIRDSEYE_ROWS`** — tx flow step → phase → block card → new fields. Contracts: **`tests/block-evolution-contract.js`** (5c), **`tests/block-evolution-reflect-contract.js`** (4c2 — compares taught fields to `crates/types/src/shard/header.rs` + `block.rs` in local clone).
+
 ## When hyperscale-rs is updated
 
 1. **Use the local clone only.** Do not fetch or verify content from GitHub. The clone path is in **`scripts/hyperscale-repo.config.js`** (default `../other_projects/hyperscale-rs`); override with **`LOCAL_REPO_PATH=/path/to/hyperscale-rs`**.
@@ -21,7 +23,7 @@ Output includes changed files (excluding vendor), affected FILE_REFS, affected c
 
 | When | Commands |
 |------|----------|
-| After `git pull` in hyperscale-rs | `reflect-changes.js hyperscale` → edit modules / flow-data → `--save` → `hyperscale-reflect-contract.js` |
+| After `git pull` in hyperscale-rs | `reflect-changes.js hyperscale` → edit modules / flow-data / **block-evolution-data.js** if `BlockHeader` changed → `--save` → `hyperscale-reflect-contract.js` + **`block-evolution-reflect-contract.js`** |
 | Large symbol/path renames | `apply-hyperscale-repo-reflect.js` then manual prose → steps above |
 | Before commit (any Hyperscale touch) | **`bash tests/run-all.sh`** |
 | Reordered Hyperscale modules only | `rebuild-hyperscale-course-data.js` → `verify-paths.js` |

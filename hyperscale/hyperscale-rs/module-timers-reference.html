@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timers &amp; Chain Time</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Timers &amp; Chain Time</h1>
+            <p class="course-header-lede">After <a href="module-block-fields-deep-dive.html">block fields deep dive</a>: every timeout and timer in hyperscale-rs — what it does in plain English, which clock it uses, and how it differs from event-driven proposals. BFT story: <a href="module-phase-02-propose-vote-commit.html">Phase 2</a>; execution windows: <a href="module-phase-03-execution-waves.html">Phase 3</a>.</p>
+            <div class="course-meta">
+                <span>⏱️ ~40–55 min read</span>
+                <span>📊 Reference</span>
+                <span>🎯 Hyperscale-rs</span>
+            </div>
+        </div>
+
+        <nav class="hs-phase-roadmap" aria-label="Tx flow phase modules">
+            <a href="module-phase-01-submit-to-mempool.html"><span class="phase-num">Phase 1</span>Submit → mempool</a>
+            <a href="module-phase-02-propose-vote-commit.html"><span class="phase-num">Phase 2</span>Propose → commit</a>
+            <a href="module-phase-03-execution-waves.html"><span class="phase-num">Phase 3</span>Execution &amp; waves</a>
+            <a href="module-phase-04-cross-shard-tx.html"><span class="phase-num">Phase 4</span>Cross-shard tx</a>
+            <a href="module-block-fields-deep-dive.html"><span class="phase-num">Deep</span>Block fields</a>
+            <a href="module-timers-reference.html" class="is-current"><span class="phase-num">Time</span>Timers</a>
+            <a href="module-hs-simulation-harness-analysis.html"><span class="phase-num">Harness</span>Sim E2E</a>
+        </nav>
+
+        <div class="section">
+            <h2>Two clocks (read the table with this)</h2>
+            <ul class="module-tight-prose">
+                <li><strong>Chain time</strong> — <code>weighted_timestamp</code> from committed QCs. Used for wave abort, provision fallback, retention. Every honest node derives the same value.</li>
+                <li><strong>Wall clock</strong> — laptop / tokio time. Used for view-change scheduling, cleanup ticks, provision/mempool dwell, fetch retries. Nodes schedule locally; protocol constants must still match.</li>
+            </ul>
+            <div class="hs-gotcha">
+                <strong>Height vs round:</strong> <strong>Height</strong> = block page (advances on commit). <strong>Round</strong> = attempt at that height (advances on <code>ViewChangeTimer</code>). Each shard has its own height — not one global chain height.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Proposals are event-driven (not timer-driven)</h2>
+            <p class="module-tight-prose">There is <strong>no</strong> <code>ProposalTimer</code>. When mempool, QC, commit, provisions, or finalized waves change what a block could contain, <code>queue_ready_proposal</code> latches and <code>try_propose</code> runs. <strong>Liveness when the leader stalls</strong> is <code>ViewChangeTimer</code> → new round → new proposer — see Phase 2.</p>
+        </div>
+
+        <div class="section">
+            <h2>Master timer &amp; timeout table</h2>
+            <p class="module-footnote module-footnote--tight">Shard-scoped unless noted process-scoped (one timer fans out to all shards on the node).</p>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-first">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Clock</th>
+                            <th>Purpose (English)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>ViewChangeTimer</code> (<code>TimerId::ViewChange</code>)</td>
+                            <td>BFT liveness</td>
+                            <td>Wall (backoff from protocol constants)</td>
+                            <td>If the leader sits too long without progress at this height/round, bump the round so the <em>next</em> proposer can try the <em>same</em> height.</td>
+                        </tr>
+                        <tr>
+                            <td><code>VIEW_CHANGE_TIMEOUT</code> (+ increment, max)</td>
+                            <td>BFT liveness</td>
+                            <td>Protocol constant</td>
+                            <td>Base 3s per round, +1s per failed round at same height, cap 30s — every validator computes the same effective deadline.</td>
+                        </tr>
+                        <tr>
+                            <td><code>MAX_PROGRESS_WAIT</code></td>
+                            <td>BFT safety/liveness</td>
+                            <td>Wall</td>
+                            <td>Cap how long view-change can be suppressed while a pending proposal blocks progress — stops a Byzantine leader stalling forever with a live header.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="glossary-term" data-glossary="proposal latch">Proposal latch</span> (<code>queue_ready_proposal</code>)</td>
+                            <td>Consensus packaging</td>
+                            <td>Event (not periodic)</td>
+                            <td>“New material worth a block” — mempool ready, new QC, commit, provisions, finalized waves — triggers <code>try_propose</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>CleanupTimer</code> (<code>TimerId::Cleanup</code>)</td>
+                            <td>Housekeeping</td>
+                            <td>Wall (<code>cleanup_interval</code>, default 1s)</td>
+                            <td>Periodic sweeps: sync health, mempool tombstones, pending-block hints — hygiene, not block building.</td>
+                        </tr>
+                        <tr>
+                            <td><code>transaction_fetch_timeout</code></td>
+                            <td>Sync / pending block</td>
+                            <td>Wall (operator, default 150ms)</td>
+                            <td>Pending block still missing txs → fetch from proposer or peer.</td>
+                        </tr>
+                        <tr>
+                            <td><code>certificate_fetch_timeout</code></td>
+                            <td>Sync / pending block</td>
+                            <td>Wall (operator, default 500ms)</td>
+                            <td>Pending block still missing wave certs → fetch from proposer or peer.</td>
+                        </tr>
+                        <tr>
+                            <td><code>FetchTick</code> (<code>TimerId::FetchTick</code>)</td>
+                            <td>Fetch protocol</td>
+                            <td>Wall</td>
+                            <td>Process-scoped retry tick for outstanding fetch requests across shards.</td>
+                        </tr>
+                        <tr>
+                            <td><code>WAVE_TIMEOUT</code> (24s)</td>
+                            <td>Execution / cross-shard</td>
+                            <td>Chain (<code>weighted_timestamp</code> at wave start)</td>
+                            <td>Abort the whole wave if provisioning or execution cannot finish in time — deterministic on every node.</td>
+                        </tr>
+                        <tr>
+                            <td><code>VOTE_RETRY_TIMEOUT</code> (8s)</td>
+                            <td>Execution</td>
+                            <td>Chain</td>
+                            <td>Resend execution votes if gossip or wave leader is slow — liveness before <code>WAVE_TIMEOUT</code> abort.</td>
+                        </tr>
+                        <tr>
+                            <td><code>PROVISION_FALLBACK_TIMEOUT</code> (~5s chain)</td>
+                            <td>Cross-shard</td>
+                            <td>Chain</td>
+                            <td>Expected provision never arrived via gossip → emit fetch for missing <code>Provisions</code>.</td>
+                        </tr>
+                        <tr>
+                            <td>Provision <code>min_dwell_time</code></td>
+                            <td>Cross-shard</td>
+                            <td>Wall (operator, default 500ms)</td>
+                            <td>Hold verified provision batches out of the next proposal until peers had time to gossip-verify the same data.</td>
+                        </tr>
+                        <tr>
+                            <td>Mempool <code>min_dwell_time</code></td>
+                            <td>Mempool</td>
+                            <td>Wall (default 150ms)</td>
+                            <td>Delay admitting txs to the proposer-ready set so gossip can propagate duplicates first.</td>
+                        </tr>
+                        <tr>
+                            <td><code>REMOTE_HEADER_RETENTION</code> (30s chain)</td>
+                            <td>Cross-shard verify</td>
+                            <td>Chain</td>
+                            <td>Keep remote committed headers long enough that late provisions/ECs still find an anchor header.</td>
+                        </tr>
+                        <tr>
+                            <td><code>RETENTION_HORIZON</code></td>
+                            <td>Retention</td>
+                            <td>Chain-derived</td>
+                            <td>Upper bound to drop provisions, ECs, mempool tombstones — tx is provably terminal everywhere after this.</td>
+                        </tr>
+                        <tr>
+                            <td><code>BeaconCommitteeStart</code></td>
+                            <td>Beacon</td>
+                            <td>Wall (epoch boundary)</td>
+                            <td>Process-scoped: local vnode on next committee should start beacon work at epoch boundary if block not committed yet.</td>
+                        </tr>
+                        <tr>
+                            <td><code>BeaconSkipTrigger</code> / <code>SKIP_TIMEOUT</code> (45s)</td>
+                            <td>Beacon</td>
+                            <td>Wall</td>
+                            <td>Process-scoped: if expected beacon commit missing past expected block time, broadcast <code>SkipRequest</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>BeaconSpcView</code></td>
+                            <td>Beacon SPC</td>
+                            <td>Wall</td>
+                            <td>Process-scoped: SPC view timeout — drive inner PC even if leader has not surfaced input.</td>
+                        </tr>
+                        <tr>
+                            <td><code>EPOCH_DURATION</code> (5 min chain)</td>
+                            <td>Beacon</td>
+                            <td>Chain</td>
+                            <td>Epoch boundaries from committed beacon slot timestamps — committee rotation / witness window.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Wiring (where to read code)</h2>
+            <div class="table-wrap">
+                <table class="flow-steps">
+                    <thead><tr><th>Concern</th><th>Path</th></tr></thead>
+                    <tbody>
+                        <tr><td>View change fires</td><td><code>crates/node/src/state/timers.rs</code> → <code>on_view_change_timer</code> → <code>check_round_timeout</code></td></tr>
+                        <tr><td>Timers armed at genesis</td><td><code>crates/shard/src/coordinator.rs</code> — <code>SetTimer</code> ViewChange + Cleanup</td></tr>
+                        <tr><td>Event-driven propose</td><td><code>queue_ready_proposal</code>, <code>try_propose</code>; <code>crates/node/src/state/proposal.rs</code></td></tr>
+                        <tr><td>Protocol constants</td><td><code>crates/types/src/time/timeouts.rs</code></td></tr>
+                        <tr><td>Operator knobs</td><td><code>crates/shard/src/config.rs</code> — <code>ShardConsensusConfig</code></td></tr>
+                        <tr><td>Wave / vote retry</td><td><code>crates/execution/src/waves.rs</code>, <code>coordinator.rs</code></td></tr>
+                        <tr><td>Provision fallback / dwell</td><td><code>crates/provisions/src/expected.rs</code>, <code>queue.rs</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Quiz</h2>
+            <p>Pass threshold: 70%.</p>
+            <div id="quiz-timing" class="quiz-container"></div>
+        </div>
+
+        <div class="module-actions">
+            <button type="button" class="btn btn-primary" id="complete-module-btn">Mark module complete</button>
+        </div>
+        <nav class="navigation module-nav">
+            <a href="module-block-fields-deep-dive.html" class="btn btn-secondary">← Block fields</a>
+            <a href="module-hs-simulation-harness-analysis.html" class="btn btn-primary">E2E harnesses →</a>
+        </nav>
+    </div>
+
+    <script src="../../common/course-data.js"></script>
+    <script src="../../common/hyperscale-flow-data.js"></script>
+    <script src="../../common/hyperscale-links.js"></script>
+    <script src="../../common/navigation.js"></script>
+    <script src="../../common/glossary.js"></script>
+    <script src="../../common/module-init.js" data-module-id="hs-timers"></script>
+    <script>
+        (function() {
+            const quizQuestions = [
+                {
+                    question: "What is the difference between height and round (view)?",
+                    options: [
+                        "Height is the block index; round is the attempt at that height until a QC forms.",
+                        "Height and round are the same; both advance on commit.",
+                        "Round is the block index; height is the attempt number.",
+                        "Height advances on every proposal; round only on commit."
+                    ],
+                    correct: 0,
+                    explanation: "Height is the slot; round bumps on view-change timeout when no QC in time."
+                },
+                {
+                    question: "Which clock drives WAVE_TIMEOUT abort?",
+                    options: [
+                        "Wall clock only.",
+                        "Chain time: weighted_timestamp from the committing QC.",
+                        "Mempool submit time.",
+                        "Proposer laptop clock in the header."
+                    ],
+                    correct: 1,
+                    explanation: "WAVE_TIMEOUT is measured from chain-authenticated weighted_timestamp so every node aborts together."
+                },
+                {
+                    question: "How does a validator decide to build a new block proposal?",
+                    options: [
+                        "ProposalTimer fires every N seconds.",
+                        "queue_ready_proposal latches after new inputs → try_propose.",
+                        "CleanupTimer always emits BuildProposal.",
+                        "Only simulation injects proposals."
+                    ],
+                    correct: 1,
+                    explanation: "Proposals are event-driven off new mempool/QC/commit/provision/cert material."
+                },
+                {
+                    question: "What does ViewChangeTimer do when it fires?",
+                    options: [
+                        "Commits the current block immediately.",
+                        "Runs check_round_timeout — advance round or reschedule remaining slack.",
+                        "Only sweeps the mempool.",
+                        "Fetches missing transactions."
+                    ],
+                    correct: 1,
+                    explanation: "View change is the liveness escape hatch when the leader stalls."
+                },
+                {
+                    question: "Why is PROVISION_FALLBACK_TIMEOUT chain-time based?",
+                    options: [
+                        "It is not; it uses wall clock only.",
+                        "So every node fetches missing provisions at the same logical instant after a remote commit.",
+                        "To match Ed25519 tx validity.",
+                        "Only for simulation."
+                    ],
+                    correct: 1,
+                    explanation: "Chain time keeps cross-shard recovery symmetric across validators."
+                },
+                {
+                    question: "What is min_dwell_time for provisions for?",
+                    options: [
+                        "Encrypt provision batches.",
+                        "Wait wall-clock briefly so gossip can propagate before proposer includes a batch.",
+                        "Replace WAVE_TIMEOUT.",
+                        "Advance blockchain height."
+                    ],
+                    correct: 1,
+                    explanation: "Dwell reduces proposing data peers have not verified yet."
+                }
+            ];
+            if (typeof initializeQuiz === 'function') {
+                initializeQuiz('quiz-timing', quizQuestions, 70);
+            }
+        })();
+    </script>
+</body>
+</html>

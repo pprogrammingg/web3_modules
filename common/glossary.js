@@ -85,6 +85,7 @@ const GLOSSARY_ENTRIES = [
     def: 'Cryptographic proof that at least 2f+1 validators have voted for a block.',
     technicalDef: 'A QC is an aggregated signature (or similar proof) from a quorum of validators attesting that they voted for a specific block. In a system with n = 3f+1 nodes, any set of 2f+1 signatures proves that a majority has agreed. In a block header, parent_qc is the QC for the previous block: it chains blocks in consensus (height, parent_hash are derived from it) and is what validators vote on. Parent_qc does not define state; the block body\'s certificates (TransactionCertificates) do that.',
     explain10yo: 'A signed note from more than half the class saying "we all agree this is the answer." One honest person can\'t sign two different answers, so you can\'t have two different real notes.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 vote → QC → child header parent_qc' },
     subCategory: ['Consensus & Agreement'],
     competingConcepts: 'QC-based BFT (HotStuff, PBFT) vs signature aggregation in DPoS (e.g. Tendermint). In the header: parent_qc = consensus proof for previous block; in the block body: certificates = execution outcomes used to compute state root.',
   },
@@ -150,21 +151,23 @@ const GLOSSARY_ENTRIES = [
   },
   {
     key: 'block producer',
-    keys: ['block producer', 'block producer (leader)', 'proposer'],
+    keys: ['block producer', 'block producer (leader)', 'proposer', 'block proposer'],
     term: 'Block Producer',
     def: 'A validator in that shard\'s committee who is the proposer for a given (height, round).',
     technicalDef: 'Who is the block producer? A validator in that shard\'s committee. Each shard has its own committee; the proposer is one of those validators for a given (height, round). The block producer (leader) packs transactions from the mempool into a block and broadcasts it for BFT voting.',
     explain10yo: 'For each round, one person in the group is chosen to suggest the next page. Everyone in the group could be chosen in turn; that person is the block producer for that round.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 try_propose — BlockHeader.proposer' },
     subCategory: ['Consensus & Agreement', 'Scalability & Sharding'],
     competingConcepts: 'Block producer (BFT, per-shard proposer) vs miner (PoW: whoever finds a solution proposes). In BFT each shard has one block producer per view; in PoW the proposer is determined by puzzle-solving.',
   },
   {
     key: 'view',
-    keys: ['view', 'view number', 'round'],
+    keys: ['view', 'view number', 'round', 'block round'],
     term: 'View / Round (BFT)',
     def: 'In leader-based BFT, a view (or round) is a period in which one leader is designated to propose a block.',
     technicalDef: 'The view number (or round number) is a monotonically increasing identifier. Each view has exactly one proposer/leader, chosen deterministically from the validator set (e.g. view mod n). All nodes in the shard agree on the view number and thus on who the current proposer is. On timeout or failure to get a QC, the protocol advances to the next view (view change).',
     explain10yo: 'Like a turn number in a game: "This is turn 5, so it\'s Alice\'s turn to propose." Everyone agrees on the number, so everyone agrees whose turn it is.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 propose — BlockHeader.round' },
     subCategory: ['Consensus & Agreement'],
     competingConcepts: 'View (BFT) vs block height: height is the block index in the chain; view can advance without producing a block (e.g. on timeout).',
   },
@@ -202,19 +205,20 @@ const GLOSSARY_ENTRIES = [
     key: 'proposal latch',
     keys: ['proposal latch', 'latch', 'queue_ready_proposal', 'ready_proposal'],
     term: 'Proposal latch (queue_ready_proposal)',
-    def: 'A boolean flag on the BFT coordinator meaning “something changed that might justify building a block—run try_propose after this event.”',
-    technicalDef: 'In hyperscale-rs, `ShardCoordinator::queue_ready_proposal()` sets `verification.ready_proposal = true` (a latch, not a queue of txs). After `NodeStateMachine::handle` finishes processing an event, `take_ready_proposal()` clears it; if true, `try_event_driven_proposal` gathers mempool/execution inputs and calls `try_propose`. It does not store *what* changed—only that a proposal attempt may be worthwhile. Distinct from mempool storage or crossbeam channels.',
-    explain10yo: 'Like flipping a sticky note on your desk: “check if I should write the next page.” You still decide what goes on the page when you actually sit down to write.',
+    def: 'A sticky “check soon” flag—not a queue. Something changed (new tx, QC, commit, provisions, etc.) that might mean the next block should look different.',
+    technicalDef: 'When mempool, execution, or BFT reports new material, the node calls `queue_ready_proposal()` and sets a boolean. After the current event is fully handled, the node reads that flag once; if set, it gathers ready txs, waves, and provisions and calls `try_propose`. It does not record what changed, and there is no periodic proposal timer—only this latch plus the view-change timer when the leader stalls.',
+    explain10yo: 'Like flipping a sticky note: “check if I should write the next page.” You still decide what goes on the page when you sit down to write.',
     subCategory: ['Consensus & Agreement'],
-    competingConcepts: 'Latch vs periodic timer: hyperscale-rs has no ProposalTimer; view-change timer is for liveness when rounds stall, not for empty ticks.',
+    competingConcepts: 'Latch (deferred, once per dispatch) vs proposal timer (hyperscale-rs has none). View-change timer is separate—it advances the round when the leader is stuck.',
   },
   {
     key: 'block manifest',
-    keys: ['block manifest', 'blockmanifest', 'manifest'],
+    keys: ['block manifest', 'blockmanifest', 'manifest', 'proposer timestamp'],
     term: 'Block manifest',
     def: 'Hash-level table of contents for a proposed block: which tx hashes, finalized wave ids, and provision hashes the proposer claims—without shipping full bodies in the header gossip.',
-    technicalDef: '`BlockManifest` (`crates/types/src/block/manifest.rs`) lists `tx_hashes`, `cert_ids` (finalized waves), and `provision_hashes` with the same caps as a full `Block`. Gossip sends `BlockHeaderNotification { header, manifest, proposer_signature }`. Peers verify the header against the manifest (counts, roots, timestamp bounds) and fetch missing bodies via the fetch protocol. Not a Radix user manifest—that is the signed transaction payload from Phase 1.',
+    technicalDef: '`BlockManifest` (`crates/types/src/block/manifest.rs`) lists `tx_hashes`, `cert_ids` (finalized waves), and `provision_hashes` with the same caps as a full `Block`. Gossip sends `BlockHeaderNotification { header, manifest, proposer_signature }`. Peers verify the header against the manifest (counts, roots, timestamp bounds) and fetch missing bodies via the fetch protocol. The header also carries `waves`, `provision_tx_roots`, and `timestamp` (proposer time, bounded at verify). Not a Radix user manifest—that is the signed transaction payload from Phase 1.',
     explain10yo: 'The cover letter lists chapter titles; the books themselves may arrive in separate boxes.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 gossip/verify; Phase 3 waves; Phase 4 provision_tx_roots' },
     subCategory: ['Blocks & Chain'],
     competingConcepts: 'Block manifest (consensus gossip) vs Radix transaction manifest (user-signed instruction list in Phase 1).',
   },
@@ -601,11 +605,12 @@ const GLOSSARY_ENTRIES = [
   },
   {
     key: 'transaction root',
-    keys: ['transaction root', 'tx root', 'transactions root'],
+    keys: ['transaction root', 'tx root', 'transactions root', 'transaction_root'],
     term: 'Transaction Root',
     def: 'Merkle root of the list of transactions in a block; commits to transaction ordering and content.',
     technicalDef: 'The block header contains a hash (Merkle root) of the tree of transaction hashes in the block body. Used to prove inclusion of a tx in the block without sending all txs. Bitcoin and Ethereum use this; light clients verify tx inclusion via Merkle proofs against this root.',
     explain10yo: 'One fingerprint for the whole list of transactions in a block. You can prove "this transaction was in the block" by showing a short path to that fingerprint.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 propose — first non-empty txs' },
     subCategory: ['Cryptography & Hashing', 'Blockchain & Ledgers'],
     competingConcepts: 'Transaction root (inputs/ordering) vs state root (execution outcome). Both in block header; state root commits to resulting state.',
   },
@@ -758,8 +763,9 @@ const GLOSSARY_ENTRIES = [
     keys: ['genesis block', 'genesis', 'chain genesis'],
     term: 'Genesis block',
     def: 'The first block in a chain (height 0): fixed validator set, initial state root, and no parent block.',
-    technicalDef: 'Genesis bootstraps the ledger: it defines the initial committee, empty or prefunded state (e.g. JVT root after engine genesis in hyperscale-rs), and the starting BFT view. All nodes must agree on the same genesis; later blocks extend from it. In hyperscale-rs production, `maybe_initialize_genesis` builds `Block::genesis`, calls `initialize_genesis` on the node state machine, applies actions, then applies `StateCommitComplete` at height 0 so BFT state matches the real JVT root.',
+    technicalDef: 'Genesis bootstraps the ledger: it defines the initial committee, empty or prefunded state (e.g. JVT root after engine genesis in hyperscale-rs), and the starting BFT view. All nodes must agree on the same genesis; later blocks extend from it. In hyperscale-rs production, `maybe_initialize_genesis` builds `Block::genesis`, calls `initialize_genesis` on the node state machine, applies actions, then applies `StateCommitComplete` at height 0 so BFT state matches the real JVT root. `BlockHeader.height` is `BlockHeight(0)` at genesis; `is_fallback` is false on normal genesis (true on sync/recovery proposals).',
     explain10yo: 'The first page of the notebook everyone agrees on before anyone writes page two—who is allowed to play and what the starting score is.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 genesis — height 0, ZERO roots' },
     subCategory: ['Blockchain & Ledgers', 'Consensus & Agreement'],
     competingConcepts: 'Genesis vs configuration: genesis is on-chain agreed bootstrapping; off-chain config (ports, paths) can differ per machine. Testnets use different genesis than mainnet.',
   },
@@ -775,11 +781,12 @@ const GLOSSARY_ENTRIES = [
   },
   {
     key: 'state root',
-    keys: ['state root', 'state root (block)'],
+    keys: ['state root', 'state root (block)', 'state_root'],
     term: 'State Root',
     def: 'A cryptographic commitment (e.g. Merkle or JMT root) to the full state after applying a block; validators compute it and attest to it when voting on the block.',
     technicalDef: 'The state root is a single hash that commits to the entire ledger state (accounts, balances, storage) after applying a block. Formula: state_root = parent_state_root + apply(certificates), where certificates are the TransactionCertificates in this block (execution outcomes of the previous block\'s transactions). Each validator runs prepare_block_commit(parent_state_root, block.certificates, local_shard) to get the same root. The block header stores this root; validators sign the block hash, so consensus attests to "this block and this resulting state." Used for verification and light clients.',
     explain10yo: 'A single fingerprint for the whole whiteboard after one round of changes. Everyone does the same updates and gets the same fingerprint; if someone cheated, their fingerprint would be different.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 propose; Phase 3 when certs included' },
     subCategory: ['State & Execution', 'Blockchain & Ledgers'],
     competingConcepts: 'State root (full state commitment) vs transaction root (Merkle root of tx list): state root commits to execution outcome; tx root only to inputs. JMT (Jellyfish Merkle Tree) and Patricia tries are common structures for state roots.',
   },
@@ -788,8 +795,9 @@ const GLOSSARY_ENTRIES = [
     keys: ['transaction certificate', 'transaction certificates', 'certificates'],
     term: 'Transaction Certificate',
     def: 'Proof of how a transaction (or its shard parts) executed: aggregated execution votes from validators, carried in the next block\'s body.',
-    technicalDef: 'A TransactionCertificate is the execution outcome for a transaction: one or more StateCertificates (per shard) aggregated from 2f+1 validators\' execution votes. Block N carries TransactionCertificates for the transactions that were in block N−1 (i.e. outcomes of N−1\'s execution). These certificates are what get applied to the parent state root to compute the new state root. Formula: state_root(block N) = parent_state_root + apply(certificates in block N). So certificates in the block body define state; parent_qc in the header only chains consensus.',
+    technicalDef: 'A TransactionCertificate is the execution outcome for a transaction: one or more StateCertificates (per shard) aggregated from 2f+1 validators\' execution votes. Block N carries TransactionCertificates for the transactions that were in block N−1 (i.e. outcomes of N−1\'s execution). These certificates are what get applied to the parent state root to compute the new state root. Formula: state_root(block N) = parent_state_root + apply(certificates in block N). The header\'s `certificate_root` is a separate Merkle summary over those body entries (one leaf per finalized wave\'s receipt_hash)—see **BlockHeader.certificate_root**. Certificates in the body define state; parent_qc in the header only chains consensus.',
     explain10yo: 'A signed receipt for "we all ran this transaction and got the same result." The next block carries these receipts so everyone can update the whiteboard the same way.',
+    blockFieldMeta: { phaseSteps: 'Phase 3 finalize_wave → next propose' },
     subCategory: ['State & Execution', 'Blockchain & Ledgers'],
     competingConcepts: 'TransactionCertificate (execution outcome, in block body) vs QuorumCertificate (consensus vote for a block, in header as parent_qc). Certificates feed state root; parent_qc chains blocks.',
   },
@@ -830,6 +838,7 @@ const GLOSSARY_ENTRIES = [
     def: 'A pool of pending (not-yet-included) transactions kept by a node; the proposer picks from it to build the next block.',
     technicalDef: 'Short for "memory pool": the set of valid, not-yet-confirmed transactions that a node holds in memory. Transactions enter the mempool when received or validated; the consensus leader (proposer) selects from the mempool to form the next block. Why "mempool" and not just "memory"? The name emphasizes both that it is a pool (a collection of pending txs) and that it lives in memory (volatile, not yet on-chain). Plain "memory" would be too generic (RAM, storage, etc.); "mempool" is the standard blockchain term for this structure (from Bitcoin).',
     explain10yo: 'A waiting room for transactions. They sit there until the person building the next block picks them. It\'s called a "memory pool" because they\'re stored in the node\'s memory, and it\'s a pool of many transactions.',
+    blockFieldMeta: { phaseSteps: 'Phase 1 pending → Phase 2 Block body.transactions' },
     subCategory: ['State & Execution', 'Blockchain & Ledgers'],
     competingConcepts: 'Mempool vs persistent storage: mempool is typically in-memory and can be evicted (e.g. by fee or expiry); committed state is on-chain. Different chains use different mempool policies (size, replacement, privacy).',
   },
@@ -855,11 +864,12 @@ const GLOSSARY_ENTRIES = [
   },
   {
     key: 'in-flight',
-    keys: ['in-flight', 'in flight'],
+    keys: ['in-flight', 'in flight', 'in_flight'],
     term: 'In-flight (transactions)',
     def: 'Transactions that are submitted but not yet in a final state (e.g. not completed, rejected, or retried) at a given cutoff time.',
-    technicalDef: 'In-flight = transactions submitted but not yet in a terminal status when the simulation stops (or at a snapshot time). The simulator tracks each submitted tx until it reaches a terminal status (e.g. executed, rejected). "In-flight: X (at cutoff)" = when the run ended, X transactions were still in progress (e.g. in mempool, committed but not executed, or waiting on cross-shard). So they were submitted and counted but not completed by the end of the run. In the mempool crate, in-flight limits cap how many such txs are considered for proposal.',
+    technicalDef: 'In-flight = transactions submitted but not yet in a terminal status when the simulation stops (or at a snapshot time). The simulator tracks each submitted tx until it reaches a terminal status (e.g. executed, rejected). "In-flight: X (at cutoff)" = when the run ended, X transactions were still in progress (e.g. in mempool, committed but not executed, or waiting on cross-shard). So they were submitted and counted but not completed by the end of the run. In the mempool crate, in-flight limits cap how many such txs are considered for proposal. `BlockHeader.in_flight` records how many execution waves were still open when the block was proposed (backpressure signal).',
     explain10yo: 'Transactions that are still "on the way"—not finished yet. When you stop the game, in-flight is how many were still in the middle of being processed.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 propose when execution busy' },
     subCategory: ['State & Execution', 'Blockchain & Ledgers'],
     competingConcepts: 'In-flight vs completed/rejected: in-flight are the ones still being processed; terminal states (completed, rejected, retried) are no longer in-flight.',
   },
@@ -889,11 +899,11 @@ const GLOSSARY_ENTRIES = [
     key: 'beacon chain',
     keys: ['beacon chain', 'beacon-chain', 'hyperscale beacon', 'beacon'],
     term: 'Beacon chain (Hyperscale-rs)',
-    def: 'A separate consensus chain in hyperscale-rs that advances validator sets, epochs, and network topology—so every shard knows who the committee is before running shard HotStuff-2.',
-    technicalDef: 'Not Ethereum’s Eth2 beacon (PoS attestation chain). In hyperscale-rs the **`beacon` crate** hosts `BeaconCoordinator`: an event-driven state machine for **beacon blocks** and **`BeaconState`**. It runs PC/SPC-style sub-protocols (proposal committee + shard placement committee per epoch) to commit epoch transitions. After `apply_epoch`, it derives a fresh **`TopologySnapshot`**—which validators sit on which **`ShardGroupId`**—exposed via `current_topology_snapshot()`. Shard nodes consume that snapshot for proposer rotation, quorum math, and cross-shard routing. Beacon also tracks **shard witnesses** (attestations tying shard headers to beacon epochs) and skip certificates for liveness. Code: `crates/beacon`, node dispatch in `state/beacon.rs`. Distinct from **`ShardCoordinator`** (`crates/shard`), which only orders transactions *within one shard*.',
-    explain10yo: 'Before each round of the game on many mini-fields, a central scoreboard updates the rulebook: who is on which team and which field they play on. The mini-fields (shards) still run their own “who goes next” voting, but they all read the same scoreboard first.',
+    def: 'The league schedule chain—not the game on each field. It decides which validators serve which shard each epoch, so every shard runs BFT with the same roster.',
+    technicalDef: 'Not Ethereum’s Eth2 beacon. Hyperscale’s beacon chain commits epoch-by-epoch updates to who validates what: committees, shard placement, and related global state. Each epoch produces a frozen topology snapshot that shard nodes read for proposer rotation, quorum counts, and cross-shard routing. Shard consensus (`ShardCoordinator`) only orders and commits txs on one shard; the beacon chain does not propose user transaction blocks.',
+    explain10yo: 'Before each season, the league office publishes the official team list and who plays on which field. Every mini-field still votes on its own plays, but everyone uses the same roster sheet first.',
     subCategory: ['Consensus & Agreement', 'Scalability & Sharding', 'Architecture'],
-    competingConcepts: 'Beacon chain vs shard chain: beacon = global membership/topology/time epochs; shard = tx ordering and commit per shard. Ethereum beacon vs Hyperscale beacon: both coordinate validators, but Hyperscale beacon feeds **topology for sharding**, not slot attestations for a single merged chain. See also **ShardCoordinator**, **sharding**, **topology snapshot**.',
+    competingConcepts: 'Beacon = global membership and epochs; shard chain = tx blocks on one shard. Ethereum beacon ≈ validator coordination; Hyperscale beacon feeds sharding topology, not one merged main chain.',
   },
   {
     key: 'shard coordinator',
@@ -947,11 +957,12 @@ const GLOSSARY_ENTRIES = [
   },
   {
     key: 'provisioncoordinator',
-    keys: ['provisioncoordinator', 'provision coordinator'],
+    keys: ['provisioncoordinator', 'provision coordinator', 'provisions'],
     term: 'ProvisionCoordinator',
     def: 'A sub-state machine on each node that tracks whether the node has quorum of provisions (signed proofs) from each required shard so execution can proceed.',
     technicalDef: 'ProvisionCoordinator is a component on every node (e.g. in the provisions crate), not a single elected node. After a shard commits its part of a cross-shard tx, each validator in that shard produces and sends a signed proof (StateProvision) to other shards. ProvisionCoordinator on each node keeps a checklist: for this tx, do we have quorum (2f+1) of provisions from shard 1? From shard 2? … (required_shards = all other participating shards). When it has provisions from every required shard, it emits ProvisioningComplete so execution can proceed. In hyperscale-rs it is the only coordinator in cross-shard flow—there is no 2PC coordinator.',
     explain10yo: 'A checklist on each desk: "Do I have signed notes from Line A? From Line B?" When you have enough notes from every line that had to finish first, you can do your part. It\'s not the person who says "go"—it\'s the list that tells you "everyone else has proven they\'re done."',
+    blockFieldMeta: { phaseSteps: 'Phase 4 — BlockHeader.provision_root + body.provisions' },
     subCategory: ['Scalability & Sharding', 'State & Execution'],
     competingConcepts: 'ProvisionCoordinator is the only coordinator in hyperscale-rs cross-shard flow. It requires quorum of StateProvision from each required_shard; CommitmentProof is the aggregated 2f+1 provisions from a source shard.',
   },
@@ -1133,6 +1144,242 @@ const GLOSSARY_ENTRIES = [
     subCategory: ['Blockchain & Ledgers', 'Time Ordering & Race Conditions'],
     competingConcepts: 'Solana slot vs Eth slot: both schedule proposers; Solana tightly couples slots to PoH ticks and turbine delivery.',
   },
+
+  // ---- Block header & body (Hyperscale — block evolution cards) ----
+  {
+    key: 'block-field-shard-group-id',
+    keys: ['block-field-shard-group-id'],
+    term: 'BlockHeader.shard_group_id',
+    def: 'Which shard’s chain this block belongs to.',
+    technicalDef: 'Fixed for the validator process. Every header on this shard shares the same id; gossip, votes, and provisions route by it.',
+    alsoRelevant: 'Shard placement each epoch — **topology snapshot**, **beacon chain**.',
+    explain10yo: 'Which team’s notebook this page is from—not the whole league, just one team.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 genesis → all later blocks' },
+    subCategory: ['Block header & body', 'Scalability & Sharding'],
+  },
+  {
+    key: 'block-field-height',
+    keys: ['block-field-height'],
+    term: 'BlockHeader.height',
+    def: 'Page number on this shard’s chain—the index of this block.',
+    technicalDef: 'Usually parent.height + 1 at propose time. Height 0 is genesis. Drives proposer pick, QC heights, mempool expiry, and execution bookkeeping.',
+    alsoRelevant: 'Bootstrapping at height 0 — **genesis block** (not the same as “block height” in every chain).',
+    explain10yo: '“This is page 42 in our shard’s notebook.” Each new committed page bumps the number by one.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 propose → commit' },
+    subCategory: ['Block header & body', 'Consensus & Agreement'],
+  },
+  {
+    key: 'block-field-parent-block-hash',
+    keys: ['block-field-parent-block-hash'],
+    term: 'BlockHeader.parent_block_hash',
+    def: 'Hash of the block this header extends—the “previous page” link.',
+    technicalDef: 'Must match the proposer’s view of the canonical parent at this height. Validators reject headers that do not chain from their committed tip. Distinct from parent_qc (consensus proof, not just identity).',
+    alsoRelevant: 'How commits chain forward — **two-chain commit**; QC carries committable_hash for the parent.',
+    explain10yo: 'Written at the top: “continues from page 41.” Stops anyone from swapping in a fake previous page.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 propose' },
+    subCategory: ['Block header & body'],
+  },
+  {
+    key: 'block-field-parent-qc',
+    keys: ['block-field-parent-qc'],
+    term: 'BlockHeader.parent_qc',
+    def: 'Proof that validators agreed on the parent block—glued onto the child header.',
+    technicalDef: 'BLS-aggregated quorum certificate for height−1. Enables two-chain commit and lets peers learn the parent QC without a separate fetch. Not the same as execution certificates in the body.',
+    alsoRelevant: 'What a QC is — **quorum certificate**; when commit fires — **two-chain commit**.',
+    explain10yo: 'A signed note from most of the class saying “page 41 was real,” stapled onto page 42.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 vote → QC → child header' },
+    subCategory: ['Block header & body', 'Consensus & Agreement'],
+  },
+  {
+    key: 'block-field-proposer',
+    keys: ['block-field-proposer'],
+    term: 'BlockHeader.proposer',
+    def: 'Validator who built this proposal—must match the leader for (height, round).',
+    technicalDef: 'Followers check topology.proposer_for(height, round) before accepting. Only that leader should emit BuildProposal for this slot.',
+    alsoRelevant: 'Leader rotation — **block producer**, **view / round**.',
+    explain10yo: 'Whose turn it was to write this page of the notebook.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 try_propose' },
+    subCategory: ['Block header & body'],
+  },
+  {
+    key: 'block-field-timestamp',
+    keys: ['block-field-timestamp'],
+    term: 'BlockHeader.timestamp',
+    def: 'Time the proposer puts on this block—checked against protocol bounds.',
+    technicalDef: 'ProposerTimestamp at build time. Execution timeouts use QC weighted_timestamp; this field is header validity, not wall-clock for waves.',
+    alsoRelevant: 'Header vs manifest checks — **block manifest**.',
+    explain10yo: 'The date the writer stamps on the page—others check it is not nonsense.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 propose' },
+    subCategory: ['Block header & body', 'Time Ordering & Race Conditions'],
+  },
+  {
+    key: 'block-field-round',
+    keys: ['block-field-round'],
+    term: 'BlockHeader.round',
+    def: 'Attempt number at this height—bumps when the leader stalls.',
+    technicalDef: 'Round with height selects proposer via round-robin. ViewChangeTimer may advance round without a global view-change vote.',
+    alsoRelevant: 'Leader stalls — **view change**, **implicit view change**.',
+    explain10yo: '“Third try at page 42” if the first kid was too slow.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 propose' },
+    subCategory: ['Block header & body', 'Consensus & Agreement'],
+  },
+  {
+    key: 'block-field-is-fallback',
+    keys: ['block-field-is-fallback'],
+    term: 'BlockHeader.is_fallback',
+    def: 'True when this block was built on a recovery/sync path, not a normal live proposal.',
+    technicalDef: 'Flag on the header. Affects which roots must be present and which verification shortcuts apply.',
+    alsoRelevant: 'Normal propose path — Phase 2 **try_propose** vs sync/fallback builders.',
+    explain10yo: 'A sticker that says “we used the emergency catch-up way to write this page.”',
+    blockFieldMeta: { phaseSteps: 'Phase 2 sync/recovery' },
+    subCategory: ['Block header & body'],
+  },
+  {
+    key: 'block-field-state-root',
+    keys: ['block-field-state-root'],
+    term: 'BlockHeader.state_root',
+    def: 'One fingerprint of ledger state after applying this block’s certificates.',
+    technicalDef: 'Validators recompute via prepare_block_commit(parent_state, certificates in body) and must match before voting. Commits consensus to resulting JMT shape.',
+    alsoRelevant: 'General state commitment — **state root**; tree structure — **Jellyfish Merkle Tree**.',
+    explain10yo: 'One stamp of the whole game board after the moves on this page are applied.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 propose; Phase 3 when certs included' },
+    subCategory: ['Block header & body', 'State & Execution'],
+  },
+  {
+    key: 'block-field-transaction-root',
+    keys: ['block-field-transaction-root'],
+    term: 'BlockHeader.transaction_root',
+    def: 'Merkle root over transaction hashes in the body—commits to order and membership.',
+    technicalDef: 'Built from ordered tx hashes at propose. Manifest gossip may list hashes only; body carries bytes.',
+    alsoRelevant: 'Merkle idea — **transaction root** (general); body list — **mempool** → propose.',
+    explain10yo: 'A tamper-proof ordered list of which homework slips are on this page.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 propose (first non-empty txs)' },
+    subCategory: ['Block header & body'],
+  },
+  {
+    key: 'block-field-certificate-root',
+    keys: ['block-field-certificate-root'],
+    term: 'BlockHeader.certificate_root',
+    def: 'Header fingerprint of which finalized execution waves are listed in the body—without embedding the full proofs.',
+    technicalDef: 'Built at propose time from `body.certificates`: walk each `FinalizedWave` in block order; each contributes one Merkle leaf = that wave\'s `receipt_hash` (digest of its execution outcomes). Merkle-root those leaves → `certificate_root`. No certificates in the body → `ZERO` (genesis, or nothing finalized yet). One wave → root equals that single `receipt_hash`. Validators recompute from the body and reject header/body mismatch. This commits consensus to *which* waves finished; the body carries the full receipts you apply to state.',
+    alsoRelevant: 'Full proofs in the body — **Block body.certificates**; what a wave receipt means — **transaction certificate**.',
+    explain10yo: 'One checksum of the graded-round slips named on this page—you can check the list without rereading every report card.',
+    blockFieldMeta: {
+      computedFrom: 'Merkle(leaves = receipt_hash of each body.certificates[i], in order); empty → ZERO',
+      phaseSteps: 'Phase 3 finalize_wave → next propose',
+    },
+    subCategory: ['Block header & body', 'State & Execution'],
+  },
+  {
+    key: 'block-field-local-receipt-root',
+    keys: ['block-field-local-receipt-root'],
+    term: 'BlockHeader.local_receipt_root',
+    def: 'Optional Merkle commitment to same-shard receipt data in this block.',
+    technicalDef: 'ZERO when unused. Commits to local receipt bundle for same-shard-only execution paths.',
+    alsoRelevant: 'Receipt concept — **receipt root** (Ethereum-style general term).',
+    explain10yo: 'An extra receipt envelope only this shard needs—often empty.',
+    blockFieldMeta: { phaseSteps: 'Phase 3+ when receipts included' },
+    subCategory: ['Block header & body'],
+  },
+  {
+    key: 'block-field-provision-root',
+    keys: ['block-field-provision-root'],
+    term: 'BlockHeader.provision_root',
+    def: 'Merkle root over provision batch hashes in the body on this shard.',
+    technicalDef: 'ProvisionsRoot = merkle(hash each Provisions batch)). ZERO if no batches. Distinct from provision_tx_roots (tx-level map toward remote shards).',
+    alsoRelevant: 'Cross-shard packages — **ProvisionCoordinator**; Phase 4 **provisions-in-block**.',
+    explain10yo: 'Checksum of the proof shipment boxes glued into this page.',
+    blockFieldMeta: { phaseSteps: 'Phase 4 provisions in block' },
+    subCategory: ['Block header & body', 'Scalability & Sharding'],
+  },
+  {
+    key: 'block-field-waves',
+    keys: ['block-field-waves'],
+    term: 'BlockHeader.waves',
+    def: 'Wave ids for execution groups tied to txs in this committed block.',
+    technicalDef: 'Assigned at on_block_committed after commit. Bounded list of WaveId tracking in-flight single-shard and cross-shard execution grouping.',
+    alsoRelevant: 'Phase 3 execution — **waves-assigned** block card; not “one wave per shard.”',
+    explain10yo: 'Labels for which bundle of homework gets graded together after this page is official.',
+    blockFieldMeta: { phaseSteps: 'Phase 3 after BlockCommitted' },
+    subCategory: ['Block header & body', 'State & Execution'],
+  },
+  {
+    key: 'block-field-provision-tx-roots',
+    keys: ['block-field-provision-tx-roots'],
+    term: 'BlockHeader.provision_tx_roots',
+    def: 'Map: remote shard → Merkle root of cross-shard tx hashes needing provision toward that shard.',
+    technicalDef: 'Per remote ShardGroupId, merkle of tx hashes in this block that touch that shard. Targets verify incoming Provisions batches cover the committed set.',
+    alsoRelevant: 'Cross-shard flow — **cross-shard transaction**; manifest field overlap — **block manifest**.',
+    explain10yo: 'For each other team, which homework ids on this page need a proof packet from them.',
+    blockFieldMeta: { phaseSteps: 'Phase 4 cross-shard tx in block' },
+    subCategory: ['Block header & body', 'Scalability & Sharding'],
+  },
+  {
+    key: 'block-field-in-flight',
+    keys: ['block-field-in-flight'],
+    term: 'BlockHeader.in_flight',
+    def: 'How many execution waves were still open when this block was proposed.',
+    technicalDef: 'InFlightCount at proposal time—backpressure signal. Proposer may defer txs when too high.',
+    alsoRelevant: 'Mempool/exec busy — **in-flight (transactions)** (related but not identical).',
+    explain10yo: 'How many grading batches were still running when this page was written.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 propose when execution busy' },
+    subCategory: ['Block header & body', 'State & Execution'],
+  },
+  {
+    key: 'block-field-beacon-witness-root',
+    keys: ['block-field-beacon-witness-root'],
+    term: 'BlockHeader.beacon_witness_root',
+    def: 'Merkle root tying this shard block to beacon epoch witness data.',
+    technicalDef: 'Commits shard witness payloads against beacon state. ZERO when witnesses not included on this path.',
+    alsoRelevant: 'Global roster — **beacon chain**; leaf count pairs with beacon_witness_leaf_count.',
+    explain10yo: 'League office stamp proving this team page matches the official roster.',
+    blockFieldMeta: { phaseSteps: 'Beacon + Phase 2 when witnesses included' },
+    subCategory: ['Block header & body', 'Scalability & Sharding'],
+  },
+  {
+    key: 'block-field-beacon-witness-leaf-count',
+    keys: ['block-field-beacon-witness-leaf-count'],
+    term: 'BlockHeader.beacon_witness_leaf_count',
+    def: 'How many leaves in the beacon witness tree—sanity check with beacon_witness_root.',
+    technicalDef: 'Count paired with beacon_witness_root for verification bounds.',
+    alsoRelevant: 'Witness root — **BlockHeader.beacon_witness_root** (block card); **beacon chain**.',
+    explain10yo: 'How many sticker leaves are on the league roster page.',
+    blockFieldMeta: { phaseSteps: 'Beacon + Phase 2' },
+    subCategory: ['Block header & body'],
+  },
+  {
+    key: 'block-field-body-transactions',
+    keys: ['block-field-body-transactions'],
+    term: 'Block body.transactions',
+    def: 'Full signed transaction payloads in deterministic block order.',
+    technicalDef: 'RoutableTransaction list sorted by hash. Header transaction_root commits to this list; manifest may gossip hashes first.',
+    alsoRelevant: 'Where txs wait — **mempool**; Phase 1 → Phase 2 propose.',
+    explain10yo: 'The actual homework papers stapled to the page, not just their titles.',
+    blockFieldMeta: { phaseSteps: 'Phase 2 propose' },
+    subCategory: ['Block header & body'],
+  },
+  {
+    key: 'block-field-body-certificates',
+    keys: ['block-field-body-certificates'],
+    term: 'Block body.certificates',
+    def: 'Full finalized execution proofs for completed waves—what validators actually apply to ledger state.',
+    technicalDef: 'Ordered list of `FinalizedWave` values: each bundles execution certificates and per-tx outcomes (success/fail + receipt hashes) for one wave that finished after earlier blocks committed. Block N typically carries outcomes for txs from block N−1 (and cross-shard waves that completed). Everyone runs `prepare_block_commit` with these objects to advance `state_root`. Not the same as `certificate_root`: the header field is only the Merkle summary (one `receipt_hash` leaf per entry here); you need this body list to replay and verify execution.',
+    alsoRelevant: 'Header summary of the same list — **BlockHeader.certificate_root**; per-tx proof shape — **transaction certificate**.',
+    explain10yo: 'The actual graded report cards stapled to the page—not just a checklist of which rounds finished.',
+    blockFieldMeta: { phaseSteps: 'Phase 3 → next propose' },
+    subCategory: ['Block header & body', 'State & Execution'],
+  },
+  {
+    key: 'block-field-body-provisions',
+    keys: ['block-field-body-provisions'],
+    term: 'Block body.provisions',
+    def: 'Full cross-shard provision batches replicated on this shard for Byzantine safety.',
+    technicalDef: 'Live block carries Provisions bodies; header provision_root is merkle of their hashes. Sealed blocks may drop bodies but keep hashes.',
+    alsoRelevant: 'Coordinator — **ProvisionCoordinator**; Phase 4 target shard include.',
+    explain10yo: 'Actual proof packages from other teams pasted in so everyone has the same copies.',
+    blockFieldMeta: { phaseSteps: 'Phase 4 provisions in block' },
+    subCategory: ['Block header & body', 'Scalability & Sharding'],
+  },
 ];
 
 const SUBCATEGORY_ORDER = [
@@ -1143,6 +1390,7 @@ const SUBCATEGORY_ORDER = [
   'Time Ordering & Race Conditions',
   'Cryptography & Hashing',
   'Blockchain & Ledgers',
+  'Block header & body',
   'State & Execution',
   'Scalability & Sharding',
   'Economics & Incentives',
@@ -1160,7 +1408,7 @@ if (typeof window !== 'undefined') {
 // Also support all keys (e.g. 'qc' -> same as 'quorum certificate')
 const GLOSSARY = {};
 GLOSSARY_ENTRIES.forEach((entry) => {
-  const { key, keys, term, def, technicalDef, explain10yo, subCategory, competingConcepts } = entry;
+  const { key, keys, term, def, technicalDef, explain10yo, subCategory, competingConcepts, blockFieldMeta, alsoRelevant } = entry;
   const primaryCat = subCategory && subCategory[0] ? subCategory[0] : 'Other';
   const obj = {
     term,
@@ -1169,6 +1417,8 @@ GLOSSARY_ENTRIES.forEach((entry) => {
     explain10yo: explain10yo || '',
     subCategory: subCategory || [primaryCat],
     competingConcepts: competingConcepts || '',
+    blockFieldMeta: blockFieldMeta || null,
+    alsoRelevant: alsoRelevant || '',
     cat: primaryCat,
     key: key,
   };
@@ -1247,6 +1497,7 @@ function renderGlossaryPage() {
         '<h3 class="glossary-term-title">' + escapeHtml(item.term) + '</h3>' +
         (subCatTags ? '<div class="glossary-meta">' + subCatTags + '</div>' : '') +
         '<div class="glossary-full-def"><span class="glossary-technical-label">Technical:</span> ' + escapeHtml(item.technicalDef || item.def) + '</div>' +
+        (item.alsoRelevant ? '<div class="glossary-also-relevant"><span class="glossary-also-label">Also relevant:</span> ' + escapeHtml(item.alsoRelevant) + '</div>' : '') +
         (item.explain10yo ? '<div class="glossary-10yo"><span class="glossary-10yo-label">Explain to 10 year old:</span> ' + escapeHtml(item.explain10yo) + '</div>' : '') +
         (item.competingConcepts ? '<div class="glossary-competing"><span class="glossary-competing-label">Competing concepts / trade-offs:</span> ' + escapeHtml(item.competingConcepts) + '</div>' : '');
       entriesEl.appendChild(entryEl);
@@ -1270,7 +1521,7 @@ const TOOLTIP_GAP_PX = 2;
 const TOOLTIP_BRIDGE_PX = 14;
 
 const positionTooltip = (tooltip, rect) => {
-  const w = 320;
+  const w = Math.min(350, Math.max(280, tooltip.offsetWidth || 320));
   const h = tooltip.offsetHeight || 180;
   let left = rect.left + rect.width / 2 - w / 2;
   let top = rect.bottom + TOOLTIP_GAP_PX;
@@ -1287,7 +1538,34 @@ const positionTooltip = (tooltip, rect) => {
   tooltip.style.top = `${top}px`;
 };
 
-function initializeGlossary() {
+function formatTooltipEmphasis(text) {
+  if (!text) return '';
+  return String(text).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
+function blockFieldContextHtml(meta) {
+  if (!meta) return '';
+  const parts = [];
+  if (meta.computedFrom) parts.push(`<strong>Computed:</strong> ${meta.computedFrom}`);
+  if (meta.readWhere) parts.push(`<strong>Used:</strong> ${meta.readWhere}`);
+  if (meta.phaseSteps) parts.push(`<strong>Teaching:</strong> ${meta.phaseSteps}`);
+  if (!parts.length) return '';
+  return `<p class="tooltip-block-context">${parts.join('<br>')}</p>`;
+}
+
+function blockFieldTooltipExtras(def) {
+  if (!def || !def.key || !def.key.startsWith('block-field-')) return '';
+  let html = '';
+  if (def.technicalDef && def.technicalDef !== def.def) {
+    html += `<p class="tooltip-tech">${def.technicalDef}</p>`;
+  }
+  if (def.alsoRelevant) {
+    html += `<p class="tooltip-also-relevant"><span class="tooltip-also-label">Also relevant</span> ${formatTooltipEmphasis(def.alsoRelevant)}</p>`;
+  }
+  return html;
+}
+
+function initializeGlossary(root = document) {
   const path = getGlossaryPath();
   /** Grace period before hiding—enough to move from term to popup across the gap. */
   const HIDE_DELAY_MS = 350;
@@ -1322,11 +1600,13 @@ function initializeGlossary() {
     positionTooltip(tooltip, el.getBoundingClientRect());
   };
 
-  document.querySelectorAll('[data-glossary]').forEach((el) => {
+  const scope = root && root.querySelectorAll ? root : document;
+  scope.querySelectorAll('[data-glossary]:not([data-glossary-wired])').forEach((el) => {
     const key = (el.dataset.glossary || '').toLowerCase();
     const def = GLOSSARY[key];
     if (!def) return;
 
+    el.setAttribute('data-glossary-wired', '1');
     el.classList.add('glossary-term');
     if (!el.hasAttribute('tabindex') && !el.matches('a, button, input, select, textarea')) {
       el.setAttribute('tabindex', '0');
@@ -1340,6 +1620,8 @@ function initializeGlossary() {
       `<div class="tooltip-header"><strong>${def.term}</strong><span class="tooltip-category">${def.cat}</span></div>` +
       `<div class="tooltip-body">` +
       `<p class="tooltip-def">${def.def}</p>` +
+      blockFieldTooltipExtras(def) +
+      blockFieldContextHtml(def.blockFieldMeta) +
       (def.explain10yo ? `<p class="tooltip-10yo"><em>Explain to 10 year old:</em> ${def.explain10yo}</p>` : '') +
       `</div>` +
       `<div class="tooltip-footer">` +
@@ -1356,6 +1638,11 @@ function initializeGlossary() {
     el.addEventListener('focus', () => showTooltip(el, tooltip));
     el.addEventListener('blur', () => scheduleHide(tooltip));
   });
+}
+
+if (typeof window !== 'undefined') {
+  window.initializeGlossary = initializeGlossary;
+  window.glossaryTermAnchorId = glossaryTermAnchorId;
 }
 
 if (document.readyState === 'loading') {

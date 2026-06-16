@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Dive: Block Fields &amp; Root Commitments</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Deep Dive: Block Fields &amp; Root Commitments</h1>
+            <p class="course-header-lede">After <a href="module-phase-01-submit-to-mempool.html">Phases 1–4</a>: how <strong>commitments</strong> differ from <strong>signatures</strong>, how each <code>*_root</code> is <em>computed</em>, and how blocks chain without one global tx Merkle. Next: <a href="module-timers-reference.html">Timers &amp; chain time</a>.</p>
+            <div class="course-meta">
+                <span>⏱️ ~35–50 min read</span>
+                <span>📊 Deep dive</span>
+                <span>🎯 Hyperscale-rs</span>
+            </div>
+        </div>
+
+        <nav class="hs-phase-roadmap" aria-label="Tx flow phase modules">
+            <a href="module-phase-01-submit-to-mempool.html"><span class="phase-num">Phase 1</span>Submit → mempool</a>
+            <a href="module-phase-02-propose-vote-commit.html"><span class="phase-num">Phase 2</span>Propose → commit</a>
+            <a href="module-phase-03-execution-waves.html"><span class="phase-num">Phase 3</span>Execution &amp; waves</a>
+            <a href="module-phase-04-cross-shard-tx.html"><span class="phase-num">Phase 4</span>Cross-shard tx</a>
+            <a href="module-block-fields-deep-dive.html" class="is-current"><span class="phase-num">Deep</span>Block fields</a>
+            <a href="module-timers-reference.html"><span class="phase-num">Time</span>Timers</a>
+            <a href="module-hs-simulation-harness-analysis.html"><span class="phase-num">Harness</span>Sim E2E</a>
+        </nav>
+
+        <nav class="hs-ref-toc module-tight-prose" aria-label="On this page">
+            <strong>On this page:</strong>
+            <a href="#three-layers">Three layers</a> ·
+            <a href="#commitments-signatures">Commitments vs signatures</a> ·
+            <a href="#core-four">Core four</a> ·
+            <a href="#attestation-chain">Who attests what</a> ·
+            <a href="#how-roots-compute">How roots compute</a> ·
+            <a href="#state-root-example"><code>state_root</code> example</a> ·
+            <a href="#per-block-scope">Per-block lifecycle</a> ·
+            <a href="#one-tx-passport">One tx’s passport</a> ·
+            <a href="#header-fields">Header fields</a> ·
+            <a href="#cross-shard-bookkeeping">Cross-shard bookkeeping</a> ·
+            <a href="#mixups">Mix-ups</a>
+        </nav>
+
+        <div class="section" id="three-layers">
+            <h2>Three layers (read every table with this in mind)</h2>
+            <ul class="module-tight-prose">
+                <li><strong>Consensus</strong> — Did we agree on <em>this block</em> (ordering + header package)? Tools: <span class="glossary-term" data-glossary="block vote">BlockVote</span> → <span class="glossary-term" data-glossary="quorum certificate">QuorumCertificate</span> → <span class="glossary-term" data-glossary="block commit">block commit</span>.</li>
+                <li><strong>Execution</strong> — Did we agree on <em>how txs ran</em> and what state resulted? Tools: execution votes → <strong>EC</strong> (execution certificate) → <span class="glossary-term" data-glossary="transaction certificate">FinalizedWave</span> in <code>body.certificates</code>.</li>
+                <li><strong>Cross-shard</strong> — Do we have <em>signed proof from other shards</em>? Tools: <span class="glossary-term" data-glossary="provisioncoordinator">ProvisionCoordinator</span>, <code>body.provisions</code>, provision roots in the header.</li>
+            </ul>
+        </div>
+
+        <div class="section" id="commitments-signatures">
+            <h2>Commitments vs signatures (two different jobs)</h2>
+            <p class="module-tight-prose">Header <code>*_root</code> fields are <strong>commitments</strong> in the blockchain sense: one hash that <em>binds</em> the header to a specific collection (tx list, wave receipts, state trie, …). They answer <strong>“What is inside this package?”</strong> — not <strong>“Who approved it?”</strong> (that is <span class="glossary-term" data-glossary="digital signature">digital signatures</span> on votes). This is narrower than a ZK <span class="glossary-term" data-glossary="commitment scheme">commitment scheme</span> (hide-then-reveal); here the body is usually public and peers <strong>recompute</strong> the root.</p>
+            <ul class="module-tight-prose">
+                <li><strong>Binding</strong> — change one leaf (tx, receipt, state update) → root changes; a mismatched body fails verify.</li>
+                <li><strong>Verifiable</strong> — anyone with the data recomputes (full replay for <code>state_root</code>; Merkle proofs for single leaves).</li>
+                <li><strong>Compact</strong> — one hash in the header instead of shipping the whole history every gossip round.</li>
+            </ul>
+            <div class="table-wrap">
+                <table class="flow-steps">
+                    <thead><tr><th></th><th>Commitment (header root)</th><th>Signature (vote / QC)</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Job</strong></td><td>Content fingerprint — change one leaf, root changes</td><td>Proof that <strong>this validator key</strong> approved a specific message</td></tr>
+                        <tr><td><strong>Made with</strong></td><td>Hash / <span class="glossary-term" data-glossary="merkle root">Merkle root</span> / JMT root (anyone can recompute from public data)</td><td>Private key → <span class="glossary-term" data-glossary="bls aggregation">BLS</span> signature; peers verify with registered public key</td></tr>
+                        <tr><td><strong>Analogy</strong></td><td>Seal on the envelope whose pattern is determined by the letter inside</td><td>Personal stamp — proves <em>who</em> approved; still tied to a <em>specific</em> signed payload, not “anything in the box”</td></tr>
+                        <tr><td><strong>Hyperscale example</strong></td><td><code>transaction_root</code>, <code>certificate_root</code>, <code>state_root</code></td><td><span class="glossary-term" data-glossary="block vote">BlockVote</span> on <code>block_hash</code> → aggregated into <span class="glossary-term" data-glossary="quorum certificate">QC</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="module-tight-prose"><strong>How verify works (BlockVote):</strong> rebuild the canonical signing bytes (<code>DOMAIN_BLOCK_VOTE</code> + network + shard + height + round + <code>block_hash</code>), look up the voter’s BLS public key from <code>ValidatorId</code>, run <code>verify_bls(message, pubkey, signature)</code> → accept or reject. The <code>block_hash</code> already digests the header (including all commitment roots), so the stamp is on <strong>this exact proposal package</strong>, not on each tx individually.</p>
+            <div class="hs-gotcha">
+                <strong>Verify ≠ re-execute:</strong> signature check only proves quorum attested to that <code>block_hash</code>. Separate steps recompute Merkle roots, replay certificates for <code>state_root</code>, and run execution rules.
+            </div>
+        </div>
+
+        <div class="section" id="core-four">
+            <h2>Core four (most confused)</h2>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-first flow-steps-wide-last">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Layer</th>
+                            <th>Where</th>
+                            <th>Commits to / proves</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="glossary-term" data-glossary="state_root">state_root</span></td>
+                            <td>Execution</td>
+                            <td>Header</td>
+                            <td><span class="glossary-term" data-glossary="jellyfish merkle tree">JMT</span> root after applying this block’s <code>body.certificates</code> — <strong>not</strong> a Merkle over txs</td>
+                            <td>Execution <strong>meaning</strong>: “applying these certs yields this ledger.” Consensus <strong>attests</strong> the claim indirectly — <span class="glossary-term" data-glossary="block vote">BlockVote</span>s sign <code>block_hash</code>, which digests the header including <code>state_root</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="glossary-term" data-glossary="transaction_root">transaction_root</span></td>
+                            <td>Consensus (inputs)</td>
+                            <td>Header</td>
+                            <td>Merkle root over <strong>tx hashes</strong> in <code>body.transactions</code></td>
+                            <td>“Which user txs are on this page, in what order?” Does <strong>not</strong> prove execution results.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="glossary-term" data-glossary="quorum certificate">QuorumCertificate (QC)</span></td>
+                            <td>Consensus</td>
+                            <td>Child header as <code>parent_qc</code>; <code>CommittedBlockHeader</code> gossip</td>
+                            <td>2f+1 <strong>block votes</strong> on one <code>block_hash</code></td>
+                            <td>“Did a quorum agree <strong>this block</strong> is valid to chain?” Enables <span class="glossary-term" data-glossary="two-chain commit">two-chain commit</span>.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="glossary-term" data-glossary="transaction certificate">Transaction certificate</span> (in <code>FinalizedWave</code>)</td>
+                            <td>Execution</td>
+                            <td><code>body.certificates</code></td>
+                            <td>Per-tx / per-wave <strong>execution outcomes</strong> (success/fail, receipt hashes)</td>
+                            <td>“What <strong>happened</strong> when we ran txs from earlier blocks?” Feeds the <strong>next</strong> block’s <code>state_root</code>.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section" id="attestation-chain">
+            <h2>Who attests what (don’t collapse the layers)</h2>
+            <p class="module-tight-prose">Three different “yes” messages — each with its own signed payload and aggregation story:</p>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-first">
+                    <thead>
+                        <tr>
+                            <th>Question</th>
+                            <th>One validator signs</th>
+                            <th>Quorum becomes</th>
+                            <th>Layer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>“Is <strong>this block package</strong> OK to chain?”</td>
+                            <td><span class="glossary-term" data-glossary="block vote">BlockVote</span> on <code>block_hash</code></td>
+                            <td><span class="glossary-term" data-glossary="quorum certificate">QC</span></td>
+                            <td>Consensus</td>
+                        </tr>
+                        <tr>
+                            <td>“Did we all run <strong>this wave</strong> the same way?”</td>
+                            <td>Execution vote on receipt / outcome root</td>
+                            <td><strong>EC</strong> (execution certificate)</td>
+                            <td>Execution</td>
+                        </tr>
+                        <tr>
+                            <td>“Is cross-shard proof <strong>present &amp; verified</strong>?”</td>
+                            <td><code>StateProvision</code> payloads + header/QC checks</td>
+                            <td>Tracked in <span class="glossary-term" data-glossary="provisioncoordinator">ProvisionCoordinator</span> (not one global cert)</td>
+                            <td>Cross-shard</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="hs-gotcha">
+                <strong>QC ≠ <code>FinalizedWave</code>:</strong> QC proves quorum agreed on a <strong>block hash</strong> (ordering + header commitments). <code>FinalizedWave</code> in <code>body.certificates</code> proves <strong>execution finished</strong> for a wave — stapled on a block, often <em>later</em> than the block that first listed those txs. <code>body.certificates</code> is not a pile of QCs or provision blobs.
+            </div>
+            <p class="module-tight-prose"><strong><code>certificate_root</code> sharp edge:</strong> leaves are each wave’s <code>receipt_hash</code> (outcome + event root), <strong>not</strong> wave ids or raw tx hashes. The header root is a <em>summary</em>; <code>body.certificates</code> carries the full <code>FinalizedWave</code> objects used to recompute <code>state_root</code>.</p>
+            <p class="module-tight-prose"><strong>Teaching name vs code:</strong> course copy still says <span class="glossary-term" data-glossary="transaction certificate">transaction certificate</span> for “execution proof in the body.” In Rust that role is <code>FinalizedWave</code> (wraps <code>WaveCertificate</code> + receipts) — wave-granularity, not one cert per tx.</p>
+        </div>
+
+        <div class="section" id="how-roots-compute">
+            <h2>How each <code>*_root</code> is computed</h2>
+            <p class="module-tight-prose">Most Merkle roots share one recipe: pad leaves to the next power of two with <code>Hash::ZERO</code>, pair siblings, parent = <code>Blake3(left_bytes || right_bytes)</code> via <code>Hash::from_parts</code>, repeat until one hash remains. <strong>Order matters</strong> — swap leaves, different root.</p>
+
+            <h3><code>transaction_root</code></h3>
+            <pre class="hs-ascii-flow" aria-label="Transaction root examples">Leaves = tx hashes in hash-ascending block order
+  (sorted by TxHash value — NOT submit time)
+
+0 txs  →  ZERO
+1 tx   →  root = that tx_hash
+2 txs  →  root = Blake3(hash1_bytes || hash2_bytes)
+3 txs  →  pad [h1,h2,h3,ZERO] → pair → pair → root</pre>
+            <p class="module-tight-prose"><strong>Hash-ascending</strong> = strict increasing <code>TxHash</code> order so every validator builds the same leaf list. Proposer sorts before packaging; peers reject unsorted bodies.</p>
+
+            <h3><code>state_root</code> — JMT replay</h3>
+            <p class="module-tight-prose"><code>state_root = JMT(parent_state_root, apply(body.certificates))</code>. Replay each <code>FinalizedWave</code>’s receipts against the state trie — not a Merkle over txs. <a href="#state-root-example">Worked example (block 40 → 41)</a>.</p>
+
+            <h3>Other roots — same tree, different leaves</h3>
+            <div class="table-wrap">
+                <table class="flow-steps">
+                    <thead><tr><th>Field</th><th>Leaves</th><th>Empty</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>certificate_root</code></td><td>Each wave’s <code>receipt_hash</code></td><td><code>ZERO</code></td></tr>
+                        <tr><td><code>local_receipt_root</code></td><td>Per-tx consensus receipt hashes</td><td><code>ZERO</code></td></tr>
+                        <tr><td><code>provision_root</code></td><td><code>ProvisionHash</code> per batch in body</td><td><code>ZERO</code></td></tr>
+                        <tr><td><code>provision_tx_roots</code></td><td>Per remote shard: Merkle over tx hashes needing that shard’s proof</td><td>Empty map</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section" id="state-root-example">
+            <h2><code>state_root</code> example — block 40 → block 41</h2>
+            <p class="module-tight-prose">Walkthrough on <strong>one shard</strong>: what raw material goes in, how many hashes run, and how JMT differs from <code>transaction_root</code>. Toy key paths use <strong>4 bits</strong> for drawing; production JMT uses ~<strong>256</strong> levels.</p>
+
+            <h3>Timeline</h3>
+            <div class="table-wrap">
+                <table class="flow-steps">
+                    <thead><tr><th>Block</th><th>What happened</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>40</strong> (committed)</td><td>Body had <strong>TxA</strong>, <strong>TxB</strong>. <code>transaction_root(40)</code> = Merkle over their hashes. Execution ran <em>after</em> commit.</td></tr>
+                        <tr><td><strong>41</strong> (proposed)</td><td>Leader packages new txs <strong>TxC</strong>, <strong>TxD</strong> <em>and</em> staples <code>FinalizedWave₁</code> (outcomes for block 40’s wave). Both roots computed at <strong>propose</strong> time, before votes.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Raw material for block 41</h3>
+            <pre class="hs-ascii-flow" aria-label="Block 41 proposal inputs">parent_state_root  = 0xaaa…   (from committed block 40 header)
+parent_block_hash  = hash(block 40)
+parent_qc          = QC₄₀
+
+body.transactions  = [ TxC, TxD ]              ← NEW inputs (transaction_root)
+body.certificates  = [ FinalizedWave₁ ]        ← execution DONE for block 40
+  WaveCertificate  (quorum ECs for wave ∅)
+  receipts:
+    StoredReceipt(TxA) → Succeeded + database_updates
+    StoredReceipt(TxB) → Failed (no writes)
+
+Code path: build_proposal → prepare_block_commit(parent_state_root, certificates)</pre>
+
+            <h3>State deltas from certificates</h3>
+            <p class="module-tight-prose">Merge <code>database_updates</code> from each receipt in <code>body.certificates</code> (simplified toy keys):</p>
+            <div class="table-wrap">
+                <table class="flow-steps">
+                    <thead><tr><th>Tx</th><th>Result</th><th>Writes</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>TxA</strong></td><td>Success</td><td><code>K_alice</code> balance 100 → 70; <code>K_bob</code> balance 50 → 80</td></tr>
+                        <tr><td><strong>TxB</strong></td><td>Failed</td><td><em>none</em></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="module-tight-prose"><strong>k = 2</strong> substate keys change. Real keys are <code>(partition, sort_key)</code> mapped into the JMT; same idea — sparse updates along key paths only.</p>
+
+            <h3><code>transaction_root</code> on block 41 (Merkle — same propose pass)</h3>
+            <pre class="hs-ascii-flow" aria-label="transaction_root for block 41">leaves (hash-ascending): [ hash(TxC), hash(TxD) ]
+
+        ROOT_tx  (= transaction_root for block 41)
+       /        \
+  hash(TxC)    hash(TxD)
+
+Blake3 hash ops: 1 pairing</pre>
+
+            <h3>JMT replay (toy 4-bit keys)</h3>
+            <pre class="hs-ascii-flow" aria-label="Toy JMT paths">K_alice = 1010          K_bob = 1101
+
+Before (parent_state_root = 0xaaa…):
+
+              R₀ (0xaaa…)
+             /   \
+      (sparse — only occupied paths stored; rest = ∅ default hashes)
+
+After apply FinalizedWave₁ (only Alice &amp; Bob paths touched):
+
+              R₁ (= state_root for block 41)
+             /   \
+           ...   ...
+         path to 1010 → Alice = 70
+         path to 1101 → Bob   = 80</pre>
+            <p class="module-tight-prose">You never materialize all leaf slots in a full tree. In this <strong>4-bit toy</strong>, depth = 4 → only <strong>2⁴ = 16</strong> possible leaf positions — still only paths to <code>1010</code> and <code>1101</code> are stored. In <strong>production</strong> (~256-bit keys), depth ≈ 256 → 2²⁵⁶ possible paths — same sparse rule: touch only changed keys, ∅ elsewhere.</p>
+
+            <h3>How many computations?</h3>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-first flow-steps-wide-last">
+                    <thead><tr><th>Root</th><th>Input size (example)</th><th>Hash work (order of magnitude)</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>transaction_root</code></td><td>2 new txs</td><td><strong>1</strong> Blake3 pairing</td></tr>
+                        <tr><td><code>state_root</code> (toy depth 4)</td><td>2 key writes</td><td>≈ <strong>2 × 4 = 8</strong> rehashes on touched paths</td></tr>
+                        <tr><td><code>state_root</code> (production depth ~256)</td><td>2 key writes</td><td>≈ <strong>2 × 256 ≈ 512</strong> rehashes (plus snapshot / cache I/O)</td></tr>
+                        <tr><td><code>certificate_root</code></td><td>1 <code>FinalizedWave</code></td><td>1 leaf → root equals that <code>receipt_hash</code> (or one Merkle level if padded with others)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="module-tight-prose"><strong>Dominated by JMT replay</strong>, not tx Merkle — scales with <strong># of writes × tree depth</strong>, not total accounts in the world.</p>
+
+            <h3>Header package peers vote on</h3>
+            <pre class="hs-ascii-flow" aria-label="Block 41 header roots">BlockHeader {
+  height: 41
+  parent_block_hash, parent_qc  (from block 40)
+
+  transaction_root  = Merkle( hash(TxC), hash(TxD) )     ← inputs on THIS page
+  state_root        = JMT(0xaaa…, apply FinalizedWave₁)  ← ledger AFTER certs
+  certificate_root  = Merkle( receipt_hash(FinalizedWave₁) )
+  waves             = [ … ]   ← wave ids for TxC/TxD run AFTER block 41 commits
+}
+
+Verify before BlockVote:
+  1. Recompute transaction_root from body.transactions
+  2. prepare_block_commit(parent_state_root, body.certificates) → state_root
+  3. Match → sign block_hash</pre>
+
+            <h3>Pipeline (one picture)</h3>
+            <pre class="hs-ascii-flow" aria-label="state_root pipeline">Block 40 committed [TxA, TxB] → execute → FinalizedWave₁ ready
+
+Block 41 proposal
+  parent_state_root + body.certificates ──► prepare_block_commit ──► state_root
+  body.transactions ──────────────────────► TransactionRoot::compute ──► transaction_root
+                              │
+                              ▼
+                    BlockHeader → block_hash → BlockVote → QC</pre>
+
+            <div class="hs-gotcha">
+                <strong>Same block, different roots:</strong> <code>transaction_root(41)</code> covers <strong>TxC, TxD</strong> (future execution). <code>state_root(41)</code> updates from <strong>TxA, TxB</strong> outcomes in <code>FinalizedWave₁</code>. Certs usually describe <em>earlier</em> txs; new txs get a <code>state_root</code> bump on a <em>later</em> block when <em>their</em> wave finalizes.
+            </div>
+        </div>
+
+        <div class="section" id="per-block-scope">
+            <h2>Per-block roots &amp; lifecycle</h2>
+            <p class="module-tight-prose">Every <code>*_root</code> fingerprints <strong>this block only</strong>. History chains via <code>parent_block_hash</code> + <code>parent_qc</code> — not one global tx Merkle over mempool + proposals + finalized history.</p>
+
+            <h3>Tx hash vs <code>transaction_root</code></h3>
+            <ul class="module-tight-prose">
+                <li><strong>Tx hash</strong> — identity of <em>one</em> signed transaction (content-addressed).</li>
+                <li><strong><code>transaction_root</code></strong> — Merkle root over the <strong>tx hashes listed in this block only</strong>, in block order (hash-ascending in hyperscale-rs).</li>
+                <li>Wall-clock submit time (T₁, T₂, …) is <strong>not</strong> the Merkle order; <strong>consensus block order</strong> is.</li>
+            </ul>
+
+            <h3>Three buckets (what lands in which root)</h3>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-first">
+                    <thead>
+                        <tr>
+                            <th>Bucket</th>
+                            <th>In a block yet?</th>
+                            <th>In <code>transaction_root</code>?</th>
+                            <th>In this block’s <code>state_root</code>?</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Mempool — not proposed</td>
+                            <td>No</td>
+                            <td>No</td>
+                            <td>No</td>
+                        </tr>
+                        <tr>
+                            <td>In proposed / committed block H</td>
+                            <td>Yes</td>
+                            <td><strong>Yes</strong> — root(H) covers those tx hashes</td>
+                            <td>Usually <strong>no</strong> — execution runs <em>after</em> commit</td>
+                        </tr>
+                        <tr>
+                            <td>Executed — outcomes in a later block</td>
+                            <td>Txs were in an <strong>earlier</strong> block</td>
+                            <td>That <strong>earlier</strong> block’s root</td>
+                            <td><strong>Yes</strong> — via <code>body.certificates</code> on the block that applies them</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Proposed but not committed</h3>
+            <p class="module-tight-prose">Leader packages <code>body.transactions</code>, computes roots, gossips proposal. Peers recompute roots <strong>before</strong> <span class="glossary-term" data-glossary="block vote">BlockVote</span>. Until <span class="glossary-term" data-glossary="block commit">commit</span>, not canonical — view change can swap tx set and <code>transaction_root</code> at the same height/round. <strong>Incremental packaging:</strong> when provisions or finalized waves land mid-height, the <span class="glossary-term" data-glossary="proposal latch">proposal latch</span> can trigger a <em>new</em> proposal with updated <code>provision_root</code> / certs — not “one proposal forever.”</p>
+        </div>
+
+        <div class="section" id="one-tx-passport">
+            <h2>One transaction’s passport (single-shard path)</h2>
+            <p class="module-tight-prose">Follow <strong>one</strong> tx through layers — wall-clock submit time is irrelevant; block order is.</p>
+            <pre class="hs-ascii-flow" aria-label="Single transaction lifecycle">Mempool
+  tx hash exists; no header root yet
+
+Block H proposed &amp; committed
+  transaction_root(H) = Merkle(…, hash(tx), …)
+  BlockVote → QC → commit
+  state_root(H) usually unchanged for this tx (certs describe OLDER work)
+
+After commit on H
+  wave runs tx → Radix → execution votes → EC
+
+Block H+k (later)
+  body.certificates includes FinalizedWave for that wave
+  certificate_root(H+k) = Merkle(receipt_hash, …)
+  state_root(H+k) updates ledger — tx outcome now on the whiteboard</pre>
+            <p class="module-tight-prose"><strong>Cross-shard:</strong> same tx may need provisions from remote shards first; finalization can span <strong>more than one block</strong> (source commit → provisions → execute → cert on a later page). Explorer “one logical tx” ≠ always one block height on every shard.</p>
+        </div>
+
+        <div class="section" id="header-fields">
+            <h2>BlockHeader fields &amp; roots</h2>
+            <p class="module-footnote module-footnote--tight">Hover dotted terms for glossary cards. Block anatomy cards in Phases 2–4 use the same <code>block-field-*</code> entries.</p>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-first">
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Layer</th>
+                            <th>What it commits to</th>
+                            <th>One-line purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>parent_qc</code></td>
+                            <td>Consensus</td>
+                            <td>QC for <strong>parent</strong> block</td>
+                            <td>Chains blocks: child carries proof parent was quorum-certified.</td>
+                        </tr>
+                        <tr>
+                            <td><code>parent_block_hash</code></td>
+                            <td>Consensus</td>
+                            <td>Hash of parent block</td>
+                            <td>“This page continues that previous page” (identity link, not vote proof).</td>
+                        </tr>
+                        <tr>
+                            <td><code>height</code> / <code>round</code></td>
+                            <td>Consensus</td>
+                            <td>Slot index / attempt at that height</td>
+                            <td>Page number on this shard; round bumps when leader stalls (<a href="module-timers-reference.html">timers</a>).</td>
+                        </tr>
+                        <tr>
+                            <td><code>certificate_root</code></td>
+                            <td>Execution (summary)</td>
+                            <td>Merkle over each <code>FinalizedWave</code>’s <code>receipt_hash</code> in body</td>
+                            <td>Fingerprint of <strong>which finished waves</strong> are listed — not the full proofs.</td>
+                        </tr>
+                        <tr>
+                            <td><code>local_receipt_root</code></td>
+                            <td>Execution (detail)</td>
+                            <td>Per-tx receipt hashes for txs in wave certs</td>
+                            <td>Finer per-tx delta commitment; often <code>ZERO</code> if unused.</td>
+                        </tr>
+                        <tr>
+                            <td><code>provision_root</code></td>
+                            <td>Cross-shard</td>
+                            <td>Merkle over <code>ProvisionHash</code> of each batch in <code>body.provisions</code></td>
+                            <td>Which cross-shard proof <strong>packages</strong> are included on this page.</td>
+                        </tr>
+                        <tr>
+                            <td><code>provision_tx_roots</code></td>
+                            <td>Cross-shard</td>
+                            <td><code>BoundedBTreeMap&lt;ShardGroupId, ProvisionTxRoot&gt;</code> — one Merkle per <em>remote</em> shard over tx hashes on this page that need that shard’s proof</td>
+                            <td>Per other team: which txs on our page still need their signed proof.</td>
+                        </tr>
+                        <tr>
+                            <td><code>waves</code></td>
+                            <td>Execution</td>
+                            <td>Wave ids assigned at commit for in-flight execution</td>
+                            <td>Labels for grading bundles running after this page became official.</td>
+                        </tr>
+                        <tr>
+                            <td><code>transaction_root</code></td>
+                            <td>Consensus</td>
+                            <td>Tx hash list in body</td>
+                            <td>Ordered membership of user txs on this block.</td>
+                        </tr>
+                        <tr>
+                            <td><code>state_root</code></td>
+                            <td>Execution</td>
+                            <td>State after applying body certificates</td>
+                            <td>Whiteboard fingerprint after execution outcomes applied.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Block body (full objects behind the roots)</h2>
+            <div class="table-wrap">
+                <table class="flow-steps">
+                    <thead><tr><th>Body field</th><th>Purpose</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>transactions</code></td><td>Full signed user txs; <code>transaction_root</code> commits to this list.</td></tr>
+                        <tr><td><code>certificates</code> (<code>FinalizedWave</code>)</td><td>Full execution proofs for completed waves; used to recompute <code>state_root</code>.</td></tr>
+                        <tr><td><code>provisions</code></td><td>Full cross-shard proof batches; <code>provision_root</code> commits to their hashes.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section" id="votes-pipeline">
+            <h2>Votes → certificates (who signs what)</h2>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-first">
+                    <thead>
+                        <tr>
+                            <th>One validator signs…</th>
+                            <th>Aggregated into…</th>
+                            <th>Layer</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="glossary-term" data-glossary="block vote">BlockVote</span> (“I accept this block”)</td>
+                            <td><span class="glossary-term" data-glossary="quorum certificate">QuorumCertificate</span></td>
+                            <td>Consensus</td>
+                            <td>Quorum agreement on <strong>block hash</strong> before/at commit.</td>
+                        </tr>
+                        <tr>
+                            <td>Execution vote / <span class="glossary-term" data-glossary="state vote block">StateVoteBlock</span></td>
+                            <td><strong>ExecutionCertificate (EC)</strong></td>
+                            <td>Execution</td>
+                            <td>Quorum agreement on <strong>wave execution outcome</strong> (receipt root) per shard.</td>
+                        </tr>
+                        <tr>
+                            <td>(bundle)</td>
+                            <td><code>FinalizedWave</code></td>
+                            <td>Execution</td>
+                            <td>Wave done locally + remote shard coverage → stapled on a <strong>later</strong> block.</td>
+                        </tr>
+                        <tr>
+                            <td><code>StateProvision</code> / <code>Provisions</code></td>
+                            <td>Verified by <span class="glossary-term" data-glossary="provisioncoordinator">ProvisionCoordinator</span></td>
+                            <td>Cross-shard</td>
+                            <td>Provable substate from a committed remote block so this shard can execute.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="module-tight-prose"><strong>Not one central issuer:</strong> every node collects votes and can build QC/EC locally; QCs mostly propagate via <code>parent_qc</code> on the next block. <strong>Per-shard height:</strong> each shard group advances its own <code>height</code> on commit — there is no single global “blockchain height” across all shards.</p>
+        </div>
+
+        <div class="section" id="cross-shard-bookkeeping">
+            <h2>Cross-shard bookkeeping (not one HashMap)</h2>
+            <p class="module-tight-prose"><span class="glossary-term" data-glossary="provisioncoordinator">ProvisionCoordinator</span> is a <strong>per-validator pipeline</strong> of cooperating sub-machines — not a single “provision map”:</p>
+            <ul class="module-tight-prose">
+                <li><strong>Verified remote headers</strong> — QC-checked committed headers from other shards (anchor <code>state_root</code> for proofs).</li>
+                <li><strong>Provision pipeline</strong> — pending → verified inbound <code>StateProvision</code> batches.</li>
+                <li><strong>Expected tracker</strong> — what should arrive after a remote commit; drives fallback fetch on timeout.</li>
+                <li><strong>Proposal queue</strong> — verified batches eligible for next block (dwell window so gossip can catch up).</li>
+                <li><strong>Committed tombstones</strong> — prevent re-proposing batches already committed (avoids spurious view changes).</li>
+            </ul>
+            <p class="module-tight-prose">Header <code>provision_tx_roots</code> is the <strong>static obligation map</strong> on a proposed page (“which txs on this block still need shard X’s proof”). <code>provision_root</code> is the Merkle over <strong>actual provision batches included</strong> in <code>body.provisions</code> once satisfied. No 2PC coordinator — each shard runs BFT + provisions independently.</p>
+        </div>
+
+        <div class="section">
+            <h2>End-to-end flow (one shard)</h2>
+            <pre class="hs-ascii-flow" aria-label="Block commitments flow">Block proposed
+  transaction_root  → commits to txs IN this block
+  state_root        → claims state AFTER applying certs IN this block (from PRIOR execution)
+
+BlockVote → QC → commit
+  parent_qc on next block → proof this block was quorum-agreed
+
+After commit
+  txs → waves → Radix → execution votes → EC → FinalizedWave
+  later block: body.certificates + certificate_root + updated state_root
+
+Cross-shard extra
+  provision_tx_roots → which txs need remote proof
+  provisions → verify → body.provisions + provision_root
+  then wave can dispatch &amp; finalize</pre>
+        </div>
+
+        <div class="section" id="mixups">
+            <h2>Common mix-ups</h2>
+            <div class="table-wrap">
+                <table class="flow-steps">
+                    <thead><tr><th>Confusion</th><th>Reality</th></tr></thead>
+                    <tbody>
+                        <tr><td>QC vs transaction certificate</td><td>QC = <strong>block</strong> agreed; cert = <strong>execution</strong> result.</td></tr>
+                        <tr><td><code>transaction_root</code> vs <code>state_root</code></td><td>Inputs vs <strong>outcome</strong> of running prior work.</td></tr>
+                        <tr><td><code>certificate_root</code> vs <code>body.certificates</code></td><td>Header <strong>summary</strong> vs full proof objects.</td></tr>
+                        <tr><td><code>provision_root</code> vs <code>provision_tx_roots</code></td><td>Packages <strong>included</strong> vs which txs <strong>still need</strong> remote proof.</td></tr>
+                        <tr><td>Commit block H vs certs in block H</td><td>Certs in H usually describe execution from <strong>earlier</strong> txs; state_root on H updates when those certs apply.</td></tr>
+                        <tr><td>Commitment vs signature</td><td>Roots = <strong>what</strong> is in the package; votes/QC = <strong>who</strong> agreed to that <code>block_hash</code>.</td></tr>
+                        <tr><td>One global tx Merkle over history + pending</td><td><strong>No</strong> — each block has its own <code>transaction_root</code>; mempool and in-flight execution stay outside header roots until packaged.</td></tr>
+                        <tr><td>Signature verify alone</td><td>Proves <strong>who</strong> attested to <code>block_hash</code> — separate steps recompute roots and replay execution.</td></tr>
+                        <tr><td><code>certificate_root</code> leaves</td><td><strong><code>receipt_hash</code></strong> per <code>FinalizedWave</code> — not wave id, not tx hash list.</td></tr>
+                        <tr><td><code>body.certificates</code> contents</td><td><code>FinalizedWave</code> execution proofs — <strong>not</strong> QCs, not raw provisions.</td></tr>
+                        <tr><td>EC acronym</td><td><strong>Execution certificate</strong> — quorum on a wave outcome; different message/domain from BlockVote.</td></tr>
+                        <tr><td>Global block height</td><td><strong>Per shard group</strong> — compare heights only within the same shard.</td></tr>
+                        <tr><td>Cross-shard “done in one block”</td><td>Often <strong>N ≥ 1 blocks</strong> across shards (commit → provision → execute → cert).</td></tr>
+                        <tr><td>ProvisionCoordinator</td><td>Multi-stage pipeline on each node — <strong>not</strong> one central map or 2PC coordinator.</td></tr>
+                        <tr><td><span class="glossary-term" data-glossary="transaction certificate">Transaction certificate</span> vs <code>WaveCertificate</code></td><td>Teaching = per-tx framing; code = <code>WaveCertificate</code> inside <code>FinalizedWave</code>.</td></tr>
+                        <tr><td>Sim <code>livelock.rs</code> vs live <code>ConflictDetector</code></td><td>Post-run <strong>diagnostics</strong> vs runtime overlap breaking (<a href="module-phase-04-cross-shard-tx.html">Phase 4</a>).</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Where to go deeper</h2>
+            <ul class="module-tight-prose">
+                <li><a href="module-phase-02-propose-vote-commit.html">Phase 2</a> — BlockVote, QC, commit, <code>parent_qc</code></li>
+                <li><a href="module-phase-03-execution-waves.html">Phase 3</a> — waves, EC, <code>finalize_wave</code>, <code>certificate_root</code></li>
+                <li><a href="module-phase-04-cross-shard-tx.html">Phase 4</a> — provisions, <code>provision_root</code>, cross-shard finalization</li>
+                <li><a href="module-timers-reference.html">Timers &amp; chain time</a></li>
+                <li><a href="module-01b-tx-flow.html">Tx-flow map</a></li>
+                <li><a href="../../common/glossary.html">Glossary</a> — <strong>Block header &amp; body</strong></li>
+            </ul>
+        </div>
+
+        <div class="module-actions">
+            <button type="button" class="btn btn-primary" id="complete-module-btn">Mark module complete</button>
+        </div>
+        <nav class="navigation module-nav">
+            <a href="module-phase-04-cross-shard-tx.html" class="btn btn-secondary">← Phase 4</a>
+            <a href="module-timers-reference.html" class="btn btn-primary">Timers &amp; chain time →</a>
+        </nav>
+    </div>
+
+    <script src="../../common/course-data.js"></script>
+    <script src="../../common/hyperscale-flow-data.js"></script>
+    <script src="../../common/hyperscale-links.js"></script>
+    <script src="../../common/navigation.js"></script>
+    <script src="../../common/glossary.js"></script>
+    <script src="../../common/module-init.js" data-module-id="hs-block-fields"></script>
+</body>
+</html>

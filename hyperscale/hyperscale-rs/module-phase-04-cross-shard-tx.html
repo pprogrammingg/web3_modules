@@ -53,6 +53,8 @@
             <a href="module-phase-02-propose-vote-commit.html"><span class="phase-num">Phase 2</span>Propose → commit</a>
             <a href="module-phase-03-execution-waves.html"><span class="phase-num">Phase 3</span>Execution &amp; waves</a>
             <a href="module-phase-04-cross-shard-tx.html" class="is-current"><span class="phase-num">Phase 4</span>Cross-shard tx</a>
+            <a href="module-block-fields-deep-dive.html"><span class="phase-num">Deep</span>Block fields</a>
+            <a href="module-timers-reference.html"><span class="phase-num">Time</span>Timers</a>
             <a href="module-hs-simulation-harness-analysis.html"><span class="phase-num">Harness</span>Sim E2E</a>
             <a href="module-hs-simulation-harness-analysis.html#production-harness"><span class="phase-num">Harness</span>Prod E2E</a>
         </nav>
@@ -107,6 +109,7 @@ pub fn is_cross_shard_transaction(&amp;self, tx: &amp;RoutableTransaction) -&gt;
             <h2>2 — Steps 7–11: each shard runs its own BFT</h2>
             <p>After gossip, every involved shard runs Phase 1 admission and Phase 2 propose → vote → QC → commit <strong>independently</strong>. Heights, rounds, and leaders are per shard. A slow shard does not stop another shard’s chain from advancing, but a cross-shard tx cannot execute on shard B until B has the provision data it needs from shard A’s commits.</p>
             <p>There is no cross-shard block proposal — only cross-shard <em>messages</em> (gossip, provisions, execution certificates, committed headers).</p>
+            <div class="hs-block-evolution-mount" data-block-evolution="provision-tx-roots" aria-label="Block anatomy — provision_tx_roots"></div>
         </div>
 
         <div class="section">
@@ -143,6 +146,7 @@ let committed: HashSet&lt;ProvisionHash&gt; =
 self.queue.on_block_committed(&amp;committed);
 actions.extend(self.expected.check_timeouts(local_ts).into_iter().map(...));</code></pre></div>
             </div>
+            <div class="hs-block-evolution-mount" data-block-evolution="provisions-in-block" aria-label="Block anatomy — provision_root and body"></div>
         </div>
 
         <div class="section">
@@ -250,7 +254,8 @@ actions.extend(self.expected.check_timeouts(local_ts).into_iter().map(...));</co
         </div>
         <nav class="navigation module-nav">
             <a href="module-phase-03-execution-waves.html" class="btn btn-secondary">← Phase 3</a>
-            <a href="module-hs-simulation-harness-analysis.html" class="btn btn-primary">Simulation harness →</a>
+            <a href="module-block-fields-deep-dive.html" class="btn btn-primary">Block fields deep dive →</a>
+            <a href="module-hs-simulation-harness-analysis.html" class="btn btn-secondary">Harness</a>
         </nav>
     </div>
 
@@ -259,6 +264,8 @@ actions.extend(self.expected.check_timeouts(local_ts).into_iter().map(...));</co
     <script src="../../common/hyperscale-links.js"></script>
     <script src="../../common/navigation.js"></script>
     <script src="../../common/glossary.js"></script>
+    <script src="../../common/block-evolution-data.js"></script>
+    <script src="../../common/block-evolution.js"></script>
     <script src="../../common/module-init.js" data-module-id="hs-phase-04"></script>
     <script>
         (function () {

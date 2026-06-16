@@ -54,6 +54,8 @@
             <a href="module-phase-02-propose-vote-commit.html"><span class="phase-num">Phase 2</span>Propose → commit</a>
             <a href="module-phase-03-execution-waves.html"><span class="phase-num">Phase 3</span>Execution &amp; waves</a>
             <a href="module-phase-04-cross-shard-tx.html"><span class="phase-num">Phase 4</span>Cross-shard tx</a>
+            <a href="module-block-fields-deep-dive.html"><span class="phase-num">Deep</span>Block fields</a>
+            <a href="module-timers-reference.html"><span class="phase-num">Time</span>Timers</a>
             <a href="module-hs-simulation-harness-analysis.html"><span class="phase-num">Harness</span>Sim E2E</a>
             <a href="module-hs-simulation-harness-analysis.html#production-harness"><span class="phase-num">Harness</span>Prod E2E</a>
         </nav>
@@ -105,6 +107,8 @@
                 <li>A validator on a shard the tx does <strong>not</strong> touch may still gossip and validate for relay, but skips local admission (<code>involves_local_shard</code>)—no entry in its pool.</li>
             </ul>
             <p>So: <strong>gossip = spread bytes;</strong> <strong>mempool = per-validator “ready to be proposed/voted on” set</strong> once this node trusts the signature and Radix rules.</p>
+
+            <div class="hs-block-evolution-mount" data-block-evolution="pre-block" aria-label="Block anatomy — before proposal"></div>
 
             <h3>Why “batch” keeps appearing (three different things)</h3>
             <p>“Batch” in Phase 1 is <strong>not</strong> “the ShardLoop dequeues many crossbeam messages in one turn.” Production still does <strong>one <code>NodeInput</code> → one <code>step</code></strong> per loop iteration (step 4).</p>
@@ -502,6 +506,8 @@ match self.admit_internal(topology, &amp;tx, submitted_locally, now) {
     <script src="../../common/hyperscale-links.js"></script>
     <script src="../../common/navigation.js"></script>
     <script src="../../common/glossary.js"></script>
+    <script src="../../common/block-evolution-data.js"></script>
+    <script src="../../common/block-evolution.js"></script>
     <script src="../../common/module-init.js" data-module-id="hs-phase-01"></script>
     <script>
         (function () {

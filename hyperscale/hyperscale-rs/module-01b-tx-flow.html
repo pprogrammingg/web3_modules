@@ -301,6 +301,12 @@
             </div>
             <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--text2);"><strong>Tip:</strong> Hover over a step to see which crates implement it. Popup closes when you move the cursor away.</p>
 
+            <div class="section section-tight" id="block-anatomy-birdseye">
+                <h3>Block anatomy — bird's-eye map</h3>
+                <p>How the <strong>14-step tx flow</strong> lines up with <strong>phase modules</strong> and the interactive <code>BlockHeader</code> + body cards (pistachio green = fields newly highlighted at that card). Full cards live in phase deep-dives — this table is the summary only.</p>
+                <div data-block-birdseye aria-label="Tx flow to block evolution map"></div>
+            </div>
+
             <div class="section section-tight">
                 <h3>Clarifying the flow (multi-shard and proposer)</h3>
                 <p>A few common points to keep straight:</p>
@@ -728,6 +734,8 @@
     <script src="../../common/hyperscale-links.js"></script>
     <script src="../../common/navigation.js"></script>
     <script src="../../common/glossary.js"></script>
+    <script src="../../common/block-evolution-data.js"></script>
+    <script src="../../common/block-evolution.js"></script>
     <script src="../../common/module-init.js" data-module-id="basic-05b"></script>
     <script>
         const quizQuestions = [

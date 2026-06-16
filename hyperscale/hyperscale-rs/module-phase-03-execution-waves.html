@@ -54,6 +54,8 @@
             <a href="module-phase-02-propose-vote-commit.html"><span class="phase-num">Phase 2</span>Propose → commit</a>
             <a href="module-phase-03-execution-waves.html" class="is-current"><span class="phase-num">Phase 3</span>Execution &amp; waves</a>
             <a href="module-phase-04-cross-shard-tx.html"><span class="phase-num">Phase 4</span>Cross-shard tx</a>
+            <a href="module-block-fields-deep-dive.html"><span class="phase-num">Deep</span>Block fields</a>
+            <a href="module-timers-reference.html"><span class="phase-num">Time</span>Timers</a>
             <a href="module-hs-simulation-harness-analysis.html"><span class="phase-num">Harness</span>Sim E2E</a>
             <a href="module-hs-simulation-harness-analysis.html#production-harness"><span class="phase-num">Harness</span>Prod E2E</a>
         </nav>
@@ -86,7 +88,8 @@
             <h2>1 — Where execution sits in the commit fan-out</h2>
             <p class="module-footnote module-footnote--tight">Proof snippets are trimmed from the <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> tree. Ellipsis (<code>...</code>) hides boilerplate.</p>
             <p>When <code>ProtocolEvent::BlockCommitted</code> arrives, the node orchestrator in <code>crates/node/src/state/shard.rs</code> notifies subsystems in a fixed order. Execution is deliberately <strong>after</strong> mempool and provision bookkeeping on that block, so conflict detection and queue pruning see the committed provision hashes first.</p>
-            <p>After execution runs, the orchestrator calls <code>bft.queue_ready_proposal()</code> again — finalized waves (and freed in-flight counts) may mean the leader should try another block soon.</p>
+            <p>After execution runs, the orchestrator calls <code>shard_coordinator.queue_ready_proposal()</code> again — finalized waves (and freed in-flight counts) may mean the leader should try another block soon.</p>
+            <div class="hs-block-evolution-mount" data-block-evolution="waves-assigned" aria-label="Block anatomy — waves after commit"></div>
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — commit order: mempool → remote headers → provisions → execution → proposal latch</p>
                 <div class="code-block"><pre><code class="language-rust">// crates/node/src/state/shard.rs — on_block_committed
@@ -173,6 +176,7 @@ if topology.local_validator_id() == leader {
             <h2>6 — <code>finalize_wave</code> and <code>FinalizedWavesAdmitted</code></h2>
             <p><code>finalize_wave</code> removes the in-flight <code>WaveState</code>, builds a <code>FinalizedWave</code> (execution certificate + receipt bundle), stores it in <code>FinalizedWaveStore</code>, and emits <code>ProtocolEvent::FinalizedWavesAdmitted</code>. That event is the handoff back to BFT: the next <code>try_propose</code> can select those certificates into a block body, which updates the JMT/state root during <code>build_proposal</code>.</p>
             <p>Waves fetched from peers go through <code>admit_finalized_wave</code> + BLS verify first; locally finalized waves skip that extra gate because they were built from already-verified ECs.</p>
+            <div class="hs-block-evolution-mount" data-block-evolution="finalized-waves" aria-label="Block anatomy — certificates in later block"></div>
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — finalize emits admission continuation</p>
                 <div class="code-block"><pre><code class="language-rust">// crates/execution/src/coordinator.rs — finalize_wave
@@ -243,7 +247,7 @@ vec![Action::Continuation(
             <button type="button" class="btn btn-primary" id="complete-module-btn">Mark module complete</button>
         </div>
         <nav class="navigation module-nav">
-            <a href="module-09-timing.html" class="btn btn-secondary">← Timing</a>
+            <a href="module-phase-02-propose-vote-commit.html" class="btn btn-secondary">← Phase 2</a>
             <a href="module-phase-04-cross-shard-tx.html" class="btn btn-primary">Phase 4 →</a>
         </nav>
     </div>
@@ -253,6 +257,8 @@ vec![Action::Continuation(
     <script src="../../common/hyperscale-links.js"></script>
     <script src="../../common/navigation.js"></script>
     <script src="../../common/glossary.js"></script>
+    <script src="../../common/block-evolution-data.js"></script>
+    <script src="../../common/block-evolution.js"></script>
     <script src="../../common/module-init.js" data-module-id="hs-phase-03"></script>
     <script>
         (function () {

@@ -1,17 +1,16 @@
-// Course data — Levels 1–8 (19 modules): generic foundations early; merged E2E harness read.
+// Course data — Levels 1–7 (20 modules): three modules per level on L1–L6; L7 has two specialization modules.
 // Global courseLevel is the level number on the index.
 //
 // verify-paths.js derives paths from id/path pairs below (paths under hyperscale/).
 const COURSE_DATA = {
     courseLevelMeta: [
         { level: 1, title: 'Orientation & foundations', careerBand: 'Basic → repo-ready reader', description: 'Hyperscale overview, state-machine vocabulary, blockchain literacy—before the tx-flow map.' },
-        { level: 2, title: 'Systems, flow map & phase I', careerBand: 'Basic → pipeline thinker', description: 'Consensus, distributed-systems vocabulary (CAP, safety/liveness), tx-flow map, Phase 1.' },
-        { level: 3, title: 'Phases II–IV & timing', careerBand: 'In-depth → pipeline depth', description: 'Propose→commit, liveness timers, execution waves (incl. Radix boundary), cross-shard outline.' },
-        { level: 4, title: 'Single-shard E2E harness', careerBand: 'In-depth → deterministic tests', description: 'Combined simulation + production harness reading, then single-shard simulation E2E hands-on.' },
-        { level: 5, title: 'Single-shard production E2E', careerBand: 'In-depth → production wiring', description: 'Single-shard production hands-on lab after harness reading.' },
-        { level: 6, title: 'Cross-shard E2E labs', careerBand: 'In-depth → cross-shard engineer', description: 'Cross-shard simulation and production E2E hands-on labs (theory is Phase 4).' },
-        { level: 7, title: 'Performance measurement', careerBand: 'In-depth → execution & ops', description: 'hyperscale-sim performance lab—after you know harnesses and cross-shard paths.' },
-        { level: 8, title: 'Cryptography & P2P', careerBand: 'In-depth → crypto & networking context', description: 'libp2p introduction and signature/QC roles in the node.' }
+        { level: 2, title: 'Systems & flow map', careerBand: 'Basic → pipeline thinker', description: 'Consensus, distributed-systems vocabulary, and the tx-flow map—before phase drills.' },
+        { level: 3, title: 'Phases I–III', careerBand: 'In-depth → single-shard pipeline', description: 'Mempool through propose→commit and execution waves.' },
+        { level: 4, title: 'Phase IV & references', careerBand: 'In-depth → cross-shard + commitments', description: 'Cross-shard tx, block-field deep dive, timers & chain time.' },
+        { level: 5, title: 'Single-shard E2E', careerBand: 'In-depth → harness & labs', description: 'Harness reading plus simulation and production hands-on labs.' },
+        { level: 6, title: 'Cross-shard E2E & performance', careerBand: 'In-depth → cross-shard engineer', description: 'Cross-shard labs and hyperscale-sim performance measurement.' },
+        { level: 7, title: 'Networking & crypto', careerBand: 'In-depth → crypto & networking context', description: 'libp2p introduction and signature/QC roles in the node.' }
     ],
     levels: {
         basic: {
@@ -69,8 +68,8 @@ const COURSE_DATA = {
             ]
         },
         intermediate: {
-            title: 'Levels 2–7',
-            description: 'Tx-flow & phases → single-shard harness labs → cross-shard E2E labs → execution & measurement.',
+            title: 'Levels 2–6',
+            description: 'Tx-flow & phases → single-shard E2E (read + labs) → cross-shard labs → performance.',
             modules: [
                 {
                     courseLevel: '2',
@@ -121,11 +120,11 @@ const COURSE_DATA = {
                     contributionModule: false,
                 },
                 {
-                    courseLevel: '2',
+                    courseLevel: '3',
                     id: 'hs-phase-01',
                     title: 'Deep dive — Phase 1: Submit → Mempool',
                     duration: '1.5–2 hours',
-                    difficulty: 'Level 2',
+                    difficulty: 'Level 3',
                     path: 'hyperscale/hyperscale-rs/module-phase-01-submit-to-mempool.html',
                     description: 'In-depth drill on RPC, crossbeam, gossip, validation, per-validator mempool.',
                     objectives: [
@@ -143,27 +142,11 @@ const COURSE_DATA = {
                     duration: '1.5–2 hours',
                     difficulty: 'Level 3',
                     path: 'hyperscale/hyperscale-rs/module-phase-02-propose-vote-commit.html',
-                    description: 'In-depth drill on propose → vote → QC → commit; BFT coordinator paths and in-repo proofs (replaces legacy BFT module).',
+                    description: 'In-depth drill on propose → vote → QC → commit; shard coordinator paths and in-repo proofs.',
                     objectives: [
                         'Explain proposer_for vs should_propose and why there is no ProposalTimer',
                         'Trace BuildProposal → ProposalBuilt → vote → QC → commit_block',
                         'Separate revote from equivocation and QC-via-parent_qc from “QC gossip”',
-                    ],
-                    hyperscaleSpecific: true,
-                    contributionModule: false,
-                },
-                {
-                    courseLevel: '3',
-                    id: 'intermediate-timing',
-                    title: 'Timing: Rounds, Heights, Timeouts & Timers',
-                    duration: '1–1.5 hours',
-                    difficulty: 'Level 3',
-                    path: 'hyperscale/hyperscale-rs/module-09-timing.html',
-                    description: 'View-change timers vs event-driven proposals—right after Phase 2 commit/liveness story.',
-                    objectives: [
-                        'Explain height vs round and view-change liveness',
-                        'Map ViewChangeTimer/CleanupTimer to node code',
-                        'Contrast timer-driven liveness with try_propose latching',
                     ],
                     hyperscaleSpecific: true,
                     contributionModule: false,
@@ -175,7 +158,7 @@ const COURSE_DATA = {
                     duration: '1.5–2 hours',
                     difficulty: 'Level 3',
                     path: 'hyperscale/hyperscale-rs/module-phase-03-execution-waves.html',
-                    description: 'Post-commit execution: waves, EC aggregation, finalize_wave → FinalizedWavesAdmitted; includes Hyperscale-rs vs Radix Engine boundary (replaces standalone execution module).',
+                    description: 'Post-commit execution: waves, EC aggregation, finalize_wave → FinalizedWavesAdmitted; includes Hyperscale-rs vs Radix Engine boundary.',
                     objectives: [
                         'Trace ExecutionCoordinator::on_block_committed and setup_waves_and_dispatch',
                         'Separate commit time from Radix execution and FinalizedWave inclusion',
@@ -185,11 +168,11 @@ const COURSE_DATA = {
                     contributionModule: false,
                 },
                 {
-                    courseLevel: '3',
+                    courseLevel: '4',
                     id: 'hs-phase-04',
                     title: 'Deep dive — Phase 4: Cross-Shard Tx',
                     duration: '1.5–2 hours',
-                    difficulty: 'Level 3',
+                    difficulty: 'Level 4',
                     path: 'hyperscale/hyperscale-rs/module-phase-04-cross-shard-tx.html',
                     description: 'Multi-shard gossip, per-shard BFT, CommittedBlockHeader, ProvisionCoordinator, five-phase execution protocol (no 2PC); quizzes.',
                     objectives: [
@@ -202,12 +185,44 @@ const COURSE_DATA = {
                 },
                 {
                     courseLevel: '4',
+                    id: 'hs-block-fields',
+                    title: 'Deep Dive: Block Fields & Root Commitments',
+                    duration: '35–50 min',
+                    difficulty: 'Level 4',
+                    path: 'hyperscale/hyperscale-rs/module-block-fields-deep-dive.html',
+                    description: 'After Phases 1–4: commitments vs signatures, how each *_root is computed, per-block scope, WaveCertificate vs teaching “transaction certificate”.',
+                    objectives: [
+                        'Distinguish consensus (QC) vs execution (FinalizedWave) vs cross-shard (provisions)',
+                        'Compute transaction_root and explain state_root JMT replay',
+                        'Trace one tx through roots without a global history Merkle',
+                    ],
+                    hyperscaleSpecific: true,
+                    contributionModule: false,
+                },
+                {
+                    courseLevel: '4',
+                    id: 'hs-timers',
+                    title: 'Timers & Chain Time',
+                    duration: '40–55 min',
+                    difficulty: 'Level 4',
+                    path: 'hyperscale/hyperscale-rs/module-timers-reference.html',
+                    description: 'Master table of every timer/timeout—purpose in English, chain time vs wall clock, event-driven proposals.',
+                    objectives: [
+                        'Explain height vs round and ViewChange liveness',
+                        'Map WAVE_TIMEOUT, provision fallback, and fetch timeouts to their clocks',
+                        'Contrast proposal latch with ViewChangeTimer',
+                    ],
+                    hyperscaleSpecific: true,
+                    contributionModule: false,
+                },
+                {
+                    courseLevel: '5',
                     id: 'hs-e2e-harness',
                     title: 'E2E harnesses (simulation + production)',
                     duration: '2–2.5 hours',
-                    difficulty: 'Level 4',
+                    difficulty: 'Level 5',
                     path: 'hyperscale/hyperscale-rs/module-hs-simulation-harness-analysis.html',
-                    description: 'SimulationRunner/EventKey plus production pinned io-loop, RPC ingress, and observability—one reading module before hands-on labs.',
+                    description: 'SimulationRunner/EventKey plus production pinned shard-loop, RPC ingress, and observability—reading before hands-on labs.',
                     objectives: [
                         'Separate sim time from wall clock and trace test_e2e_single_shard_transaction',
                         'Map RPC SubmitTransaction vs tx_submission_sender to consensus_rx',
@@ -217,12 +232,12 @@ const COURSE_DATA = {
                     contributionModule: false,
                 },
                 {
-                    courseLevel: '4',
+                    courseLevel: '5',
                     id: 'hs-improved-sim-tests',
                     kind: 'project',
                     title: 'Single-Shard Simulation E2E Tests: Improved/Innovative New Test Case',
                     duration: '1.5–2 hours',
-                    difficulty: 'Level 4',
+                    difficulty: 'Level 5',
                     path: 'hyperscale/hyperscale-rs/module-hs-improved-simulation-tests.html',
                     description: 'Hands-on: instrument test_e2e_single_shard_transaction and explore SimulationStats vs simulated time.',
                     objectives: [
@@ -285,12 +300,12 @@ const COURSE_DATA = {
                     contributionModule: false,
                 },
                 {
-                    courseLevel: '7',
+                    courseLevel: '6',
                     id: 'intermediate-performance',
                     kind: 'project',
                     title: 'Performance Measurement',
                     duration: '1.5–2 hours',
-                    difficulty: 'Level 7',
+                    difficulty: 'Level 6',
                     path: 'hyperscale/hyperscale-rs/module-10-performance-measurement.html',
                     description: 'Hands-on: run hyperscale-sim, read SimulationReport, compare parameter sweeps.',
                     objectives: [
@@ -304,15 +319,15 @@ const COURSE_DATA = {
             ]
         },
         advanced: {
-            title: 'Level 8',
+            title: 'Level 7',
             description: 'libp2p introduction and cryptography in the node.',
             modules: [
                 {
-                    courseLevel: '8',
+                    courseLevel: '7',
                     id: 'basic-07',
                     title: 'libp2p: Why It Matters for Protocol Engineers',
                     duration: '1.5–2 hours',
-                    difficulty: 'Level 8',
+                    difficulty: 'Level 7',
                     path: 'hyperscale/basic/module-05-libp2p.html',
                     description: 'Ecosystem context—gateway to extended Hyperscale libp2p modules.',
                     objectives: [
@@ -324,11 +339,11 @@ const COURSE_DATA = {
                     contributionModule: false,
                 },
                 {
-                    courseLevel: '8',
+                    courseLevel: '7',
                     id: 'intermediate-08',
                     title: 'Cryptography in Hyperscale-rs',
                     duration: '1.5–2 hours',
-                    difficulty: 'Level 8',
+                    difficulty: 'Level 7',
                     path: 'hyperscale/hyperscale-rs/module-08-cryptography.html',
                     description: 'Signature roles, QC types, and validator binding—where Ed25519 and BLS appear in the node.',
                     objectives: [

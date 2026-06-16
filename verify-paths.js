@@ -28,6 +28,8 @@ const COMMON_FILES = [
     'rust-highlight.js',
     'hyperscale-flow-data.js',
     'hyperscale-links.js',
+    'block-evolution-data.js',
+    'block-evolution.js',
 ];
 
 // Derive module list from course-data.js so we don't duplicate it
@@ -105,6 +107,8 @@ const COMMON_JS = [
     'rust-highlight.js',
     'hyperscale-flow-data.js',
     'hyperscale-links.js',
+    'block-evolution-data.js',
+    'block-evolution.js',
 ];
 const VALID_JS_PATHS = [
     ...COMMON_JS.map(f => `common/${f}`),
