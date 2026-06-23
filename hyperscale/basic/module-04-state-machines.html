@@ -153,8 +153,8 @@
 
             <div class="code-block"><pre><code class="language-rust">enum Action {
     // Network
-    BroadcastToShard { shard: ShardGroupId, message: OutboundMessage },
-    BroadcastStateVote { shard: ShardGroupId, vote: StateVoteBlock },
+    BroadcastToShard { shard: ShardId, message: OutboundMessage },
+    BroadcastStateVote { shard: ShardId, vote: StateVoteBlock },
 
     // Timers
     SetTimer { id: TimerId, duration: Duration },

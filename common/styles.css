@@ -1929,6 +1929,16 @@ th { background: var(--bg2); }
 .table-wrap { overflow-x: auto; margin: 1rem 0; -webkit-overflow-scrolling: touch; }
 .table-wrap > table { margin: 0; min-width: 640px; }
 
+/* Module pages: tables fill the reading column; reflow unless a table opts into wide min-width */
+.course-content .table-wrap > table {
+    width: 100%;
+    min-width: 0;
+}
+.course-content .table-wrap > table.flow-steps.messaging-inventory-table,
+.course-content .table-wrap > table.messaging-inventory-table {
+    min-width: 720px;
+}
+
 /* Text-heavy tables: reflow inside the column width instead of forcing a wide min-width */
 .table-wrap.table-wrap--reflow > table {
     min-width: 0;
@@ -1953,64 +1963,102 @@ th { background: var(--bg2); }
 .table-wrap.table-wrap--reflow table.content-table-two-col th:first-child,
 .table-wrap.table-wrap--reflow table.content-table-two-col td:first-child {
     width: 32%;
-    max-width: 12rem;
+    max-width: 14rem;
 }
 .table-wrap.table-wrap--reflow table.content-table-two-col th:nth-child(2),
 .table-wrap.table-wrap--reflow table.content-table-two-col td:nth-child(2) {
     width: auto;
 }
 
-/* Flow-steps: narrow Step column, room for content so text doesn't squeeze or break badly */
-.flow-steps { font-size: 0.9rem; table-layout: auto; }
+/*
+ * flow-steps — curriculum tables (syllabus, comparisons, field inventories).
+ * Fixed proportional columns inside .course-content; last column usually carries prose.
+ */
+.flow-steps {
+    font-size: 0.9rem;
+    table-layout: auto;
+}
+.course-content .table-wrap > table.flow-steps:not(.messaging-inventory-table) {
+    table-layout: fixed;
+}
 .flow-steps th,
-.flow-steps td { padding: 0.6rem 0.75rem; vertical-align: top; }
-/* Step column: minimal width so "1" doesn't steal space; content columns get room */
-.flow-steps th:first-child,
-.flow-steps td:first-child { width: 1%; min-width: 2.5em; white-space: nowrap; }
-.flow-steps th:nth-child(2),
-.flow-steps td:nth-child(2) { min-width: 10em; }
-.flow-steps th:nth-child(3),
-.flow-steps td:nth-child(3) { min-width: 14em; }
-.flow-steps th:nth-child(4),
-.flow-steps td:nth-child(4) { min-width: 16em; }
-.flow-steps td { word-break: break-word; overflow-wrap: break-word; }
-.flow-steps td code { font-size: 0.85em; white-space: normal; }
-/* Step column may stay compact; all content columns must wrap long prose and code */
-.flow-steps th:nth-child(n+2),
-.flow-steps td:nth-child(n+2) {
+.flow-steps td {
+    padding: 0.6rem 0.75rem;
+    vertical-align: top;
     white-space: normal;
     overflow-wrap: break-word;
     word-break: break-word;
-}
-.flow-steps td:nth-child(n+2) code {
-    white-space: normal;
-    word-break: break-word;
-    overflow-wrap: break-word;
-}
-/* When first column has long labels (e.g. "Initialized genesis block"), add class flow-steps-wide-first */
-.flow-steps-wide-first th:first-child,
-.flow-steps-wide-first td:first-child { width: auto; min-width: 11em; white-space: normal; }
-/* When last column carries long prose (e.g. Purpose), add flow-steps-wide-last */
-.flow-steps-wide-last th:last-child,
-.flow-steps-wide-last td:last-child {
-    min-width: 22em;
-    width: 38%;
     line-height: 1.45;
 }
-.flow-steps-wide-last.flow-steps-wide-first th:nth-child(2),
-.flow-steps-wide-last.flow-steps-wide-first td:nth-child(2) { min-width: 6em; }
-.flow-steps-wide-last.flow-steps-wide-first th:nth-child(3),
-.flow-steps-wide-last.flow-steps-wide-first td:nth-child(3) { min-width: 7em; }
-.flow-steps-wide-last.flow-steps-wide-first th:nth-child(4),
-.flow-steps-wide-last.flow-steps-wide-first td:nth-child(4) { min-width: 14em; }
+.flow-steps td code,
+.flow-steps th code {
+    font-size: 0.85em;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+/* --- Column counts (proportional widths; sum ≈ 100%) --- */
+
+/* 2 columns: label | content */
+.flow-steps :is(th, td):first-child:nth-last-child(2) { width: 34%; min-width: 0; }
+.flow-steps :is(th, td):nth-child(2):nth-last-child(1) { width: 66%; min-width: 0; }
+
+/* 3 columns: label | detail | prose */
+.flow-steps :is(th, td):first-child:nth-last-child(3) { width: 22%; min-width: 0; }
+.flow-steps :is(th, td):nth-child(2):nth-last-child(2) { width: 28%; min-width: 0; }
+.flow-steps :is(th, td):nth-child(3):nth-last-child(1) { width: 50%; min-width: 0; }
+
+/* 4 columns */
+.flow-steps :is(th, td):first-child:nth-last-child(4) { width: 16%; min-width: 0; }
+.flow-steps :is(th, td):nth-child(2):nth-last-child(3) { width: 18%; min-width: 0; }
+.flow-steps :is(th, td):nth-child(3):nth-last-child(2) { width: 22%; min-width: 0; }
+.flow-steps :is(th, td):nth-child(4):nth-last-child(1) { width: 44%; min-width: 0; }
+
+/* 5 columns */
+.flow-steps :is(th, td):first-child:nth-last-child(5) { width: 13%; min-width: 0; }
+.flow-steps :is(th, td):nth-child(2):nth-last-child(4) { width: 15%; min-width: 0; }
+.flow-steps :is(th, td):nth-child(3):nth-last-child(3) { width: 17%; min-width: 0; }
+.flow-steps :is(th, td):nth-child(4):nth-last-child(2) { width: 20%; min-width: 0; }
+.flow-steps :is(th, td):nth-child(5):nth-last-child(1) { width: 35%; min-width: 0; }
+
+/* Segment syllabus: col 1 is "1" / "2" / "Step" — keep narrow */
+.flow-steps-compact-first :is(th, td):first-child:nth-last-child(3) {
+    width: 3.25rem;
+    min-width: 3.25rem;
+    max-width: 4rem;
+    white-space: nowrap;
+}
+.flow-steps-compact-first :is(th, td):nth-child(2):nth-last-child(2) { width: 28%; }
+.flow-steps-compact-first :is(th, td):nth-child(3):nth-last-child(1) { width: auto; }
+
+/* Optional HTML modifiers — fine-tune beyond defaults */
+.flow-steps-wide-first :is(th, td):first-child {
+    min-width: 11em;
+    white-space: normal;
+}
+.flow-steps-wide-last :is(th, td):last-child {
+    min-width: 18em;
+    width: 42%;
+    line-height: 1.45;
+}
+.flow-steps-wide-last.flow-steps-wide-first :is(th, td):nth-child(2) { width: 20%; }
+.flow-steps-wide-last.flow-steps-wide-first :is(th, td):nth-child(3) { width: 22%; }
+.flow-steps-wide-last.flow-steps-wide-first :is(th, td):nth-child(4) { width: 38%; }
 
 /* Messaging inventory (module-01b): six-column flow tables + handler lists */
-.messaging-inventory-table.flow-steps th:nth-child(5),
-.messaging-inventory-table.flow-steps td:nth-child(5) { min-width: 11em; }
-.messaging-inventory-table.flow-steps th:nth-child(6),
-.messaging-inventory-table.flow-steps td:nth-child(6) {
-    min-width: 17em;
-    max-width: 28rem;
+.messaging-inventory-table.flow-steps :is(th, td):first-child:nth-last-child(6) { width: 9%; }
+.messaging-inventory-table.flow-steps :is(th, td):nth-child(2):nth-last-child(5) { width: 11%; }
+.messaging-inventory-table.flow-steps :is(th, td):nth-child(3):nth-last-child(4) { width: 12%; }
+.messaging-inventory-table.flow-steps :is(th, td):nth-child(4):nth-last-child(3) { width: 14%; }
+.messaging-inventory-table.flow-steps :is(th, td):nth-child(5):nth-last-child(2) {
+    width: 16%;
+    min-width: 9em;
+}
+.messaging-inventory-table.flow-steps :is(th, td):nth-child(6):nth-last-child(1) {
+    width: 38%;
+    min-width: 14em;
+    max-width: none;
     font-size: 0.86rem;
     line-height: 1.45;
 }
@@ -2021,12 +2069,18 @@ th { background: var(--bg2); }
 .messaging-inventory-table .handler-detail-list li { margin: 0.2em 0; }
 
 .content-table { table-layout: auto; }
+.course-content .table-wrap > table.content-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 0;
+}
 .content-table th,
 .content-table td {
     vertical-align: top;
     white-space: normal;
     word-break: break-word;
     overflow-wrap: break-word;
+    line-height: 1.45;
 }
 .content-table td code,
 .content-table th code {
@@ -2034,14 +2088,16 @@ th { background: var(--bg2); }
     word-break: break-word;
     overflow-wrap: break-word;
 }
-.content-table th:first-child,
-.content-table td:first-child { min-width: 6em; }
-.content-table th:nth-child(2),
-.content-table td:nth-child(2) { min-width: 8em; }
-.content-table th:nth-child(3),
-.content-table td:nth-child(3) { min-width: 10em; }
-.content-table th:nth-child(4),
-.content-table td:nth-child(4) { min-width: 10em; }
+/* content-table column counts */
+.content-table :is(th, td):first-child:nth-last-child(2) { width: 34%; }
+.content-table :is(th, td):nth-child(2):nth-last-child(1) { width: 66%; }
+.content-table :is(th, td):first-child:nth-last-child(3) { width: 22%; }
+.content-table :is(th, td):nth-child(2):nth-last-child(2) { width: 28%; }
+.content-table :is(th, td):nth-child(3):nth-last-child(1) { width: 50%; }
+.content-table :is(th, td):first-child:nth-last-child(4) { width: 16%; }
+.content-table :is(th, td):nth-child(2):nth-last-child(3) { width: 18%; }
+.content-table :is(th, td):nth-child(3):nth-last-child(2) { width: 22%; }
+.content-table :is(th, td):nth-child(4):nth-last-child(1) { width: 44%; }
 
 /* End-of-module: consolidated repo paths (Hyperscale-rs track) */
 .hs-suggested-study-section {

@@ -47,7 +47,7 @@ function parseEnumVariantFields(source, variantName) {
 
 /** Teaching field id → rust field name in clone */
 const FIELD_RUST_MAP = {
-  shard_group_id: { location: 'header', rust: 'shard_group_id' },
+  shard_id: { location: 'header', rust: 'shard_id' },
   height: { location: 'header', rust: 'height' },
   parent_block_hash: { location: 'header', rust: 'parent_block_hash' },
   parent_qc: { location: 'header', rust: 'parent_qc' },
@@ -65,9 +65,14 @@ const FIELD_RUST_MAP = {
   in_flight: { location: 'header', rust: 'in_flight' },
   beacon_witness_root: { location: 'header', rust: 'beacon_witness_root' },
   beacon_witness_leaf_count: { location: 'header', rust: 'beacon_witness_leaf_count' },
+  beacon_witness_base: { location: 'header', rust: 'beacon_witness_base' },
+  split_child_roots: { location: 'header', rust: 'split_child_roots' },
+  settled_waves_root: { location: 'header', rust: 'settled_waves_root' },
   body_transactions: { location: 'body', rust: 'transactions' },
   body_certificates: { location: 'body', rust: 'certificates' },
   body_provisions: { location: 'body', rust: 'provisions' },
+  body_ready_signals: { location: 'body', rust: 'ready_signals' },
+  body_reshape_trigger: { location: 'body', rust: 'reshape_trigger' },
 };
 
 function loadGlossaryKeys() {

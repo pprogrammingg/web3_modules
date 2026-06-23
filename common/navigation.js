@@ -29,6 +29,7 @@ const AVAILABLE_MODULES = [
     'hs-e2e-harness',
     'hs-improved-sim-tests',
     'hs-improved-prod-tests',
+    'hs-jmt-deep-dive',
     'hs-improved-cross-shard-sim-tests',
     'hs-improved-cross-shard-prod-tests',
     'intermediate-08',

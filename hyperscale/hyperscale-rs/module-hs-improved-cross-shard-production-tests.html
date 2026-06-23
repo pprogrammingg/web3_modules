@@ -61,7 +61,7 @@
             <h3>Step 3 — Ingress and topology sketch</h3>
             <p>Without implementing a full new test yet, draft pseudocode or bullet steps for a future integration test:</p>
             <ul>
-                <li>Start <strong>two shard groups</strong> (or N validators partitioned by <code>ShardGroupId</code>) with production runner APIs.</li>
+                <li>Start <strong>two shard groups</strong> (or N validators partitioned by <code>ShardId</code>) with production runner APIs.</li>
                 <li>Submit a cross-shard manifest via the same paths you documented for RPC vs <code>tx_submission_sender</code>.</li>
                 <li>Observe: network up on each group, pinned <code>shard-loop</code> threads running, and a wall-clock bounded wait for finalization.</li>
                 <li>Shutdown cleanly (mirror single-shard production test assertions).</li>

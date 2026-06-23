@@ -1,4 +1,4 @@
-// Course data — Levels 1–7 (20 modules): three modules per level on L1–L6; L7 has two specialization modules.
+// Course data — Levels 1–7 (21 modules): L6 has four modules (JMT deep dive + cross-shard labs + performance); L7 has two specialization modules.
 // Global courseLevel is the level number on the index.
 //
 // verify-paths.js derives paths from id/path pairs below (paths under hyperscale/).
@@ -9,7 +9,7 @@ const COURSE_DATA = {
         { level: 3, title: 'Phases I–III', careerBand: 'In-depth → single-shard pipeline', description: 'Mempool through propose→commit and execution waves.' },
         { level: 4, title: 'Phase IV & references', careerBand: 'In-depth → cross-shard + commitments', description: 'Cross-shard tx, block-field deep dive, timers & chain time.' },
         { level: 5, title: 'Single-shard E2E', careerBand: 'In-depth → harness & labs', description: 'Harness reading plus simulation and production hands-on labs.' },
-        { level: 6, title: 'Cross-shard E2E & performance', careerBand: 'In-depth → cross-shard engineer', description: 'Cross-shard labs and hyperscale-sim performance measurement.' },
+        { level: 6, title: 'JMT, cross-shard E2E & performance', careerBand: 'In-depth → cross-shard engineer', description: 'JMT & shard storage deep dive, cross-shard labs, hyperscale-sim performance measurement.' },
         { level: 7, title: 'Networking & crypto', careerBand: 'In-depth → crypto & networking context', description: 'libp2p introduction and signature/QC roles in the node.' }
     ],
     levels: {
@@ -69,7 +69,7 @@ const COURSE_DATA = {
         },
         intermediate: {
             title: 'Levels 2–6',
-            description: 'Tx-flow & phases → single-shard E2E (read + labs) → cross-shard labs → performance.',
+            description: 'Tx-flow & phases → references → E2E labs → cross-shard → performance.',
             modules: [
                 {
                     courseLevel: '2',
@@ -170,15 +170,15 @@ const COURSE_DATA = {
                 {
                     courseLevel: '4',
                     id: 'hs-phase-04',
-                    title: 'Deep dive — Phase 4: Cross-Shard Tx',
-                    duration: '1.5–2 hours',
+                    title: 'Deep dive — Phase 4: Cross-Shard Tx & Provisions',
+                    duration: '2–3 hours',
                     difficulty: 'Level 4',
                     path: 'hyperscale/hyperscale-rs/module-phase-04-cross-shard-tx.html',
-                    description: 'Multi-shard gossip, per-shard BFT, CommittedBlockHeader, ProvisionCoordinator, five-phase execution protocol (no 2PC); quizzes.',
+                    description: 'Unified module: 20-step end-to-end flow, provisions deep dive, block fields map, Merkle/JMT why, 33-item Q&A, USDC reference scenario — provision-based cross-shard (no 2PC).',
                     objectives: [
-                        'Map tx-flow steps 6 and 13–14 to gossip, provisions, and wave dispatch',
-                        'Explain provision-based atomicity vs a global 2PC coordinator',
-                        'Connect committed-header attestation to cross-shard provision verification',
+                        'Trace submit → provisions@H → ProvisionedSnapshot → FinalizedWave',
+                        'Distinguish provision_tx_roots, provision_root, and JMT proofs',
+                        'Explain shadow base, anchor height H, and manifest vs protocol ordering',
                     ],
                     hyperscaleSpecific: true,
                     contributionModule: false,
@@ -261,6 +261,22 @@ const COURSE_DATA = {
                         'Add tracing markers to a production integration test',
                         'Assert network listen addresses and clean shutdown',
                         'Document how you would inject SubmitTransaction via tx_submission_sender',
+                    ],
+                    hyperscaleSpecific: true,
+                    contributionModule: false,
+                },
+                {
+                    courseLevel: '6',
+                    id: 'hs-jmt-deep-dive',
+                    title: 'Deep Dive: JMT & Shard State Storage',
+                    duration: '50–70 min',
+                    difficulty: 'Level 6',
+                    path: 'hyperscale/hyperscale-rs/module-jmt-deep-dive.html',
+                    description: 'After E2E labs: one JMT per shard, RocksDB vs tree layers, owner-prefixed jmt_leaf_key, genesis insert vs transfer update — with in-repo tests and prepare_block_commit.',
+                    objectives: [
+                        'Explain entity + partition + sort_key and owner-major JMT leaf keys (state_key.rs)',
+                        'Trace genesis install and insert vs update on the same storage_key',
+                        'Relate execution database_updates to state_root on a later block header',
                     ],
                     hyperscaleSpecific: true,
                     contributionModule: false,

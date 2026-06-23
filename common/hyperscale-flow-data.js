@@ -39,7 +39,7 @@
         'crates/shard/src/vote_keeper.rs': { lineHint: 'voted_heights; rejects runaway round gaps', note: 'Shard votes' },
         'crates/shard/src/validation.rs': { lineHint: 'validate_header, runaway round gap checks', note: 'Shard header validation' },
         'crates/beacon/src/coordinator.rs': { lineHint: 'BeaconCoordinator — PC/SPC/MSC, validator set & topology', note: 'Beacon chain (parallel to shard consensus)' },
-        'crates/node/src/shard_loop/mod.rs': { lineHint: 'ShardLoop::run_step, ShardEvent queue', note: 'Tx ingress, overview, E2E (was shard_loop)' },
+        'crates/node/src/shard_loop/mod.rs': { lineHint: 'ShardLoop::run_step, ShardEvent queue', note: 'Tx ingress, overview, E2E (was io_loop)' },
         'crates/node/src/shard_loop/step/protocol_event.rs': { lineHint: 'feed_event continuations after persist', note: 'Messaging inventory' },
         'crates/node/src/shard_loop/step/tx_validation.rs': { lineHint: 'SubmitTransaction → TransactionValidated', note: 'Tx ingress' },
         'crates/node/src/state/mod.rs': { lineHint: 'NodeStateMachine::handle, shard + beacon coordinators', note: 'Tx flow, overview' },
@@ -72,6 +72,15 @@
         'crates/network-libp2p/src/adapter/identity.rs': { lineHint: 'generate_random_keypair (libp2p Ed25519)', note: 'Module-08 crypto' },
         'crates/network-libp2p/src/validator_bind.rs': { lineHint: 'validator-bind protocol, BLS signature over PeerId', note: 'Module-08 crypto' },
         'crates/network/src/traits.rs': { lineHint: 'Network trait: register_* handlers, GossipHandler, NotificationHandler, request on_response', note: 'Messaging inventory' },
+        'crates/types/src/state_key.rs': { lineHint: 'jmt_leaf_key, node_routing_hash — owner-major JMT prefixing', note: 'JMT deep dive + provision proof verification' },
+        'crates/engine/src/provisioned_snapshot.rs': { lineHint: 'ProvisionedSnapshot::from_provisions, execute', note: 'Cross-shard Radix execution overlay' },
+        'crates/provisions/src/coordinator.rs': { lineHint: 'ProvisionCoordinator, committed_tombstones, min_dwell_time', note: 'Cross-shard Phase 4' },
+        'crates/provisions/src/build.rs': { lineHint: 'build_provisions, generate_merkle_proofs_overlay + owned_nodes', note: 'Cross-shard Phase 4' },
+        'crates/execution/src/lookups.rs': { lineHint: 'assign_waves, build_provision_requests', note: 'Phase 3–4 wave assignment' },
+        'crates/execution/src/provisioning.rs': { lineHint: 'ProvisioningTracker, verified_ownership, record_required', note: 'Cross-shard Phase 4' },
+        'crates/execution/src/wave_state.rs': { lineHint: 'CrossShardExecutionRequest, ExecuteCrossShardTransactions', note: 'Cross-shard Phase 4 dispatch' },
+        'crates/types/src/shard/roots/settled_waves.rs': { lineHint: 'local_settled_wave_ids, settled_waves_root_from_ids', note: 'Split-straddling cross-shard fence' },
+        'crates/types/src/topology/shard_prefix.rs': { lineHint: 'ShardTrie routing, contiguous owner subtrees', note: 'Shard routing (replaces hash-modulo mental model)' },
     };
 
     /**

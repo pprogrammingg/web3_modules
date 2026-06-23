@@ -74,7 +74,8 @@ Every **curriculum module** (paths in `common/*-course-data.js`, plus `solana-co
 | `section` | Bordered segment block (tables + prose) |
 | `section-tight` | Less top margin between consecutive segments |
 | `module-tight-prose` | Tighter paragraph spacing in long segments |
-| `table-wrap` + `flow-steps` | Segment syllabus table |
+| `table-wrap` + `flow-steps` | Segment syllabus table; optional `flow-steps-compact-first` when col 1 is `#` / step number |
+| `flow-steps-wide-first` / `flow-steps-wide-last` | Fine-tune label or prose columns (defaults in CSS usually suffice) |
 | `module-footnote` | Muted helper line under segment table |
 | `module-footnote--tight` | Footnote with `margin-bottom: 0` |
 | `course-header-lede` | Hero subtitle (EVM polished hero tints text) |

@@ -439,7 +439,7 @@ Block H+k (later)
                         <tr>
                             <td><code>provision_tx_roots</code></td>
                             <td>Cross-shard</td>
-                            <td><code>BoundedBTreeMap&lt;ShardGroupId, ProvisionTxRoot&gt;</code> — one Merkle per <em>remote</em> shard over tx hashes on this page that need that shard’s proof</td>
+                            <td><code>BoundedBTreeMap&lt;ShardId, ProvisionTxRoot&gt;</code> — one Merkle per <em>remote</em> shard over tx hashes on this page that need that shard’s proof</td>
                             <td>Per other team: which txs on our page still need their signed proof.</td>
                         </tr>
                         <tr>
@@ -587,6 +587,7 @@ Cross-shard extra
                 <li><a href="module-phase-02-propose-vote-commit.html">Phase 2</a> — BlockVote, QC, commit, <code>parent_qc</code></li>
                 <li><a href="module-phase-03-execution-waves.html">Phase 3</a> — waves, EC, <code>finalize_wave</code>, <code>certificate_root</code></li>
                 <li><a href="module-phase-04-cross-shard-tx.html">Phase 4</a> — provisions, <code>provision_root</code>, cross-shard finalization</li>
+                <li><a href="module-jmt-deep-dive.html">JMT &amp; shard state storage</a> — keys, RocksDB vs tree, insert/update walkthrough</li>
                 <li><a href="module-timers-reference.html">Timers &amp; chain time</a></li>
                 <li><a href="module-01b-tx-flow.html">Tx-flow map</a></li>
                 <li><a href="../../common/glossary.html">Glossary</a> — <strong>Block header &amp; body</strong></li>

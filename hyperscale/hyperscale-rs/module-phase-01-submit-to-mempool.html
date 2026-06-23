@@ -79,7 +79,7 @@
         <div class="section">
             <h2>0 — Prerequisite mental model</h2>
             <ul class="module-tight-prose">
-                <li><strong>Shard</strong> = validator committee (<code>ShardGroupId</code> in code). Example config only: e.g. 26 shards × 50–100 validators per shard—not fixed by the protocol.</li>
+                <li><strong>Shard</strong> = validator committee (<code>ShardId</code> in code). Example config only: e.g. 26 shards × 50–100 validators per shard—not fixed by the protocol.</li>
                 <li><strong>Validator</strong> = one process: <code>ShardLoop</code> + <code>NodeStateMachine</code> (BFT + mempool + execution) + storage + network impl.</li>
                 <li><strong>Mempool</strong> = <em>per-validator</em> in-memory state (<code>hyperscale-mempool</code>), not one shared shard mailbox.</li>
                 <li><strong>Production network</strong> = <code>hyperscale-network-libp2p</code> (libp2p gossipsub over QUIC between validators—separate from the wallet’s HTTP <code>POST</code> in step 2). Simulation uses <code>hyperscale-network-memory</code> — noted only where it differs.</li>

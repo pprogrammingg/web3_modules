@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Dive: JMT &amp; Shard State Storage</title>
+    <link rel="stylesheet" href="../../common/styles.css" id="main-styles">
+    <script src="../../common/ensure-styles.js"></script>
+</head>
+<body>
+    <nav class="site-home-bar">
+        <a href="../index.html" class="site-home-link" aria-label="Hyperscale track home">← Hyperscale</a>
+        <a href="../../index.html" class="site-home-link" aria-label="All tracks">All tracks</a>
+    </nav>
+    <div class="course-content">
+        <div class="course-header">
+            <h1>Deep Dive: JMT &amp; Shard State Storage</h1>
+            <p class="course-header-lede">After <a href="module-block-fields-deep-dive.html">block fields</a>, <a href="module-timers-reference.html">timers</a>, and the <a href="module-hs-simulation-harness-analysis.html">E2E harness labs</a>: how hyperscale-rs stores ledger state on <strong>one shard</strong> — RocksDB substates, the <span class="glossary-term" data-glossary="jellyfish merkle tree">JMT</span>, keys, inserts vs updates, and a step-by-step transfer walkthrough with in-repo tests.</p>
+            <div class="course-meta">
+                <span>⏱️ ~50–70 min read</span>
+                <span>📊 Deep dive</span>
+                <span>🎯 Hyperscale-rs storage</span>
+            </div>
+        </div>
+
+        <nav class="hs-ref-toc module-tight-prose" aria-label="On this page">
+            <strong>On this page:</strong>
+            <a href="#segments">Reading segments</a> ·
+            <a href="#scope">Scope (per shard)</a> ·
+            <a href="#two-layers">Two layers</a> ·
+            <a href="#key-mapping">Key mapping</a> ·
+            <a href="#genesis-insert">Genesis insert</a> ·
+            <a href="#tx-timeline">Tx timeline</a> ·
+            <a href="#update-walk">Update walk</a> ·
+            <a href="#prepare-commit">prepare → commit</a> ·
+            <a href="#code-map">Code map</a> ·
+            <a href="#quiz">Quiz</a>
+        </nav>
+
+        <div class="section" id="segments">
+            <h2>Reading segments (~15–20 min each)</h2>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-compact-first">
+                    <thead><tr><th>Segment</th><th>Topic</th><th>You should be able to…</th></tr></thead>
+                    <tbody>
+                        <tr><td>1</td><td><a href="#scope">Scope &amp; two layers</a></td><td>Say “one JMT per shard, versioned over time” and name RocksDB vs JMT roles</td></tr>
+                        <tr><td>2</td><td><a href="#key-mapping">Keys &amp; hashing</a></td><td>Build a <code>storage_key</code>, explain why JMT hashes it again</td></tr>
+                        <tr><td>3</td><td><a href="#genesis-insert">Genesis insert</a></td><td>Trace <code>install_genesis</code> → substates written → first JMT root</td></tr>
+                        <tr><td>4</td><td><a href="#tx-timeline">Transfer timeline</a></td><td>Separate “tx in block N” from “<code>state_root</code> bump on block N+1”</td></tr>
+                        <tr><td>5</td><td><a href="#update-walk">Insert vs update tables</a></td><td>For each step, say what changed in Node DB vs JMT</td></tr>
+                        <tr><td>6</td><td><a href="#prepare-commit">prepare_block_commit</a></td><td>Explain speculative root + <code>PreparedCommit</code> at propose time</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="module-footnote">Prerequisite: skim <a href="module-block-fields-deep-dive.html#state-root-example"><code>state_root</code> example</a> in the block-fields module.</p>
+        </div>
+
+        <div class="section section-tight module-tight-prose" id="scope">
+            <h2>Segment 1 — What JMT is (and what it is not)</h2>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-last">
+                    <thead><tr><th>Question</th><th>Answer in hyperscale-rs</th></tr></thead>
+                    <tbody>
+                        <tr><td>One JMT for the whole network?</td><td><strong>No.</strong> Each <span class="glossary-term" data-glossary="shard group">shard group</span> has its <strong>own</strong> state tree and <code>state_root</code> in its block headers.</td></tr>
+                        <tr><td>One new JMT per block?</td><td><strong>No.</strong> One persistent tree per shard; each commit advances a <strong>version</strong> (typically block height). Old versions can remain for proofs / history.</td></tr>
+                        <tr><td>Where does <code>state_root</code> live?</td><td>In every <code>BlockHeader</code> for that shard — a commitment peers recompute from <code>body.certificates</code>.</td></tr>
+                        <tr><td>JMT vs JVT in code?</td><td><strong>JMT</strong> = tree algorithm (Blake3, fixed depth). <strong>JVT</strong> = versioned state layer name in Rust symbols — see glossary.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <pre class="hs-ascii-flow" aria-label="Per-shard storage">Network
+  Shard 0 validators ──► RocksDB + JMT (version 0…H)  → state_root in shard-0 headers
+  Shard 1 validators ──► separate RocksDB + JMT         → state_root in shard-1 headers
+  …</pre>
+            <p class="module-tight-prose">Cross-shard txs touch <strong>multiple</strong> shard trees independently; atomicity is provision-based (<a href="module-phase-04-cross-shard-tx.html">Phase 4</a>), not one global JMT.</p>
+        </div>
+
+        <div class="section section-tight module-tight-prose" id="two-layers">
+            <h2>Segment 2 — Two layers on each validator (Node DB + JMT)</h2>
+            <p>Every substate slot has the <strong>same logical address</strong> in both layers, but different on-disk encoding:</p>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-first flow-steps-wide-last">
+                    <thead><tr><th>Layer</th><th>Stores</th><th>Key format</th><th>Value format</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Node DB</strong> (RocksDB <code>state</code> CF)</td><td>Actual substate bytes you read during execution</td><td><code>entity_key ‖ partition ‖ sort_key</code> (variable length)</td><td>Raw SBOR / engine bytes (e.g. balance encoding)</td></tr>
+                        <tr><td><strong>JMT</strong> (RocksDB JMT CF + in-memory snapshots)</td><td>Merkle fingerprint of the whole map</td><td><code>jmt_leaf_key(storage_key, owner)</code> — owner-major 32-byte path (<a href="#" data-file="crates/types/src/state_key.rs" target="_blank" rel="noopener">state_key.rs</a>)</td><td>Leaf = <code>BLAKE3(raw_value)</code>; internal nodes = Blake3 pairings</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="hs-phase-proof-caption"><strong>In-repo contract</strong> — owner-prefixed leaf keys (<a href="#" data-file="crates/types/src/state_key.rs" target="_blank" rel="noopener">state_key.rs</a>)</p>
+            <div class="code-block"><pre><code class="language-rust">/// Owner-major JMT leaf key: high 16 bytes = blake3(routing_node),
+/// low 16 bytes = blake3(full storage_key). routing_node is the global
+/// owner for internal nodes (vaults, KV stores) or the node itself for globals.
+pub fn jmt_leaf_key(storage_key: &amp;[u8], owner: Option&lt;NodeId&gt;) -&gt; [u8; 32] { … }
+
+// Provision proof verification uses the same rule via ProvisionEntry::owned_nodes.</code></pre></div>
+            <p><strong>Takeaway:</strong> execution reads/writes <strong>Node DB</strong>; consensus headers carry the <strong>JMT root</strong> so everyone agrees on the map’s fingerprint without shipping every account on every block.</p>
+        </div>
+
+        <div class="section section-tight module-tight-prose" id="key-mapping">
+            <h2>Segment 3 — Keys in real life (entity, partition, sort_key)</h2>
+            <p>A token balance (or any substate row) is <strong>not</strong> “Alice” as a string. It is a triple:</p>
+            <div class="table-wrap">
+                <table class="flow-steps">
+                    <thead><tr><th>Part</th><th>Meaning</th><th>Example</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>entity_key</code> (<code>db_node_key</code>)</td><td>Which account / component (<code>NodeId</code> via <code>SpreadPrefixKeyMapper</code>)</td><td>50-byte mapped key for Alice’s account component</td></tr>
+                        <tr><td><code>partition_num</code></td><td>Which “table” inside that entity (vault, metadata, …)</td><td><code>0x58</code> = internal fungible vault partition in engine sharding</td></tr>
+                        <tr><td><code>sort_key</code></td><td>Which row in that table (resource id, field id, …)</td><td>Bytes identifying the GOLD resource</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="hs-phase-proof-caption"><strong>Byte layout</strong> (<a href="#" data-file="crates/storage/src/shard/keys.rs" target="_blank" rel="noopener">shard/keys.rs</a>)</p>
+            <div class="code-block"><pre><code class="language-rust">// Key layout: [node_key][partition_num (1B)][sort_key]
+pub fn to_storage_key(partition_key: &amp;DbPartitionKey, sort_key: &amp;DbSortKey) -&gt; Vec&lt;u8&gt; {
+    let mut key = Vec::with_capacity(partition_key.node_key.len() + 1 + sort_key.0.len());
+    key.extend_from_slice(&amp;partition_key.node_key);
+    key.push(partition_key.partition_num);
+    key.extend_from_slice(&amp;sort_key.0);
+    key
+}</code></pre></div>
+            <p>Execution emits <code>DatabaseUpdates</code>: nested map of <code>entity_key → partition → sort_key → Set|Delete</code>. Storage flattens that into JMT work items:</p>
+            <div class="code-block"><pre><code class="language-rust">// tree/mod.rs — put_at_version (simplified)
+let storage_key = make_storage_key(entity_key, partition_num, &amp;sort_key.0);
+let jmt_key = hash_storage_key(storage_key, owner_map);  // → jmt_leaf_key(...)
+let jmt_value = value.map(hash_value);         // BLAKE3(raw bytes) or None = delete</code></pre></div>
+            <p><strong>Toy diagram note:</strong> paths like <code>1010</code> / <code>1101</code> in the <a href="module-block-fields-deep-dive.html#state-root-example">block-fields walkthrough</a> are 4-bit teaching cartoons. Production uses the full 256-bit path implied by the 32-byte <code>jmt_key</code>.</p>
+        </div>
+
+        <div class="section section-tight module-tight-prose" id="genesis-insert">
+            <h2>Segment 4 — Genesis: first INSERT (empty → Alice &amp; Bob funded)</h2>
+            <p>Simulation and production fund accounts at genesis via <code>initialize_genesis_with_balances</code>. That produces <code>DatabaseUpdates</code> with <code>DatabaseUpdate::Set</code> on keys that **did not exist** — pure **inserts**.</p>
+            <p class="hs-phase-proof-caption"><strong>Genesis install</strong> (<a href="#" data-file="crates/storage-rocksdb/src/shard/core.rs" target="_blank" rel="noopener">storage-rocksdb/shard/core.rs</a>)</p>
+            <div class="code-block"><pre><code class="language-rust">impl GenesisCommit for RocksDbShardStorage {
+    fn install_genesis(&amp;self, merged: &amp;DatabaseUpdates) -&gt; StateRoot {
+        Self::commit_substates_only(self, merged);   // 1) write raw bytes @ version 0
+        Self::finalize_genesis_jmt(self, merged)     // 2) build first JMT @ version 0
+    }
+}</code></pre></div>
+
+            <h3>Teaching cast (shard 0)</h3>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-last">
+                    <thead><tr><th>Account</th><th>Logical slot</th><th>Genesis value</th></tr></thead>
+                    <tbody>
+                        <tr><td>Alice</td><td><code>entity_alice ‖ partition_vault ‖ sort_GOLD</code></td><td>100 GOLD</td></tr>
+                        <tr><td>Bob</td><td><code>entity_bob ‖ partition_vault ‖ sort_GOLD</code></td><td>50 GOLD</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>After genesis — Node DB vs JMT</h3>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-first flow-steps-wide-last">
+                    <thead><tr><th>Store</th><th>After genesis (INSERT × 2)</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Node DB</strong></td><td>Two new rows: Alice→100, Bob→50 (raw bytes in <code>state</code> CF)</td></tr>
+                        <tr><td><strong>JMT v0</strong></td><td>Two new leaf paths; sparse tree; <code>state_root = R₀</code></td></tr>
+                        <tr><td><strong>Block 0 header</strong></td><td><code>state_root: R₀</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <pre class="hs-ascii-flow" aria-label="Genesis JMT toy paths">JMT v0 (R₀) — INSERT leaves only
+              R₀
+             /  \
+      path→1010   path→1101
+      Alice=100    Bob=50
+
+Node DB (state CF):
+  entity_alice|vault|GOLD  →  bytes(100)
+  entity_bob|vault|GOLD    →  bytes(50)</pre>
+        </div>
+
+        <div class="section section-tight module-tight-prose" id="tx-timeline">
+            <h2>Segment 5 — Real transfer timeline (simulation path)</h2>
+            <p>This is the same rhythm as <code>test_e2e_single_shard_transaction</code> and the storage test <code>test_list_substates_for_node_at_height_returns_historical_data</code> — simplified to Alice paying Bob 30 GOLD.</p>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-last">
+                    <thead><tr><th>When</th><th>Chain event</th><th>Node DB (shard 0)</th><th>JMT / header</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Genesis</strong></td><td>Fund accounts</td><td>INSERT Alice=100, Bob=50</td><td>Build v0 → <code>R₀</code> in block 0</td></tr>
+                        <tr><td><strong>Block 1 proposed</strong></td><td>Body includes transfer tx; <code>certificates = []</code></td><td>Unchanged</td><td><code>state_root(1) = R₀</code> (no certs to apply)</td></tr>
+                        <tr><td><strong>Block 1 committed</strong></td><td>QC → commit; Phase 3 runs tx</td><td><strong>UPDATE</strong> Alice=70, Bob=80 (live storage)</td><td>Execution version moves; header still <code>R₀</code></td></tr>
+                        <tr><td><strong>Block 2 proposed</strong></td><td>Staples <code>FinalizedWave</code> for block 1’s wave</td><td>Already 70 / 80</td><td><code>prepare_block_commit(R₀, certs)</code> → <code>R₁</code> in header</td></tr>
+                        <tr><td><strong>Block 2 committed</strong></td><td>QC on header claiming <code>R₁</code></td><td>Same values; history CF records prior values</td><td>JMT v2 persisted; <code>state_root(2) = R₁</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p><strong>Critical timing:</strong> the transfer tx sits in <strong>block 1’s</strong> <code>transaction_root</code>, but the <strong>state_root bump</strong> appears on <strong>block 2</strong> when that execution’s <code>FinalizedWave</code> is stapled. See <a href="module-block-fields-deep-dive.html#state-root-example">block 40 → 41 example</a>.</p>
+            <p>Receipts carry the writes execution observed:</p>
+            <div class="code-block"><pre><code class="language-rust">// types/receipt/consensus.rs — successful receipt includes:
+database_updates: DatabaseUpdates  // Set(entity_alice, …, 70), Set(entity_bob, …, 80)</code></pre></div>
+        </div>
+
+        <div class="section section-tight module-tight-prose" id="update-walk">
+            <h2>Segment 6 — UPDATE walk (same keys, new values)</h2>
+            <p>The storage integration test <code>test_list_substates_for_node_at_height_returns_historical_data</code> is the cleanest in-repo proof of insert-then-update on the **same** <code>storage_key</code>:</p>
+            <p class="hs-phase-proof-caption"><strong>In-repo test</strong> (<a href="#" data-file="crates/storage-memory/src/shard/tests.rs" target="_blank" rel="noopener">storage-memory/shard/tests.rs</a>)</p>
+            <div class="code-block"><pre><code class="language-rust">// Block height 1: INSERT value [100]
+let updates1 = make_mapped_database_update(1, 0, vec![10], vec![100]);
+let root_v1 = commit_with(&amp;storage, &amp;updates1, &amp;block1, &amp;qc1);
+
+// Block height 2: UPDATE same sort_key → [200]
+let updates2 = make_mapped_database_update(1, 0, vec![10], vec![200]);
+let root_v2 = commit_with(&amp;storage, &amp;updates2, &amp;block2, &amp;qc2);
+assert_ne!(root_v1, root_v2, "roots must differ after overwrite");</code></pre></div>
+
+            <h3>Map test → Alice/Bob transfer</h3>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-first flow-steps-wide-last">
+                    <thead><tr><th>Step</th><th>Operation</th><th>Node DB (same storage_key?)</th><th>JMT</th></tr></thead>
+                    <tbody>
+                        <tr><td>Genesis</td><td>INSERT</td><td>New rows for Alice &amp; Bob slots</td><td>New leaves; root <code>R₀</code></td></tr>
+                        <tr><td>Block 2 commit (after block 1 exec)</td><td>UPDATE</td><td><strong>Same</strong> keys; overwrite 100→70, 50→80</td><td><strong>Same</strong> paths; new leaf hashes; root <code>R₀→R₁</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Rehash cost (toy vs production)</h3>
+            <div class="table-wrap">
+                <table class="flow-steps">
+                    <thead><tr><th></th><th>Changed keys</th><th>Rehashes per key</th><th>Total (order of magnitude)</th></tr></thead>
+                    <tbody>
+                        <tr><td>Toy 4-bit paths</td><td>2 (Alice, Bob)</td><td>~4 (= depth)</td><td>≈ 2 × 4 = 8</td></tr>
+                        <tr><td>Production</td><td>2</td><td>~256</td><td>≈ 512 (+ snapshot I/O)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <pre class="hs-ascii-flow" aria-label="Update same paths">UPDATE — same jmt_key paths, new leaf hashes
+              R₁  (was R₀)
+             /  \
+      path→1010   path→1101
+      Alice=70     Bob=80     ← same paths as genesis, new values</pre>
+            <p>Historical reads: at JMT version 1 you still see Alice=100; at version 2 you see 70 — the test asserts exactly that pattern with <code>list_substates_for_node_at_height</code>.</p>
+        </div>
+
+        <div class="section section-tight module-tight-prose" id="prepare-commit">
+            <h2>Segment 7 — <code>prepare_block_commit</code> at propose time</h2>
+            <p>When the proposer builds block 2, it does <strong>not</strong> guess the root. It replays certificates against the parent state:</p>
+            <div class="code-block"><pre><code class="language-rust">// storage/src/shard/chain_writer.rs (trait docs)
+// 1. prepare_block_commit → (state_root, jmt_snapshot, prepared)
+// 2. Runner stores prepared closure keyed by block hash
+// 3. At QC commit → invoke prepared(SyncHint, certified_block, …)
+// 4. If no prepared closure (sync) → commit_block recomputes from scratch</code></pre></div>
+            <p>Inside prepare: merge all <code>database_updates</code> from finalized wave receipts → flatten to <code>(storage_key, optional_value)</code> → <code>put_at_version</code> → new root + collected JMT nodes for the batch write.</p>
+            <pre class="hs-ascii-flow" aria-label="prepare_block_commit pipeline">parent_state_root R₀  +  body.certificates (FinalizedWave₁)
+        │
+        ├─ merge DatabaseUpdates from receipts
+        ├─ for each key: Node DB read (or base_reads cache) + JMT path update
+        └─► state_root R₁  +  JmtSnapshot  +  PreparedCommit closure
+
+Peers verify R₁ before BlockVote; after QC, closure persists v2 to RocksDB.</pre>
+        </div>
+
+        <div class="section section-tight module-tight-prose" id="code-map">
+            <h2>Code map (study order)</h2>
+            <div class="table-wrap">
+                <table class="flow-steps flow-steps-wide-last">
+                    <thead><tr><th>File</th><th>Read for</th></tr></thead>
+                    <tbody>
+                        <tr><td><a href="#" data-file="crates/storage/src/tree/mod.rs" target="_blank" rel="noopener">storage/src/tree/mod.rs</a></td><td>Key hashing, value hashing, <code>put_at_version</code></td></tr>
+                        <tr><td><a href="#" data-file="crates/storage/src/shard/keys.rs" target="_blank" rel="noopener">storage/src/shard/keys.rs</a></td><td><code>to_storage_key</code> byte layout</td></tr>
+                        <tr><td><a href="#" data-file="crates/storage/src/test_helpers.rs" target="_blank" rel="noopener">storage/src/test_helpers.rs</a></td><td><code>make_mapped_database_update</code> — how tests build writes</td></tr>
+                        <tr><td><a href="#" data-file="crates/storage-memory/src/shard/tests.rs" target="_blank" rel="noopener">storage-memory/…/tests.rs</a></td><td>Insert + update + historical read test</td></tr>
+                        <tr><td><a href="#" data-file="crates/storage-rocksdb/src/shard/core.rs" target="_blank" rel="noopener">storage-rocksdb/…/core.rs</a></td><td>Genesis <code>install_genesis</code>, <code>finalize_genesis_jmt</code></td></tr>
+                        <tr><td><a href="#" data-file="crates/storage/src/shard/chain_writer.rs" target="_blank" rel="noopener">storage/src/shard/chain_writer.rs</a></td><td>Prepare → commit contract</td></tr>
+                        <tr><td><a href="#" data-file="crates/simulation/tests/e2e_tests.rs" target="_blank" rel="noopener">simulation/tests/e2e_tests.rs</a></td><td>End-to-end single-shard tx (genesis → transfer → finalize)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p><strong>Lab tie-in:</strong> after the <a href="module-hs-improved-simulation-tests.html">simulation E2E lab</a>, set a breakpoint in storage commit or grep logs for <code>state_root</code> across two consecutive heights during <code>test_e2e_single_shard_transaction</code>.</p>
+        </div>
+
+        <div class="section" id="quiz">
+            <h2>Quick check</h2>
+            <div id="jmt-quiz"></div>
+        </div>
+
+        <div class="section">
+            <h2>Related modules</h2>
+            <ul class="module-tight-prose">
+                <li><a href="module-block-fields-deep-dive.html">Block fields &amp; root commitments</a> — <code>state_root</code> vs <code>transaction_root</code></li>
+                <li><a href="module-phase-03-execution-waves.html">Phase 3</a> — where <code>database_updates</code> are produced</li>
+                <li><a href="module-phase-02-propose-vote-commit.html">Phase 2</a> — <code>BuildProposal</code> reads storage for roots</li>
+                <li><a href="module-hs-improved-cross-shard-simulation-tests.html">Cross-shard simulation E2E</a> — next hands-on lab</li>
+            </ul>
+        </div>
+
+        <div class="module-actions">
+            <button type="button" class="btn btn-primary" id="complete-module-btn">Mark module complete</button>
+        </div>
+        <nav class="navigation module-nav">
+            <a href="module-hs-improved-production-tests.html" class="btn btn-secondary">← Production E2E lab</a>
+            <a href="module-hs-improved-cross-shard-simulation-tests.html" class="btn btn-primary">Cross-shard simulation E2E →</a>
+        </nav>
+    </div>
+
+    <script src="../../common/course-data.js"></script>
+    <script src="../../common/hyperscale-flow-data.js"></script>
+    <script src="../../common/hyperscale-links.js"></script>
+    <script src="../../common/navigation.js"></script>
+    <script src="../../common/glossary.js"></script>
+    <script src="../../common/module-init.js" data-module-id="hs-jmt-deep-dive"></script>
+    <script>
+        const jmtQuizQuestions = [
+            {
+                question: "How many JMT instances does a single shard validator maintain?",
+                options: [
+                    "One per block",
+                    "One per transaction",
+                    "One persistent tree per shard (versioned over time)",
+                    "One global tree for all shards"
+                ],
+                correct: 2,
+                explanation: "Each shard group has its own RocksDB + JMT. The tree is updated across commits; version typically tracks block height."
+            },
+            {
+                question: "What is stored at a JMT leaf?",
+                options: [
+                    "Raw balance bytes",
+                    "BLAKE3(raw value bytes)",
+                    "The storage_key string",
+                    "The transaction hash"
+                ],
+                correct: 1,
+                explanation: "Raw substate bytes live in the state CF. Leaves store BLAKE3(value) per tree/mod.rs."
+            },
+            {
+                question: "Alice sends GOLD to Bob. When does block H's state_root usually reflect the new balances?",
+                options: [
+                    "In the same block H that first includes the transfer tx",
+                    "In a later block that staples the FinalizedWave with receipts",
+                    "At mempool admission",
+                    "Never — only transaction_root changes"
+                ],
+                correct: 1,
+                explanation: "state_root applies body.certificates (execution outcomes). The tx may commit in block N; the root bump often appears when those certs are included on block N+1 or later."
+            },
+            {
+                question: "Genesis funding of a new account is which operation on the storage_key?",
+                options: ["UPDATE", "DELETE", "INSERT (Set on empty slot)", "MERGE"],
+                correct: 2,
+                explanation: "First Set at a key is an insert in both Node DB and JMT. Transfers update existing keys."
+            },
+            {
+                question: "RocksDB state CF key vs JMT path key — same logical slot?",
+                options: [
+                    "Unrelated keys",
+                    "Same logical (entity+partition+sort_key); JMT uses jmt_leaf_key(storage_key, owner) — owner-major prefix",
+                    "Identical byte strings",
+                    "JMT uses tx hash as key"
+                ],
+                correct: 1,
+                explanation: "Node DB: raw concatenated storage_key. JMT: BLAKE3(that) → 32-byte path."
+            }
+        ];
+        initializeQuiz('jmt-quiz', jmtQuizQuestions, 80);
+    </script>
+</body>
+</html>

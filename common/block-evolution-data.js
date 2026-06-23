@@ -8,12 +8,12 @@
   /** @typedef {{ id: string, section: 'header'|'body', label: string, glossaryKey: string, sample: string, valueClass?: string }} BlockFieldDef */
 
   const FIELDS = {
-    shard_group_id: {
-      id: 'shard_group_id',
+    shard_id: {
+      id: 'shard_id',
       section: 'header',
-      label: 'shard_group_id',
-      glossaryKey: 'block-field-shard-group-id',
-      sample: 'ShardGroupId(2)',
+      label: 'shard_id',
+      glossaryKey: 'block-field-shard-id',
+      sample: 'ShardId::leaf(2)',
     },
     height: {
       id: 'height',
@@ -143,6 +143,27 @@
       glossaryKey: 'block-field-beacon-witness-leaf-count',
       sample: 'BeaconWitnessLeafCount(4)',
     },
+    beacon_witness_base: {
+      id: 'beacon_witness_base',
+      section: 'header',
+      label: 'beacon_witness_base',
+      glossaryKey: 'block-field-beacon-witness-base',
+      sample: 'BeaconWitnessLeafCount(0)',
+    },
+    split_child_roots: {
+      id: 'split_child_roots',
+      section: 'header',
+      label: 'split_child_roots',
+      glossaryKey: 'block-field-split-child-roots',
+      sample: 'None',
+    },
+    settled_waves_root: {
+      id: 'settled_waves_root',
+      section: 'header',
+      label: 'settled_waves_root',
+      glossaryKey: 'block-field-settled-waves-root',
+      sample: 'None',
+    },
     body_transactions: {
       id: 'body_transactions',
       section: 'body',
@@ -167,10 +188,25 @@
       sample: '[ Provisions(A→B, h=100), … ]',
       valueClass: 'hs-block-value--list',
     },
+    body_ready_signals: {
+      id: 'body_ready_signals',
+      section: 'body',
+      label: 'ready_signals',
+      glossaryKey: 'block-field-body-ready-signals',
+      sample: '[]',
+      valueClass: 'hs-block-value--list',
+    },
+    body_reshape_trigger: {
+      id: 'body_reshape_trigger',
+      section: 'body',
+      label: 'reshape_trigger',
+      glossaryKey: 'block-field-body-reshape-trigger',
+      sample: 'None',
+    },
   };
 
   const HEADER_ORDER = [
-    'shard_group_id',
+    'shard_id',
     'height',
     'parent_block_hash',
     'parent_qc',
@@ -188,9 +224,18 @@
     'in_flight',
     'beacon_witness_root',
     'beacon_witness_leaf_count',
+    'beacon_witness_base',
+    'split_child_roots',
+    'settled_waves_root',
   ];
 
-  const BODY_ORDER = ['body_transactions', 'body_certificates', 'body_provisions'];
+  const BODY_ORDER = [
+    'body_transactions',
+    'body_certificates',
+    'body_provisions',
+    'body_ready_signals',
+    'body_reshape_trigger',
+  ];
 
   /** Canonical teaching order — drives “seen” vs “present” styling across cards. */
   const STEP_ORDER = [
@@ -227,7 +272,7 @@
       phase: 2,
       kind: 'block',
       visibleFields: [
-        'shard_group_id',
+        'shard_id',
         'height',
         'parent_block_hash',
         'parent_qc',
@@ -241,7 +286,7 @@
         'body_provisions',
       ],
       newFields: [
-        'shard_group_id',
+        'shard_id',
         'height',
         'parent_block_hash',
         'parent_qc',
@@ -271,7 +316,7 @@
       phase: 2,
       kind: 'block',
       visibleFields: [
-        'shard_group_id',
+        'shard_id',
         'height',
         'parent_block_hash',
         'parent_qc',
@@ -313,7 +358,7 @@
       phase: 2,
       kind: 'block',
       visibleFields: [
-        'shard_group_id',
+        'shard_id',
         'height',
         'parent_block_hash',
         'parent_qc',
@@ -341,7 +386,7 @@
       phase: 2,
       kind: 'block',
       visibleFields: [
-        'shard_group_id',
+        'shard_id',
         'height',
         'parent_block_hash',
         'parent_qc',
@@ -368,7 +413,7 @@
       phase: 3,
       kind: 'block',
       visibleFields: [
-        'shard_group_id',
+        'shard_id',
         'height',
         'parent_block_hash',
         'parent_qc',
@@ -393,7 +438,7 @@
       phase: 3,
       kind: 'block',
       visibleFields: [
-        'shard_group_id',
+        'shard_id',
         'height',
         'parent_block_hash',
         'parent_qc',
@@ -419,7 +464,7 @@
       phase: 4,
       kind: 'block',
       visibleFields: [
-        'shard_group_id',
+        'shard_id',
         'height',
         'parent_block_hash',
         'parent_qc',
@@ -444,7 +489,7 @@
       phase: 4,
       kind: 'block',
       visibleFields: [
-        'shard_group_id',
+        'shard_id',
         'height',
         'parent_block_hash',
         'parent_qc',

@@ -130,7 +130,7 @@ actions.extend(self.check_vote_retry_timeouts(topology));</code></pre></div>
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — wave loop: assign → WaveState → dispatch_if_ready</p>
                 <div class="code-block"><pre><code class="language-rust">// crates/execution/src/coordinator.rs — setup_waves_and_dispatch
-let waves = assign_waves(topology, block_height, transactions);
+let waves = assign_waves(topology, local_shard, block_height, transactions);
 for (wave_id, txs) in waves {
     let is_single_shard = wave_id.is_zero();
     let mut wave_state = WaveState::new(wave_id.clone(), block_hash, block_ts, txs, is_single_shard);

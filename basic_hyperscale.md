@@ -96,7 +96,7 @@ So: **Pending → Committed → Executed → Completed**. (Other outcomes: Defer
 4. Can the same NodeId ever map to different shards on two validators? Under what conditions (e.g. epoch change, shard split) might “the shard for this NodeId” change?
 5. When the node routes `SubmitTransaction` to the mempool, it only does so if `involves_local_shard(tx)`. So the submitting validator might not add the tx to its own mempool. When would that happen and how does the tx still get proposed?
 6. `all_shards_for_transaction(tx)` is used for gossip targets. Is it always exactly `consensus_shards ∪ provisioning_shards`? Prove or give a counterexample.
-7. Why does the codebase use `ShardGroupId` instead of raw `u64` for shard identity, and where is the conversion from validator index to `ShardGroupId` defined for static topology?
+7. Why does the codebase use `ShardId` instead of raw `u64` for shard identity, and where is shard routing defined for the topology snapshot?
 8. For a cross-shard tx, “target shard” (executor) and “source shard” (provisioner) are defined in execution/provisions. In the types/topology API, is there a single method that returns “target shard” for execution, or do you have to derive it from consensus_shards/provisioning_shards? Where is that derivation done?
 9. If `num_shards` is 1, every NodeId maps to shard 0. What happens to `provisioning_shards` and cross-shard 2PC in that case?
 10. The BFT module uses `local_shard()` from topology. Does BFT ever need to know about a *remote* shard’s chain or state, and if so, where does that cross-shard awareness appear in the node/BFT boundary?
@@ -147,7 +147,7 @@ So: **Pending → Committed → Executed → Completed**. (Other outcomes: Defer
 4. Votes are persisted before broadcast (`PersistAndBroadcastVote`). Why must persistence complete before the vote is sent over the network?
 5. After a block is committed, the node emits `BlockCommitted` and passes the block to execution. Does the BFT state machine also update its “committed height” in the same event handling path, and what would go wrong if execution ran before BFT updated committed height?
 6. If two blocks at the same height get quorum (e.g. due to view change and equivocation), how does the protocol ensure only one commit at that height? Where is “committed block” uniquely determined?
-7. The signing message for a block vote includes shard_group_id, height, round, block_hash. Why include round and not only height and block_hash?
+7. The signing message for a block vote includes shard_id, height, round, block_hash. Why include round and not only height and block_hash?
 8. When a validator builds a QC from collected votes, it uses `VerifyAndBuildQuorumCertificate` which batch-verifies and aggregates. What does the state machine receive back (event type) when quorum is not yet reached, and how does it use that to avoid re-verifying the same votes later?
 9. Genesis block has a special QC. How is the parent of the first real block (height 1) represented in the BFT state and in the block header?
 10. Sync: when a node is behind and receives `SyncBlockReadyToApply`, does it commit blocks one by one through the same 2-chain logic, or is there a separate “sync commit” path? Where is that distinction in the code?

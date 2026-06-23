@@ -336,7 +336,7 @@ if !VotePower::has_quorum(verified_power, total_voting_power) {
     return QcVerificationResult { qc: None, ... };
 }
 let qc = build_qc_from_verified(
-    block_hash, shard_group_id, height, round, parent_block_hash, ...);
+    block_hash, shard_id, height, round, parent_block_hash, ...);
 
 // coordinator.rs — on_qc_result on that same node
 if let Some(qc) = qc {
