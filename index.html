@@ -60,114 +60,239 @@
         }
         .track-card {
             display: block;
-            border-radius: 14px;
+            border-radius: 12px;
             padding: 1.75rem 1.5rem;
             text-decoration: none;
-            color: #1a2838;
-            border: 1px solid rgba(255,255,255,0.72);
+            color: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-right-color: rgba(0, 0, 0, 0.28);
+            border-bottom-color: rgba(0, 0, 0, 0.32);
             box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.85),
-                inset 0 -1px 0 rgba(0,0,0,0.04),
-                0 10px 32px rgba(30, 50, 80, 0.12);
-            transition: transform 0.18s ease, box-shadow 0.18s ease;
+                inset 0 1px 0 rgba(255, 255, 255, 0.28),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+                1px 0 0 rgba(0, 0, 0, 0.12),
+                0 1px 0 rgba(0, 0, 0, 0.14),
+                3px 4px 10px rgba(0, 0, 0, 0.16),
+                0 12px 36px rgba(8, 40, 60, 0.18);
+            transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease;
             position: relative;
             overflow: hidden;
+            isolation: isolate;
         }
         .track-card:not(.track-card--coming-soon):hover {
-            transform: translateY(-4px);
+            transform: translateY(-5px);
             box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.92),
-                inset 0 -1px 0 rgba(0,0,0,0.05),
-                0 16px 42px rgba(30, 50, 80, 0.18);
+                inset 0 1px 0 rgba(255, 255, 255, 0.4),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.1),
+                1px 0 0 rgba(0, 0, 0, 0.14),
+                0 1px 0 rgba(0, 0, 0, 0.16),
+                4px 6px 14px rgba(0, 0, 0, 0.18),
+                0 20px 48px rgba(8, 90, 110, 0.28);
         }
-        /* Light pastel gradients — active track slightly richer */
+
+        /* Hyperscale — fluid Caribbean reef: turquoise ↔ lagoon blue */
         .track-card--hyperscale {
-            background: linear-gradient(145deg, #b8d4f8 0%, #c8b8f0 32%, #d8b0e8 58%, #a8c8f0 82%, #98b8e8 100%);
-            --stone-hue: 248;
-            --stone-hue-accent: 302;
-            --stone-sat: 42%;
-            --stone-sat-accent: 52%;
-            --stone-light-angle: 118deg;
-            --stone-light-angle-2: 36deg;
-            --stone-shine: 0.48;
-            --stone-depth-gloss: 0.38;
+            background:
+                radial-gradient(ellipse 90% 70% at 12% 8%, rgba(125, 249, 255, 0.55), transparent 52%),
+                radial-gradient(ellipse 70% 60% at 88% 18%, rgba(14, 165, 233, 0.45), transparent 48%),
+                radial-gradient(ellipse 80% 55% at 70% 92%, rgba(45, 212, 191, 0.4), transparent 50%),
+                radial-gradient(ellipse 55% 45% at 30% 75%, rgba(6, 182, 212, 0.35), transparent 55%),
+                linear-gradient(148deg, #064e6b 0%, #0e7490 22%, #0891b2 42%, #14b8a6 62%, #0284c7 82%, #0c4a6e 100%);
+            --stone-hue: 188;
+            --stone-hue-accent: 168;
+            --stone-sat: 72%;
+            --stone-sat-accent: 68%;
+            --stone-light-angle: 124deg;
+            --stone-light-angle-2: 42deg;
+            --stone-shine: 0.72;
+            --stone-depth-gloss: 0.58;
+            border-color: rgba(165, 243, 252, 0.35);
         }
+
+        /* Coming-soon tracks — same fluid fusion language as Hyperscale */
+        /* Solana — Coolors: black · #00ff80 · #5b8cd9 · #39c2c5 · #29ddb9 */
         .track-card--solana {
-            background: linear-gradient(145deg, #f0e6fa 0%, #e4d8f2 48%, #d8cce8 100%);
-            --stone-hue: 278;
-            --stone-hue-accent: 310;
-            --stone-sat: 32%;
-            --stone-sat-accent: 38%;
-            --stone-light-angle: 154deg;
-            --stone-light-angle-2: 62deg;
-            --stone-shine: 0.32;
-            --stone-depth-gloss: 0.28;
-        }
-        .track-card--crypto {
-            background: linear-gradient(145deg, #ffe8d4 0%, #ffd4b0 46%, #f8c8a0 100%);
-            --stone-hue: 24;
-            --stone-hue-accent: 8;
-            --stone-sat: 48%;
-            --stone-sat-accent: 42%;
+            background:
+                radial-gradient(ellipse 85% 65% at 10% 12%, rgba(0, 255, 128, 0.42), transparent 52%),
+                radial-gradient(ellipse 70% 55% at 92% 16%, rgba(91, 140, 217, 0.5), transparent 48%),
+                radial-gradient(ellipse 75% 50% at 72% 90%, rgba(41, 221, 185, 0.38), transparent 52%),
+                radial-gradient(ellipse 50% 45% at 28% 78%, rgba(57, 194, 197, 0.4), transparent 55%),
+                linear-gradient(148deg, #000000 0%, #0a1a14 18%, #5b8cd9 38%, #39c2c5 55%, #29ddb9 72%, #00ff80 88%, #000000 100%);
+            --stone-hue: 155;
+            --stone-hue-accent: 210;
+            --stone-sat: 78%;
+            --stone-sat-accent: 62%;
             --stone-light-angle: 132deg;
-            --stone-light-angle-2: 22deg;
-            --stone-shine: 0.3;
-            --stone-depth-gloss: 0.26;
+            --stone-light-angle-2: 48deg;
+            --stone-shine: 0.7;
+            --stone-depth-gloss: 0.55;
+            border-color: rgba(0, 255, 128, 0.35);
+            border-left: 2px solid rgba(0, 255, 128, 0.65);
         }
+        /* Cryptography — coral reef under soft grey veils */
+        .track-card--crypto {
+            background:
+                /* grey overlays (top) — reef still reads through */
+                radial-gradient(ellipse 80% 60% at 18% 20%, rgba(120, 120, 124, 0.38), transparent 55%),
+                radial-gradient(ellipse 70% 55% at 85% 75%, rgba(70, 72, 78, 0.32), transparent 52%),
+                linear-gradient(155deg, rgba(90, 92, 98, 0.28) 0%, rgba(160, 162, 168, 0.18) 42%, rgba(55, 56, 60, 0.3) 100%),
+                /* reef colour underneath */
+                radial-gradient(ellipse 88% 68% at 12% 8%, rgba(255, 143, 122, 0.55), transparent 52%),
+                radial-gradient(ellipse 65% 55% at 90% 16%, rgba(94, 234, 212, 0.42), transparent 48%),
+                radial-gradient(ellipse 70% 50% at 58% 92%, rgba(249, 168, 212, 0.4), transparent 50%),
+                radial-gradient(ellipse 48% 42% at 22% 72%, rgba(253, 230, 138, 0.28), transparent 55%),
+                linear-gradient(148deg, #164e63 0%, #0e7490 18%, #ff6b5b 40%, #ff8f7a 55%, #5eead4 74%, #0891b2 90%, #134e4a 100%);
+            --stone-hue: 8;
+            --stone-hue-accent: 172;
+            --stone-sat: 42%;
+            --stone-sat-accent: 48%;
+            --stone-light-angle: 132deg;
+            --stone-light-angle-2: 48deg;
+            --stone-shine: 0.7;
+            --stone-depth-gloss: 0.54;
+            border-color: rgba(160, 162, 168, 0.4);
+            border-left: 2px solid rgba(255, 143, 122, 0.55);
+        }
+        /* Zero-Knowledge — deep forest ↔ mint aurora */
         .track-card--zk {
-            background: linear-gradient(145deg, #d8f4e8 0%, #c0ead8 44%, #b0e0cc 100%);
+            background:
+                radial-gradient(ellipse 90% 70% at 8% 14%, rgba(167, 243, 208, 0.45), transparent 52%),
+                radial-gradient(ellipse 68% 58% at 88% 18%, rgba(52, 211, 153, 0.4), transparent 48%),
+                radial-gradient(ellipse 75% 50% at 65% 88%, rgba(16, 185, 129, 0.38), transparent 50%),
+                radial-gradient(ellipse 48% 42% at 22% 72%, rgba(6, 78, 59, 0.55), transparent 55%),
+                linear-gradient(148deg, #022c22 0%, #064e3b 22%, #047857 44%, #059669 62%, #34d399 80%, #022c22 100%);
             --stone-hue: 158;
             --stone-hue-accent: 172;
-            --stone-sat: 36%;
-            --stone-sat-accent: 32%;
+            --stone-sat: 62%;
+            --stone-sat-accent: 55%;
             --stone-light-angle: 108deg;
             --stone-light-angle-2: 214deg;
-            --stone-shine: 0.28;
-            --stone-depth-gloss: 0.24;
+            --stone-shine: 0.68;
+            --stone-depth-gloss: 0.54;
+            border-color: rgba(110, 231, 183, 0.4);
+            border-left: 2px solid rgba(110, 231, 183, 0.65);
         }
+        /* EVM / Ethereum — Coolors periwinkle / navy fusion
+           https://coolors.co/palette/afbff2-334a90-7f87ae-f0f8fe-e5effc-a7bbf0-6d75a5-abbcee-e8f0fd-415795 */
         .track-card--evm {
-            background: linear-gradient(145deg, #d4faf4 0%, #b8f0e8 46%, #a8e4dc 100%);
-            --stone-hue: 173;
-            --stone-hue-accent: 195;
-            --stone-sat: 40%;
-            --stone-sat-accent: 36%;
+            background:
+                radial-gradient(ellipse 88% 68% at 10% 8%, rgba(240, 248, 254, 0.65), transparent 52%),
+                radial-gradient(ellipse 70% 55% at 92% 18%, rgba(175, 191, 242, 0.55), transparent 48%),
+                radial-gradient(ellipse 72% 50% at 60% 90%, rgba(232, 240, 253, 0.4), transparent 50%),
+                radial-gradient(ellipse 48% 42% at 28% 70%, rgba(167, 187, 240, 0.45), transparent 55%),
+                linear-gradient(148deg, #334a90 0%, #415795 22%, #6d75a5 42%, #7f87ae 60%, #abbcee 78%, #a7bbf0 90%, #334a90 100%);
+            --stone-hue: 226;
+            --stone-hue-accent: 232;
+            --stone-sat: 42%;
+            --stone-sat-accent: 55%;
             --stone-light-angle: 122deg;
             --stone-light-angle-2: 38deg;
-            --stone-shine: 0.3;
-            --stone-depth-gloss: 0.26;
+            --stone-shine: 0.72;
+            --stone-depth-gloss: 0.55;
+            border-color: rgba(175, 191, 242, 0.45);
+            border-left: 2px solid rgba(240, 248, 254, 0.7);
         }
+
+        /* Diagonal “coming soon” ribbon — mid-card (~55%) · −30° */
         .track-card--coming-soon {
-            pointer-events: none;
-            cursor: default;
+            cursor: not-allowed;
+            user-select: none;
+            pointer-events: auto;
         }
+        .track-card--coming-soon:focus {
+            outline: none;
+        }
+        .track-card--coming-soon > :not(.track-card-dim):not(.track-card-soon-label) {
+            filter: saturate(0.88) brightness(0.92);
+        }
+        /* star_rise_sc shop-style sweeping sheen */
         .track-card--coming-soon .track-card-dim {
+            pointer-events: none;
             position: absolute;
-            inset: 0;
+            inset: -40% -60%;
             z-index: 2;
-            border-radius: inherit;
+            border-radius: 0;
             background: linear-gradient(
-                160deg,
-                rgba(255, 255, 255, 0.58) 0%,
-                rgba(255, 255, 255, 0.72) 50%,
-                rgba(248, 250, 252, 0.68) 100%
+                115deg,
+                transparent 35%,
+                rgba(255, 255, 255, 0.04) 42%,
+                rgba(212, 175, 120, 0.22) 50%,
+                rgba(58, 160, 255, 0.14) 54%,
+                transparent 62%
             );
-            backdrop-filter: blur(0.5px);
+            transform: translateX(-55%) rotate(8deg);
+            opacity: 0;
+            animation: track-card-sheen 6.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            backdrop-filter: none;
         }
         .track-card-soon-label {
-            position: absolute;
-            inset: 0;
-            z-index: 3;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Outfit', system-ui, sans-serif;
-            font-size: 0.82rem;
-            font-weight: 600;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: rgba(26, 40, 56, 0.55);
             pointer-events: none;
+            position: absolute;
+            z-index: 3;
+            top: 55%;
+            right: -42%;
+            width: 125%;
+            margin: 0;
+            padding: 0.58rem 0 0.62rem;
+            display: block;
+            text-align: center;
+            font-family: 'Outfit', system-ui, sans-serif;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #0a0a0a;
+            background: linear-gradient(
+                180deg,
+                #f0a07a 0%,
+                #e8835a 38%,
+                #d96b42 100%
+            );
+            border: 0;
+            border-radius: 0;
+            box-shadow:
+                0 1px 0 rgba(255, 255, 255, 0.35) inset,
+                0 -1px 0 rgba(0, 0, 0, 0.18) inset,
+                0 8px 22px rgba(0, 0, 0, 0.28);
+            /* −30° sash, anchored mid-card; overflow clips ends cleanly */
+            transform: translateY(-50%) rotate(-30deg);
+            transform-origin: center center;
+            white-space: nowrap;
         }
+        @keyframes track-card-sheen {
+            0%,
+            14% {
+                transform: translateX(-55%) rotate(8deg);
+                opacity: 0;
+            }
+            24% {
+                opacity: 1;
+            }
+            48% {
+                transform: translateX(10%) rotate(8deg);
+                opacity: 1;
+            }
+            72% {
+                transform: translateX(55%) rotate(8deg);
+                opacity: 0.55;
+            }
+            88% {
+                transform: translateX(88%) rotate(8deg);
+                opacity: 0.12;
+            }
+            100% {
+                transform: translateX(115%) rotate(8deg);
+                opacity: 0;
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .track-card--coming-soon .track-card-dim {
+                animation: none;
+                opacity: 0.35;
+                transform: translateX(0) rotate(8deg);
+            }
+        }
+
         .track-card-badge {
             display: inline-block;
             font-family: 'Outfit', system-ui, sans-serif;
@@ -175,8 +300,11 @@
             font-weight: 600;
             letter-spacing: 0.1em;
             text-transform: uppercase;
-            color: rgba(26, 40, 56, 0.52);
+            color: rgba(255, 255, 255, 0.72);
             margin-bottom: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
         }
         .track-card h2 {
             font-family: 'Fraunces', Georgia, serif;
@@ -186,19 +314,19 @@
             margin: 0 0 0.35rem;
             font-size: 1.5rem;
             line-height: 1.25;
-            color: #152233;
+            color: rgba(255, 255, 255, 0.98);
         }
         .track-card-scope {
             margin: 0;
-            font-size: 0.9rem;
+            font-size: calc(0.9rem + 1pt);
             line-height: 1.35;
-            font-weight: 500;
+            font-weight: 600;
             letter-spacing: 0.04em;
-            color: rgba(26, 40, 56, 0.72);
+            color: rgba(255, 255, 255, 0.9);
         }
         .track-card-scope--long {
             letter-spacing: 0.01em;
-            font-weight: 400;
+            font-weight: 500;
             line-height: 1.5;
             padding-right: 1.75rem;
             margin-bottom: 0.25rem;
@@ -208,8 +336,14 @@
             right: 1.25rem;
             bottom: 1.25rem;
             font-size: 1.35rem;
-            opacity: 0.65;
-            color: #152233;
+            opacity: 0.9;
+            color: rgba(255, 255, 255, 0.95);
+        }
+        .track-card--coming-soon .track-card-arrow {
+            opacity: 0.35;
+            right: 1.25rem;
+            left: auto;
+            bottom: 1.1rem;
         }
         .track-footer-links {
             margin-top: 2rem;
@@ -219,7 +353,7 @@
             color: var(--text2);
         }
         .track-footer-links a {
-            color: var(--accent, #7cb8ff);
+            color: var(--accent, #0e7490);
         }
     </style>
 </head>
@@ -236,7 +370,7 @@
                 <p class="track-card-scope track-card-scope--long">Get familiar with super scalable, multi-sharded and composable L1</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </a>
-            <div class="track-card track-card--solana track-card--coming-soon polished-stone-surface" aria-label="Solana Core — coming soon">
+            <div class="track-card track-card--solana track-card--coming-soon polished-stone-surface" role="group" aria-disabled="true" aria-label="Solana Core — coming soon" tabindex="0">
                 <span class="track-card-dim" aria-hidden="true"></span>
                 <span class="track-card-soon-label">Coming soon</span>
                 <span class="track-card-badge">Validator · runtime · BPF</span>
@@ -244,7 +378,7 @@
                 <p class="track-card-scope track-card-scope--long">Get familiar with super fast L1 nuts and bolts</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </div>
-            <div class="track-card track-card--crypto track-card--coming-soon polished-stone-surface" aria-label="Cryptography — coming soon">
+            <div class="track-card track-card--crypto track-card--coming-soon polished-stone-surface" role="group" aria-disabled="true" aria-label="Cryptography — coming soon" tabindex="0">
                 <span class="track-card-dim" aria-hidden="true"></span>
                 <span class="track-card-soon-label">Coming soon</span>
                 <span class="track-card-badge">Primitives · keys · FinTech</span>
@@ -252,7 +386,7 @@
                 <p class="track-card-scope">Keys &amp; primitives</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </div>
-            <div class="track-card track-card--zk track-card--coming-soon polished-stone-surface" aria-label="Zero-Knowledge — coming soon">
+            <div class="track-card track-card--zk track-card--coming-soon polished-stone-surface" role="group" aria-disabled="true" aria-label="Zero-Knowledge — coming soon" tabindex="0">
                 <span class="track-card-dim" aria-hidden="true"></span>
                 <span class="track-card-soon-label">Coming soon</span>
                 <span class="track-card-badge">Proofs · circuits · rollups</span>
@@ -260,16 +394,30 @@
                 <p class="track-card-scope">Proofs &amp; rollups</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </div>
-            <div class="track-card track-card--evm track-card--coming-soon polished-stone-surface" aria-label="EVM / Ethereum — coming soon">
+            <div class="track-card track-card--evm track-card--coming-soon polished-stone-surface" role="group" aria-disabled="true" aria-label="EVM / Ethereum — coming soon" tabindex="0">
                 <span class="track-card-dim" aria-hidden="true"></span>
                 <span class="track-card-soon-label">Coming soon</span>
                 <span class="track-card-badge">Execution · gas · rollups</span>
                 <h2>EVM / Ethereum</h2>
-                <p class="track-card-scope track-card-scope--long">Consensus-constrained compute, DA, and MEV—protocol interview depth</p>
+                <p class="track-card-scope track-card-scope--long">Consensus-constrained compute, DA, and MEV—protocol depth</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </div>
         </div>
         <p class="track-footer-links"><a href="common/glossary.html">📚 Glossary</a></p>
     </div>
+    <script>
+        // Coming-soon tracks: absorb click/keyboard so nothing navigates.
+        document.querySelectorAll('.track-card--coming-soon').forEach((card) => {
+            card.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
 </body>
 </html>

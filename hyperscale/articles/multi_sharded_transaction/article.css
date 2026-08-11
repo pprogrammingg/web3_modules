@@ -54,7 +54,7 @@
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  font-size: 0.78rem;
+  font-size: calc(0.78rem + 2pt);
   line-height: 1.35;
 }
 
@@ -63,7 +63,7 @@
 }
 
 .mst-toc-title {
-  font-size: 0.68rem;
+  font-size: calc(0.68rem + 2pt);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -110,7 +110,7 @@
   color: var(--mst-ink);
   border-radius: 8px;
   padding: 0.45rem 0.7rem;
-  font-size: 0.8rem;
+  font-size: calc(0.8rem + 2pt);
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
@@ -145,7 +145,7 @@
 
 .mst-kicker {
   display: inline-block;
-  font-size: 0.72rem;
+  font-size: calc(0.72rem + 2pt);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -154,7 +154,7 @@
 }
 
 .mst-hero h1 {
-  font-size: clamp(1.75rem, 3.2vw, 2.35rem);
+  font-size: clamp(calc(1.75rem + 2pt), 3.2vw, calc(2.35rem + 2pt));
   line-height: 1.2;
   color: var(--mst-ink);
   margin: 0 0 0.75rem;
@@ -162,7 +162,7 @@
 }
 
 .mst-lede {
-  font-size: 1.08rem;
+  font-size: calc(1.08rem + 2pt);
   line-height: 1.55;
   color: var(--mst-muted);
   margin: 0 0 1rem;
@@ -173,7 +173,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem 1.25rem;
-  font-size: 0.82rem;
+  font-size: calc(0.82rem + 2pt);
   color: var(--mst-muted);
 }
 
@@ -183,7 +183,7 @@
 }
 
 .mst-article h2 {
-  font-size: 1.35rem;
+  font-size: calc(1.35rem + 2pt);
   color: var(--mst-ink);
   margin: 0 0 0.85rem;
   letter-spacing: -0.015em;
@@ -192,7 +192,7 @@
 }
 
 .mst-article h3 {
-  font-size: 1.05rem;
+  font-size: calc(1.05rem + 2pt);
   color: var(--mst-ink);
   margin: 1.5rem 0 0.55rem;
 }
@@ -201,7 +201,7 @@
   margin: 0 0 0.95rem;
   line-height: 1.65;
   color: var(--mst-ink);
-  font-size: 0.98rem;
+  font-size: calc(0.98rem + 2pt);
 }
 
 .mst-article p:last-child {
@@ -218,7 +218,7 @@
 .mst-article li {
   margin: 0.35rem 0;
   line-height: 1.55;
-  font-size: 0.96rem;
+  font-size: calc(0.96rem + 2pt);
 }
 
 .mst-article strong {
@@ -245,12 +245,12 @@
 
 .mst-callout p {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: calc(0.92rem + 2pt);
 }
 
 .mst-callout strong.label {
   display: block;
-  font-size: 0.72rem;
+  font-size: calc(0.72rem + 2pt);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--mst-muted);
@@ -269,7 +269,7 @@
 .mst-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.86rem;
+  font-size: calc(0.86rem + 2pt);
 }
 
 .mst-table th,
@@ -292,7 +292,7 @@
 }
 
 .mst-table code {
-  font-size: 0.82em;
+  font-size: calc(0.82em + 2pt);
 }
 
 /* —— Pipeline chart —— */
@@ -316,7 +316,7 @@
 }
 
 .mst-pipe-label {
-  font-size: 0.72rem;
+  font-size: calc(0.72rem + 2pt);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -338,13 +338,13 @@
   border-radius: 7px;
   background: var(--mst-wash);
   border: 1px solid var(--mst-line);
-  font-size: 0.78rem;
+  font-size: calc(0.78rem + 2pt);
   line-height: 1.35;
 }
 
 .mst-pipe-step strong {
   display: block;
-  font-size: 0.72rem;
+  font-size: calc(0.72rem + 2pt);
   margin-bottom: 0.15rem;
   color: var(--mst-accent);
 }
@@ -390,7 +390,7 @@
 
 .mst-lane-head {
   padding: 0.5rem 0.75rem;
-  font-size: 0.78rem;
+  font-size: calc(0.78rem + 2pt);
   font-weight: 700;
   color: #fff;
 }
@@ -406,7 +406,7 @@
 .mst-lane ol {
   margin: 0;
   padding: 0.65rem 0.75rem 0.75rem 1.5rem;
-  font-size: 0.84rem;
+  font-size: calc(0.84rem + 2pt);
 }
 
 .mst-lane li {
@@ -429,7 +429,7 @@
   grid-template-columns: 7.5rem 1fr auto;
   gap: 0.55rem;
   align-items: center;
-  font-size: 0.8rem;
+  font-size: calc(0.8rem + 2pt);
 }
 
 .mst-bar-track {
@@ -481,7 +481,7 @@
 
 .mst-code-caption {
   padding: 0.45rem 0.75rem;
-  font-size: 0.72rem;
+  font-size: calc(0.72rem + 2pt);
   color: #94a3b8;
   background: #111827;
   border-bottom: 1px solid #1f2937;
@@ -492,7 +492,7 @@
   margin: 0;
   padding: 0.9rem 1rem;
   overflow-x: auto;
-  font-size: 0.78rem;
+  font-size: calc(0.78rem + 2pt);
   line-height: 1.5;
   color: #e2e8f0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -511,7 +511,7 @@
 
 .mst-article :not(pre) > code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.86em;
+  font-size: calc(0.86em + 2pt);
   background: var(--mst-wash);
   padding: 0.08em 0.35em;
   border-radius: 4px;
@@ -521,7 +521,7 @@
 /* —— Status chips —— */
 .mst-chip {
   display: inline-block;
-  font-size: 0.7rem;
+  font-size: calc(0.7rem + 2pt);
   font-weight: 650;
   padding: 0.12rem 0.45rem;
   border-radius: 999px;
@@ -550,7 +550,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem 1.25rem;
-  font-size: 0.9rem;
+  font-size: calc(0.9rem + 2pt);
 }
 
 .mst-footer-nav a {
