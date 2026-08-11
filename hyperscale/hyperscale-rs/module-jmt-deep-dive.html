@@ -173,7 +173,7 @@ Node DB (state CF):
 
         <div class="section section-tight module-tight-prose" id="tx-timeline">
             <h2>Segment 5 — Real transfer timeline (simulation path)</h2>
-            <p>This is the same rhythm as <code>test_e2e_single_shard_transaction</code> and the storage test <code>test_list_substates_for_node_at_height_returns_historical_data</code> — simplified to Alice paying Bob 30 GOLD.</p>
+            <p>This is the same rhythm as <code>single_shard_tx_sim</code> and the storage test <code>test_list_substates_for_node_at_height_returns_historical_data</code> — simplified to Alice paying Bob 30 GOLD.</p>
             <div class="table-wrap">
                 <table class="flow-steps flow-steps-wide-last">
                     <thead><tr><th>When</th><th>Chain event</th><th>Node DB (shard 0)</th><th>JMT / header</th></tr></thead>
@@ -264,11 +264,11 @@ Peers verify R₁ before BlockVote; after QC, closure persists v2 to RocksDB.</p
                         <tr><td><a href="#" data-file="crates/storage-memory/src/shard/tests.rs" target="_blank" rel="noopener">storage-memory/…/tests.rs</a></td><td>Insert + update + historical read test</td></tr>
                         <tr><td><a href="#" data-file="crates/storage-rocksdb/src/shard/core.rs" target="_blank" rel="noopener">storage-rocksdb/…/core.rs</a></td><td>Genesis <code>install_genesis</code>, <code>finalize_genesis_jmt</code></td></tr>
                         <tr><td><a href="#" data-file="crates/storage/src/shard/chain_writer.rs" target="_blank" rel="noopener">storage/src/shard/chain_writer.rs</a></td><td>Prepare → commit contract</td></tr>
-                        <tr><td><a href="#" data-file="crates/simulation/tests/e2e_tests.rs" target="_blank" rel="noopener">simulation/tests/e2e_tests.rs</a></td><td>End-to-end single-shard tx (genesis → transfer → finalize)</td></tr>
+                        <tr><td><a href="#" data-file="crates/simulation/tests/scenarios.rs" target="_blank" rel="noopener">simulation/tests/scenarios.rs</a></td><td>End-to-end single-shard tx (genesis → transfer → finalize)</td></tr>
                     </tbody>
                 </table>
             </div>
-            <p><strong>Lab tie-in:</strong> after the <a href="module-hs-improved-simulation-tests.html">simulation E2E lab</a>, set a breakpoint in storage commit or grep logs for <code>state_root</code> across two consecutive heights during <code>test_e2e_single_shard_transaction</code>.</p>
+            <p><strong>Lab tie-in:</strong> after the <a href="module-hs-improved-simulation-tests.html">simulation E2E lab</a>, set a breakpoint in storage commit or grep logs for <code>state_root</code> across two consecutive heights during <code>single_shard_tx_sim</code>.</p>
         </div>
 
         <div class="section" id="quiz">

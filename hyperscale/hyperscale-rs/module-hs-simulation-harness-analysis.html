@@ -19,12 +19,12 @@
         </div>
 
         <div class="section">
-            <p><strong>Part I — Simulation:</strong> <code>SimulationRunner</code>, <code>EventKey</code>, and <code>test_e2e_single_shard_transaction</code>. <strong>Part II — Production:</strong> <a href="#production-harness">per-shard shard-loop, RPC ingress, production E2E</a> (same module—read both before hands-on labs).</p>
+            <p><strong>Part I — Simulation:</strong> <code>SimCluster</code>, <code>EventKey</code>, and <code>single_shard_tx_sim</code>. <strong>Part II — Production:</strong> <a href="#production-harness">per-shard shard-loop, RPC ingress, production E2E</a> (same module—read both before hands-on labs).</p>
         </div>
         <div class="section" id="simulation-harness"><h2>Learning objectives</h2>
             <ul>
-                <li>Trace <code>test_e2e_single_shard_transaction</code> from <code>SimulationRunner</code> through <code>ShardLoop::run_step</code> to commit and execution</li>
-                <li>Trace <code>test_production_runner_with_network</code> through <code>ProductionRunner::build</code>, genesis, and the pinned event loop</li>
+                <li>Trace <code>single_shard_tx_sim</code> from <code>SimCluster</code> through <code>ShardLoop::step</code> to commit and execution</li>
+                <li>Trace <code>runner_boots_listens_and_shuts_down_cleanly</code> through <code>ProductionRunner::build</code>, genesis, and the pinned event loop</li>
                 <li>State how production differs from simulation (wall-clock, validator QUIC/gossipsub vs wallet HTTP, RocksDB, Tokio + pinned thread, batch flushing)</li>
                 <li>Explain what a <strong>pinned</strong> <code>shard-loop</code> thread is, how <code>run_shard_loop</code> relates to it, and how <span data-glossary="cpu affinity">CPU affinity</span> is applied with <code>core_affinity::set_for_current</code></li>
             </ul>
@@ -40,11 +40,11 @@
                     </div>
                     <div class="e2e-pillar-body">
                         <ul>
-                            <li><strong>Time:</strong> <code>SimulationRunner::run_until</code> advances a <strong>simulated</strong> clock (<code>Duration</code>).</li>
+                            <li><strong>Time:</strong> <code>SimCluster::run_until</code> advances a <strong>simulated</strong> clock (<code>Duration</code>).</li>
                             <li><strong>Network:</strong> <code>SimulatedNetwork</code> + <code>SimNetworkAdapter</code>—latency queues, no real sockets.</li>
                             <li><strong>Storage:</strong> <code>SimStorage</code> + <code><span data-glossary="syncdispatch">SyncDispatch</span></code> (in-process).</li>
-                            <li><strong>Threading:</strong> single-threaded driver; <code>ShardLoop::run_step</code> called directly from the runner loop.</li>
-                            <li><strong>After each step:</strong> <code>flush_all_batches()</code> — drains validation / header batches and related commits <strong>immediately</strong>, every time (see <code>ShardLoop::run_step</code> caller protocol; path in <a href="#suggested-crates-files-to-study">study table</a>). Keeps deterministic tests simple: no deferred batch work whose ordering depends on the next simulated clock tick.</li>
+                            <li><strong>Threading:</strong> single-threaded driver; <code>ShardLoop::step</code> called directly from the runner loop.</li>
+                            <li><strong>After each step:</strong> <code>flush_all_batches()</code> — drains validation / header batches and related commits <strong>immediately</strong>, every time (see <code>ShardLoop::step</code> caller protocol; path in <a href="#suggested-crates-files-to-study">study table</a>). Keeps deterministic tests simple: no deferred batch work whose ordering depends on the next simulated clock tick.</li>
                         </ul>
                         <div class="e2e-design-note">
                             <strong>Design note</strong>
@@ -72,7 +72,7 @@
                     </div>
                 </div>
             </div>
-            <p class="info" style="margin-top:1rem;margin-bottom:0;"><strong>Shared core:</strong> Simulation uses <code>SimulationRunner</code> + <code>NodeHost</code> with deterministic <code>ShardEvent</code> scheduling; production uses per-shard <code>ShardLoop::run_step</code> on dedicated threads. Both drive the same <code>NodeStateMachine</code>—so <code>SubmitTransaction</code>, shard consensus, <code>BlockCommitted</code>, and execution hooks match <em>once an event is delivered</em>. The harness decides <em>how</em> events arrive and <em>when</em> time advances.</p>
+            <p class="info" style="margin-top:1rem;margin-bottom:0;"><strong>Shared core:</strong> Simulation uses <code>SimCluster</code> + <code>NodeHost</code> with deterministic <code>ShardEvent</code> scheduling; production uses per-shard <code>ShardLoop::step</code> on dedicated threads. Both drive the same <code>NodeStateMachine</code>—so <code>SubmitTransaction</code>, shard consensus, <code>BlockCommitted</code>, and execution hooks match <em>once an event is delivered</em>. The harness decides <em>how</em> events arrive and <em>when</em> time advances.</p>
         </div>
 
         <div class="section">
@@ -147,7 +147,7 @@
                             <tr>
                                 <td class="hs-legend-swatch-cell"><span class="hs-swatch hs-swatch--ioloop" aria-hidden="true"></span></td>
                                 <th scope="row" class="hs-legend-label"><code>shard-loop</code> thread</th>
-                                <td class="hs-legend-desc"><code>std::thread</code> running <code>run_shard_loop</code>; synchronous <code>ShardLoop::run_step</code>; reads <span data-glossary="crossbeam channels">crossbeam</span> receivers (<code>timer_rx</code>, <code>callback_rx</code>, <code>consensus_rx</code>).</td>
+                                <td class="hs-legend-desc"><code>std::thread</code> running <code>run_shard_loop</code>; synchronous <code>ShardLoop::step</code>; reads <span data-glossary="crossbeam channels">crossbeam</span> receivers (<code>timer_rx</code>, <code>callback_rx</code>, <code>consensus_rx</code>).</td>
                             </tr>
                             <tr>
                                 <td class="hs-legend-swatch-cell"><span class="hs-swatch hs-swatch--tokio" aria-hidden="true"></span></td>
@@ -256,8 +256,8 @@
             <div class="bft-design-callout">
                 <span class="callout-label">Correcting a common mental model</span>
                 <h3>Not a “test loop” or “user simulator”</h3>
-                <p><code>run_shard_loop</code> is <strong>production architecture</strong>, not something that exists only to simulate users. E2E tests such as <code>test_production_runner_with_network</code> <strong>start and stop</strong> the same path briefly; a real validator runs it <strong>continuously</strong>. RPC or other tasks <strong>send</strong> work (e.g. <code>SubmitTransaction</code>) <strong>into</strong> the <span data-glossary="crossbeam channels">crossbeam</span> channels this loop reads—they are real inputs, not pretend traffic generated inside the loop.</p>
-                <p><strong>vs simulation:</strong> Deterministic simulation never spawns this thread: a single driver calls <code>ShardLoop::run_step</code> from <code>SimulationRunner::run_until</code> with <strong>simulated time</strong> and an in-memory network. Same <code>step</code> logic, different harness.</p>
+                <p><code>run_shard_loop</code> is <strong>production architecture</strong>, not something that exists only to simulate users. E2E tests such as <code>runner_boots_listens_and_shuts_down_cleanly</code> <strong>start and stop</strong> the same path briefly; a real validator runs it <strong>continuously</strong>. RPC or other tasks <strong>send</strong> work (e.g. <code>SubmitTransaction</code>) <strong>into</strong> the <span data-glossary="crossbeam channels">crossbeam</span> channels this loop reads—they are real inputs, not pretend traffic generated inside the loop.</p>
+                <p><strong>vs simulation:</strong> Deterministic simulation never spawns this thread: a single driver calls <code>ShardLoop::step</code> from <code>SimCluster::run_until</code> with <strong>simulated time</strong> and an in-memory network. Same <code>step</code> logic, different harness.</p>
             </div>
 
             <p style="margin-top:1rem;font-size:0.95rem;color:var(--text2);">For a broader ladder of multitasking / threading terms mapped to hyperscale-rs (processes, async vs blocking, pools, backpressure), see the Basic module <a href="../basic/module-04-state-machines.html">State Machines &amp; Event-Driven Architecture</a> (section on threading and concurrency).</p>
@@ -265,12 +265,12 @@
 
         <!-- ═══ Simulation trace ═══ -->
         <div class="section">
-            <h2>1. Simulation E2E: <code>test_e2e_single_shard_transaction</code></h2>
+            <h2>1. Simulation E2E: <code>single_shard_tx_sim</code></h2>
             <div class="e2e-trace-panel e2e-trace-panel--sim">
                 <div class="e2e-trace-intro e2e-trace-intro--sim">
                     <div class="e2e-trace-intro-body">
                         <p class="e2e-trace-intro-kicker">Source &amp; story</p>
-                        <p><strong>Test:</strong> <code>test_e2e_single_shard_transaction</code> in the simulation E2E integration tests — path in <a href="#suggested-crates-files-to-study">study table</a>.</p>
+                        <p><strong>Test:</strong> <code>single_shard_tx_sim</code> in the simulation E2E integration tests — path in <a href="#suggested-crates-files-to-study">study table</a>.</p>
                         <p><strong>Story:</strong> one shard, four validators; build a signed notarized tx, submit on node 0, run simulated time until the tx is executed (or evicted after success).</p>
                     </div>
                 </div>
@@ -285,9 +285,9 @@
                         <tbody>
                             <tr class="e2e-trace-row">
                                 <td>
-                                    <div class="e2e-trace-step-text"><code>SimulationRunner::new(config, 42)</code></div>
+                                    <div class="e2e-trace-step-text"><code>SimCluster::new(config, 42)</code></div>
                                 </td>
-                                <td>Construct topology and one <code>ShardLoop</code> per validator with <code>SimStorage</code>, <code>RadixExecutor</code>, <code>SimNetworkAdapter</code>, <code><span data-glossary="syncdispatch">SyncDispatch</span></code>, and a per-node <span data-glossary="crossbeam channel">crossbeam channel</span> for injected events. Start from <code>SimulationRunner::new</code> in the simulation runner (study table).</td>
+                                <td>Construct topology and one <code>ShardLoop</code> per validator with <code>SimStorage</code>, <code>RadixExecutor</code>, <code>SimNetworkAdapter</code>, <code><span data-glossary="syncdispatch">SyncDispatch</span></code>, and a per-node <span data-glossary="crossbeam channel">crossbeam channel</span> for injected events. Start from <code>SimCluster::new</code> in the simulation runner (study table).</td>
                             </tr>
                             <tr class="e2e-trace-row">
                                 <td>
@@ -315,9 +315,9 @@
                             </tr>
                             <tr class="e2e-trace-row">
                                 <td>
-                                    <div class="e2e-trace-step-text"><code>NodeInput::SubmitTransaction</code> handled in <code>ShardLoop::run_step</code></div>
+                                    <div class="e2e-trace-step-text"><code>NodeInput::SubmitTransaction</code> handled in <code>ShardLoop::step</code></div>
                                 </td>
-                                <td><strong>Ingress:</strong> Computes shard set from <code>declared_reads</code>/<code>declared_writes</code>, <code>broadcast_to_shard</code> for each (simulated gossip). Marks tx as locally submitted; <code>queue_validation(tx)</code> if not already pending. <code>ShardLoop::run_step</code> match arm <code>SubmitTransaction</code> (study table).</td>
+                                <td><strong>Ingress:</strong> Computes shard set from <code>declared_reads</code>/<code>declared_writes</code>, <code>broadcast_to_shard</code> for each (simulated gossip). Marks tx as locally submitted; <code>queue_validation(tx)</code> if not already pending. <code>ShardLoop::step</code> match arm <code>SubmitTransaction</code> (study table).</td>
                             </tr>
                             <tr class="e2e-trace-row">
                                 <td>
@@ -354,19 +354,19 @@
 
             <div class="e2e-run-cmds" style="margin-top:1rem;">
                 <p>Run this test only</p>
-                <code>cargo test -p hyperscale-simulation --test e2e_tests test_e2e_single_shard_transaction -- --nocapture</code>
+                <code>cargo test -p hyperscale-simulation --test scenarios single_shard_tx_sim -- --nocapture</code>
             </div>
         </div>
 
         <!-- ═══ Production trace ═══ -->
         <div class="section">
-            <h2>2. Production E2E-style: <code>test_production_runner_with_network</code></h2>
+            <h2>2. Production E2E-style: <code>runner_boots_listens_and_shuts_down_cleanly</code></h2>
             <div class="e2e-trace-panel e2e-trace-panel--prod">
                 <div class="e2e-trace-intro e2e-trace-intro--prod">
                     <div class="e2e-trace-intro-body">
                         <p class="e2e-trace-intro-kicker">Source &amp; story</p>
                         <p><strong>Test crate:</strong> production integration E2Es — path in <a href="#suggested-crates-files-to-study">study table</a>.</p>
-                        <p>This test <strong>does not submit a transaction</strong>; it proves <strong>production wiring</strong>: RocksDB, <code>ProductionRunner::build</code>, libp2p listening, <code>run()</code> spawning the pinned loop, then graceful shutdown. The <strong>same <code>ShardLoop::run_step</code> path</strong> would process <code>SubmitTransaction</code> if an RPC task (or test) sent it on the consensus channel—see <code>ProductionRunner::tx_submission_sender()</code> on the production runner (study table).</p>
+                        <p>This test <strong>does not submit a transaction</strong>; it proves <strong>production wiring</strong>: RocksDB, <code>ProductionRunner::build</code>, libp2p listening, <code>run()</code> spawning the pinned loop, then graceful shutdown. The <strong>same <code>ShardLoop::step</code> path</strong> would process <code>SubmitTransaction</code> if an RPC task (or test) sent it on the consensus channel—see <code>ProductionRunner::tx_submission_sender()</code> on the production runner (study table).</p>
                     </div>
                 </div>
                 <div class="table-wrap table-wrap--reflow">
@@ -421,12 +421,12 @@
             <div class="e2e-design-note" style="margin-top:1rem;">
                 <strong>Design note</strong>
                 <p style="margin:0.35rem 0 0;font-size:0.92rem;">This integration test is <strong>not</strong> a full &ldquo;tx through consensus to finality&rdquo; production E2E: it does not submit a transaction or assert block heights, QCs, or executed user state (aside from genesis wiring at startup). The pinned loop is real and would handle <code>SubmitTransaction</code> if something sent it on the consensus channel, but proving submit&rarr;mempool&rarr;BFT&rarr;commit&rarr;execute with assertions is what the <strong>simulation</strong> E2E above is for, or a heavier prod/RPC test if the repo adds one next to the existing production tests (study table).</p>
-                <p style="margin:0.5rem 0 0;font-size:0.92rem;">Skipping a full tx here keeps CI fast and failure modes obvious (build/wire/shutdown). <strong>Cross-shard / multishard:</strong> simulation includes scenarios such as <code>test_e2e_cross_shard_transaction</code> alongside the single-shard E2E in the same integration test file (study table). This module does not trace a <strong>production</strong> multishard integration test; that would mean multiple validators, real networking, and timing—outside the scope of <code>test_production_runner_with_network</code>.</p>
+                <p style="margin:0.5rem 0 0;font-size:0.92rem;">Skipping a full tx here keeps CI fast and failure modes obvious (build/wire/shutdown). <strong>Cross-shard / multishard:</strong> simulation includes scenarios such as <code>cross_shard_tx_sim</code> alongside the single-shard E2E in the same integration test file (study table). This module does not trace a <strong>production</strong> multishard integration test; that would mean multiple validators, real networking, and timing—outside the scope of <code>runner_boots_listens_and_shuts_down_cleanly</code>.</p>
             </div>
 
             <div class="e2e-run-cmds">
                 <p>Run this test (use one test thread; serial tests)</p>
-                <code>cargo test -p hyperscale-production --test e2e_tests test_production_runner_with_network -- --test-threads=1 --nocapture</code>
+                <code>cargo test -p hyperscale-production --test runner runner_boots_listens_and_shuts_down_cleanly -- --test-threads=1 --nocapture</code>
             </div>
         </div>
 
@@ -442,7 +442,7 @@
                            │                                    │
                            └──────────────┬─────────────────────┘
                                           ▼
-                               ShardLoop::run_step(NodeInput)
+                               ShardLoop::step(NodeInput)
                                           │
                                NodeStateMachine (BFT, mempool, execution, …)</div>
         </div>
@@ -452,7 +452,7 @@
             <ul>
                 <li><a href="module-01b-tx-flow.html">Transaction Flow</a> — full user→finality diagram aligned with these steps.</li>
                 <li><a href="module-10-performance-measurement.html">Performance Measurement</a> — <code>hyperscale-sim</code> binary vs production metrics (different from these integration tests).</li>
-                <li>More scenarios (cross-shard, conflict cycles, crash): other integration tests in the simulation crate (e.g. <code>test_e2e_cross_shard_transaction</code> in the same <code>e2e_tests</code> target) use the <strong>same</strong> <code>SimulationRunner</code> pattern with different configs/assertions — paths in <a href="#suggested-crates-files-to-study">study table</a>.</li>
+                <li>More scenarios (cross-shard, conflict cycles, crash): other integration tests in the simulation crate (e.g. <code>cross_shard_tx_sim</code> in the same <code>scenarios</code> target) use the <strong>same</strong> <code>SimCluster</code> pattern with different configs/assertions — paths in <a href="#suggested-crates-files-to-study">study table</a>.</li>
                 <li><strong>Hands-on:</strong> <a href="module-hs-improved-simulation-tests.html">Single-Shard Simulation E2E — improved/innovative test case</a> — edit the same test, add trace markers, assert synchronized heights, and correlate stats with simulated time.</li>
             </ul>
         </div>
@@ -477,19 +477,19 @@
                     <tbody>
                         <tr>
                             <td>Simulation E2E tests</td>
-                            <td><a href="#" data-file="crates/simulation/tests/e2e_tests.rs" target="_blank" rel="noopener">crates/simulation/tests/e2e_tests.rs</a> — <code>test_e2e_single_shard_transaction</code>, <code>test_e2e_cross_shard_transaction</code>, …</td>
+                            <td><a href="#" data-file="crates/simulation/tests/scenarios.rs" target="_blank" rel="noopener">crates/simulation/tests/scenarios.rs</a> — <code>single_shard_tx_sim</code>, <code>cross_shard_tx_sim</code>, …</td>
                         </tr>
                         <tr>
                             <td>Simulation runner</td>
-                            <td><a href="#" data-file="crates/simulation/src/runner.rs" target="_blank" rel="noopener">crates/simulation/src/runner.rs</a> — <code>SimulationRunner::new</code>, genesis, <code>schedule_initial_event</code>, <code>run_until</code>, <code>drain_node_io</code></td>
+                            <td><a href="#" data-file="crates/simulation/src/runner.rs" target="_blank" rel="noopener">crates/simulation/src/runner.rs</a> — <code>SimCluster::new</code>, genesis, <code>schedule_initial_event</code>, <code>run_until</code>, <code>drain_node_io</code></td>
                         </tr>
                         <tr>
                             <td>Production E2E tests</td>
-                            <td><a href="#" data-file="crates/production/tests/e2e_tests.rs" target="_blank" rel="noopener">crates/production/tests/e2e_tests.rs</a> — <code>test_production_runner_with_network</code></td>
+                            <td><a href="#" data-file="crates/production/tests/runner.rs" target="_blank" rel="noopener">crates/production/tests/runner.rs</a> — <code>runner_boots_listens_and_shuts_down_cleanly</code></td>
                         </tr>
                         <tr>
                             <td>Production test fixtures</td>
-                            <td><a href="#" data-file="crates/production/tests/fixtures/mod.rs" target="_blank" rel="noopener">crates/production/tests/fixtures/mod.rs</a></td>
+                            <td><a href="#" data-file="crates/network-libp2p/src/test_utils.rs" target="_blank" rel="noopener">crates/network-libp2p/src/test_utils.rs</a></td>
                         </tr>
                         <tr>
                             <td>Production runner</td>
@@ -501,7 +501,7 @@
                         </tr>
                         <tr>
                             <td>Node <code>ShardLoop</code></td>
-                            <td><a href="#" data-file="crates/node/src/shard_loop/mod.rs" target="_blank" rel="noopener">crates/node/src/shard_loop/mod.rs</a> — <code>step</code>, <code>SubmitTransaction</code>, validation pipeline, <code>flush_all_batches</code> / <code>flush_expired_batches</code></td>
+                            <td><a href="#" data-file="crates/node/src/shard/mod.rs" target="_blank" rel="noopener">crates/node/src/shard/mod.rs</a> — <code>step</code>, <code>SubmitTransaction</code>, validation pipeline, <code>flush_all_batches</code> / <code>flush_expired_batches</code></td>
                         </tr>
                         <tr>
                             <td>Node state machine</td>
@@ -536,11 +536,11 @@
                     </tbody>
                 </table>
             </div>
-            <p><strong>What <code>test_production_runner_with_network</code> shows:</strong> RocksDB + libp2p + pinned loop + shutdown—not a full signed tx path (hands-on module next adds your markers).</p>
+            <p><strong>What <code>runner_boots_listens_and_shuts_down_cleanly</code> shows:</strong> RocksDB + libp2p + pinned loop + shutdown—not a full signed tx path (hands-on module next adds your markers).</p>
         </div>
         <div class="section"><h2>Learning objectives</h2><ul>
                 <li>Map RPC and <code>tx_submission_sender</code> ingress to <code>consensus_rx</code></li>
-                <li>Trace <code>test_production_runner_with_network</code> and <code>run_shard_loop</code></li>
+                <li>Trace <code>runner_boots_listens_and_shuts_down_cleanly</code> and <code>run_shard_loop</code></li>
                 <li>State what production E2E can observe without submitting a transaction</li>
             </ul></div><div class="section">
             <h2>Simulation vs production (same core, different harness)</h2>
@@ -565,7 +565,7 @@
                     </div>
                 </div>
             </div>
-            <p class="info" style="margin-top:1rem;margin-bottom:0;"><strong>Shared core:</strong> Simulation uses <code>SimulationRunner</code> + <code>NodeHost</code> with deterministic <code>ShardEvent</code> scheduling; production uses per-shard <code>ShardLoop::run_step</code> on dedicated threads. Both drive the same <code>NodeStateMachine</code>—so <code>SubmitTransaction</code>, shard consensus, <code>BlockCommitted</code>, and execution hooks match <em>once an event is delivered</em>. The harness decides <em>how</em> events arrive and <em>when</em> time advances.</p>
+            <p class="info" style="margin-top:1rem;margin-bottom:0;"><strong>Shared core:</strong> Simulation uses <code>SimCluster</code> + <code>NodeHost</code> with deterministic <code>ShardEvent</code> scheduling; production uses per-shard <code>ShardLoop::step</code> on dedicated threads. Both drive the same <code>NodeStateMachine</code>—so <code>SubmitTransaction</code>, shard consensus, <code>BlockCommitted</code>, and execution hooks match <em>once an event is delivered</em>. The harness decides <em>how</em> events arrive and <em>when</em> time advances.</p>
         </div>
 
         <div class="section">
@@ -640,7 +640,7 @@
                             <tr>
                                 <td class="hs-legend-swatch-cell"><span class="hs-swatch hs-swatch--ioloop" aria-hidden="true"></span></td>
                                 <th scope="row" class="hs-legend-label"><code>shard-loop</code> thread</th>
-                                <td class="hs-legend-desc"><code>std::thread</code> running <code>run_shard_loop</code>; synchronous <code>ShardLoop::run_step</code>; reads <span data-glossary="crossbeam channels">crossbeam</span> receivers (<code>timer_rx</code>, <code>callback_rx</code>, <code>consensus_rx</code>).</td>
+                                <td class="hs-legend-desc"><code>std::thread</code> running <code>run_shard_loop</code>; synchronous <code>ShardLoop::step</code>; reads <span data-glossary="crossbeam channels">crossbeam</span> receivers (<code>timer_rx</code>, <code>callback_rx</code>, <code>consensus_rx</code>).</td>
                             </tr>
                             <tr>
                                 <td class="hs-legend-swatch-cell"><span class="hs-swatch hs-swatch--tokio" aria-hidden="true"></span></td>
@@ -749,8 +749,8 @@
             <div class="bft-design-callout">
                 <span class="callout-label">Correcting a common mental model</span>
                 <h3>Not a “test loop” or “user simulator”</h3>
-                <p><code>run_shard_loop</code> is <strong>production architecture</strong>, not something that exists only to simulate users. E2E tests such as <code>test_production_runner_with_network</code> <strong>start and stop</strong> the same path briefly; a real validator runs it <strong>continuously</strong>. RPC or other tasks <strong>send</strong> work (e.g. <code>SubmitTransaction</code>) <strong>into</strong> the <span data-glossary="crossbeam channels">crossbeam</span> channels this loop reads—they are real inputs, not pretend traffic generated inside the loop.</p>
-                <p><strong>vs simulation:</strong> Deterministic simulation never spawns this thread: a single driver calls <code>ShardLoop::run_step</code> from <code>SimulationRunner::run_until</code> with <strong>simulated time</strong> and an in-memory network. Same <code>step</code> logic, different harness.</p>
+                <p><code>run_shard_loop</code> is <strong>production architecture</strong>, not something that exists only to simulate users. E2E tests such as <code>runner_boots_listens_and_shuts_down_cleanly</code> <strong>start and stop</strong> the same path briefly; a real validator runs it <strong>continuously</strong>. RPC or other tasks <strong>send</strong> work (e.g. <code>SubmitTransaction</code>) <strong>into</strong> the <span data-glossary="crossbeam channels">crossbeam</span> channels this loop reads—they are real inputs, not pretend traffic generated inside the loop.</p>
+                <p><strong>vs simulation:</strong> Deterministic simulation never spawns this thread: a single driver calls <code>ShardLoop::step</code> from <code>SimCluster::run_until</code> with <strong>simulated time</strong> and an in-memory network. Same <code>step</code> logic, different harness.</p>
             </div>
 
             <p style="margin-top:1rem;font-size:0.95rem;color:var(--text2);">For a broader ladder of multitasking / threading terms mapped to hyperscale-rs (processes, async vs blocking, pools, backpressure), see the Basic module <a href="../basic/module-04-state-machines.html">State Machines &amp; Event-Driven Architecture</a> (section on threading and concurrency).</p>
@@ -827,7 +827,7 @@
                             <tr>
                                 <td class="hs-legend-swatch-cell"><span class="hs-swatch hs-swatch--ioloop" aria-hidden="true"></span></td>
                                 <th scope="row" class="hs-legend-label"><code>shard-loop</code> thread</th>
-                                <td class="hs-legend-desc"><code>std::thread</code> running <code>run_shard_loop</code>; synchronous <code>ShardLoop::run_step</code>; reads <span data-glossary="crossbeam channels">crossbeam</span> receivers (<code>timer_rx</code>, <code>callback_rx</code>, <code>consensus_rx</code>).</td>
+                                <td class="hs-legend-desc"><code>std::thread</code> running <code>run_shard_loop</code>; synchronous <code>ShardLoop::step</code>; reads <span data-glossary="crossbeam channels">crossbeam</span> receivers (<code>timer_rx</code>, <code>callback_rx</code>, <code>consensus_rx</code>).</td>
                             </tr>
                             <tr>
                                 <td class="hs-legend-swatch-cell"><span class="hs-swatch hs-swatch--tokio" aria-hidden="true"></span></td>
@@ -936,8 +936,8 @@
             <div class="bft-design-callout">
                 <span class="callout-label">Correcting a common mental model</span>
                 <h3>Not a “test loop” or “user simulator”</h3>
-                <p><code>run_shard_loop</code> is <strong>production architecture</strong>, not something that exists only to simulate users. E2E tests such as <code>test_production_runner_with_network</code> <strong>start and stop</strong> the same path briefly; a real validator runs it <strong>continuously</strong>. RPC or other tasks <strong>send</strong> work (e.g. <code>SubmitTransaction</code>) <strong>into</strong> the <span data-glossary="crossbeam channels">crossbeam</span> channels this loop reads—they are real inputs, not pretend traffic generated inside the loop.</p>
-                <p><strong>vs simulation:</strong> Deterministic simulation never spawns this thread: a single driver calls <code>ShardLoop::run_step</code> from <code>SimulationRunner::run_until</code> with <strong>simulated time</strong> and an in-memory network. Same <code>step</code> logic, different harness.</p>
+                <p><code>run_shard_loop</code> is <strong>production architecture</strong>, not something that exists only to simulate users. E2E tests such as <code>runner_boots_listens_and_shuts_down_cleanly</code> <strong>start and stop</strong> the same path briefly; a real validator runs it <strong>continuously</strong>. RPC or other tasks <strong>send</strong> work (e.g. <code>SubmitTransaction</code>) <strong>into</strong> the <span data-glossary="crossbeam channels">crossbeam</span> channels this loop reads—they are real inputs, not pretend traffic generated inside the loop.</p>
+                <p><strong>vs simulation:</strong> Deterministic simulation never spawns this thread: a single driver calls <code>ShardLoop::step</code> from <code>SimCluster::run_until</code> with <strong>simulated time</strong> and an in-memory network. Same <code>step</code> logic, different harness.</p>
             </div>
 
             <p style="margin-top:1rem;font-size:0.95rem;color:var(--text2);">For a broader ladder of multitasking / threading terms mapped to hyperscale-rs (processes, async vs blocking, pools, backpressure), see the Basic module <a href="../basic/module-04-state-machines.html">State Machines &amp; Event-Driven Architecture</a> (section on threading and concurrency).</p>
@@ -945,13 +945,13 @@
 
         <!-- ═══ Production trace ═══ -->
         <div class="section">
-            <h2>2. Production E2E-style: <code>test_production_runner_with_network</code></h2>
+            <h2>2. Production E2E-style: <code>runner_boots_listens_and_shuts_down_cleanly</code></h2>
             <div class="e2e-trace-panel e2e-trace-panel--prod">
                 <div class="e2e-trace-intro e2e-trace-intro--prod">
                     <div class="e2e-trace-intro-body">
                         <p class="e2e-trace-intro-kicker">Source &amp; story</p>
                         <p><strong>Test crate:</strong> production integration E2Es — path in <a href="#suggested-crates-files-to-study">study table</a>.</p>
-                        <p>This test <strong>does not submit a transaction</strong>; it proves <strong>production wiring</strong>: RocksDB, <code>ProductionRunner::build</code>, libp2p listening, <code>run()</code> spawning the pinned loop, then graceful shutdown. The <strong>same <code>ShardLoop::run_step</code> path</strong> would process <code>SubmitTransaction</code> if an RPC task (or test) sent it on the consensus channel—see <code>ProductionRunner::tx_submission_sender()</code> on the production runner (study table).</p>
+                        <p>This test <strong>does not submit a transaction</strong>; it proves <strong>production wiring</strong>: RocksDB, <code>ProductionRunner::build</code>, libp2p listening, <code>run()</code> spawning the pinned loop, then graceful shutdown. The <strong>same <code>ShardLoop::step</code> path</strong> would process <code>SubmitTransaction</code> if an RPC task (or test) sent it on the consensus channel—see <code>ProductionRunner::tx_submission_sender()</code> on the production runner (study table).</p>
                     </div>
                 </div>
                 <div class="table-wrap table-wrap--reflow">
@@ -1006,12 +1006,12 @@
             <div class="e2e-design-note" style="margin-top:1rem;">
                 <strong>Design note</strong>
                 <p style="margin:0.35rem 0 0;font-size:0.92rem;">This integration test is <strong>not</strong> a full &ldquo;tx through consensus to finality&rdquo; production E2E: it does not submit a transaction or assert block heights, QCs, or executed user state (aside from genesis wiring at startup). The pinned loop is real and would handle <code>SubmitTransaction</code> if something sent it on the consensus channel, but proving submit&rarr;mempool&rarr;BFT&rarr;commit&rarr;execute with assertions is what the <strong>simulation</strong> E2E above is for, or a heavier prod/RPC test if the repo adds one next to the existing production tests (study table).</p>
-                <p style="margin:0.5rem 0 0;font-size:0.92rem;">Skipping a full tx here keeps CI fast and failure modes obvious (build/wire/shutdown). <strong>Cross-shard / multishard:</strong> simulation includes scenarios such as <code>test_e2e_cross_shard_transaction</code> alongside the single-shard E2E in the same integration test file (study table). This module does not trace a <strong>production</strong> multishard integration test; that would mean multiple validators, real networking, and timing—outside the scope of <code>test_production_runner_with_network</code>.</p>
+                <p style="margin:0.5rem 0 0;font-size:0.92rem;">Skipping a full tx here keeps CI fast and failure modes obvious (build/wire/shutdown). <strong>Cross-shard / multishard:</strong> simulation includes scenarios such as <code>cross_shard_tx_sim</code> alongside the single-shard E2E in the same integration test file (study table). This module does not trace a <strong>production</strong> multishard integration test; that would mean multiple validators, real networking, and timing—outside the scope of <code>runner_boots_listens_and_shuts_down_cleanly</code>.</p>
             </div>
 
             <div class="e2e-run-cmds">
                 <p>Run this test (use one test thread; serial tests)</p>
-                <code>cargo test -p hyperscale-production --test e2e_tests test_production_runner_with_network -- --test-threads=1 --nocapture</code>
+                <code>cargo test -p hyperscale-production --test runner runner_boots_listens_and_shuts_down_cleanly -- --test-threads=1 --nocapture</code>
             </div>
         </div>
 
@@ -1027,7 +1027,7 @@
                            │                                    │
                            └──────────────┬─────────────────────┘
                                           ▼
-                               ShardLoop::run_step(NodeInput)
+                               ShardLoop::step(NodeInput)
                                           │
                                NodeStateMachine (BFT, mempool, execution, …)</div>
         </div>
@@ -1037,7 +1037,7 @@
             <ul>
                 <li><a href="module-01b-tx-flow.html">Transaction Flow</a> — full user→finality diagram aligned with these steps.</li>
                 <li><a href="module-10-performance-measurement.html">Performance Measurement</a> — <code>hyperscale-sim</code> binary vs production metrics (different from these integration tests).</li>
-                <li>More scenarios (cross-shard, conflict cycles, crash): other integration tests in the simulation crate (e.g. <code>test_e2e_cross_shard_transaction</code> in the same <code>e2e_tests</code> target) use the <strong>same</strong> <code>SimulationRunner</code> pattern with different configs/assertions — paths in <a href="#suggested-crates-files-to-study">study table</a>.</li>
+                <li>More scenarios (cross-shard, conflict cycles, crash): other integration tests in the simulation crate (e.g. <code>cross_shard_tx_sim</code> in the same <code>scenarios</code> target) use the <strong>same</strong> <code>SimCluster</code> pattern with different configs/assertions — paths in <a href="#suggested-crates-files-to-study">study table</a>.</li>
                 <li><strong>Hands-on:</strong> <a href="project-01-e2e-observability.html">Project 1 — E2E observability &amp; invariants</a> — edit the same test, add trace markers, assert synchronized heights, and correlate stats with simulated time.</li>
             </ul>
         </div>
@@ -1062,19 +1062,19 @@
                     <tbody>
                         <tr>
                             <td>Simulation E2E tests</td>
-                            <td><a href="#" data-file="crates/simulation/tests/e2e_tests.rs" target="_blank" rel="noopener">crates/simulation/tests/e2e_tests.rs</a> — <code>test_e2e_single_shard_transaction</code>, <code>test_e2e_cross_shard_transaction</code>, …</td>
+                            <td><a href="#" data-file="crates/simulation/tests/scenarios.rs" target="_blank" rel="noopener">crates/simulation/tests/scenarios.rs</a> — <code>single_shard_tx_sim</code>, <code>cross_shard_tx_sim</code>, …</td>
                         </tr>
                         <tr>
                             <td>Simulation runner</td>
-                            <td><a href="#" data-file="crates/simulation/src/runner.rs" target="_blank" rel="noopener">crates/simulation/src/runner.rs</a> — <code>SimulationRunner::new</code>, genesis, <code>schedule_initial_event</code>, <code>run_until</code>, <code>drain_node_io</code></td>
+                            <td><a href="#" data-file="crates/simulation/src/runner.rs" target="_blank" rel="noopener">crates/simulation/src/runner.rs</a> — <code>SimCluster::new</code>, genesis, <code>schedule_initial_event</code>, <code>run_until</code>, <code>drain_node_io</code></td>
                         </tr>
                         <tr>
                             <td>Production E2E tests</td>
-                            <td><a href="#" data-file="crates/production/tests/e2e_tests.rs" target="_blank" rel="noopener">crates/production/tests/e2e_tests.rs</a> — <code>test_production_runner_with_network</code></td>
+                            <td><a href="#" data-file="crates/production/tests/runner.rs" target="_blank" rel="noopener">crates/production/tests/runner.rs</a> — <code>runner_boots_listens_and_shuts_down_cleanly</code></td>
                         </tr>
                         <tr>
                             <td>Production test fixtures</td>
-                            <td><a href="#" data-file="crates/production/tests/fixtures/mod.rs" target="_blank" rel="noopener">crates/production/tests/fixtures/mod.rs</a></td>
+                            <td><a href="#" data-file="crates/network-libp2p/src/test_utils.rs" target="_blank" rel="noopener">crates/network-libp2p/src/test_utils.rs</a></td>
                         </tr>
                         <tr>
                             <td>Production runner</td>
@@ -1086,7 +1086,7 @@
                         </tr>
                         <tr>
                             <td>Node <code>ShardLoop</code></td>
-                            <td><a href="#" data-file="crates/node/src/shard_loop/mod.rs" target="_blank" rel="noopener">crates/node/src/shard_loop/mod.rs</a> — <code>step</code>, <code>SubmitTransaction</code>, validation pipeline, <code>flush_all_batches</code> / <code>flush_expired_batches</code></td>
+                            <td><a href="#" data-file="crates/node/src/shard/mod.rs" target="_blank" rel="noopener">crates/node/src/shard/mod.rs</a> — <code>step</code>, <code>SubmitTransaction</code>, validation pipeline, <code>flush_all_batches</code> / <code>flush_expired_batches</code></td>
                         </tr>
                         <tr>
                             <td>Node state machine</td>
@@ -1123,29 +1123,29 @@
         (function () {
             var quizQuestions = [
                 {
-                    question: "In simulation, what does SimulationRunner::run_until primarily do between events?",
+                    question: "In simulation, what does SimCluster::run_until primarily do between events?",
                     options: [
                         "Only sleep the host OS thread.",
-                        "Advance simulated time to the next of: queued NodeInput events or simulated network deliveries; flush deliveries; drain channels into the queue; call ShardLoop::run_step for each due event.",
+                        "Advance simulated time to the next of: queued NodeInput events or simulated network deliveries; flush deliveries; drain channels into the queue; call ShardLoop::step for each due event.",
                         "Compile the Radix Engine from source.",
                         "Skip ShardLoop and call RocksDB directly."
                     ],
                     correct: 1,
-                    explanation: "SimulationRunner::run_until interleaves the event queue with SimulatedNetwork delivery times, then steps each ShardLoop for due events (path in the module study table)."
+                    explanation: "SimCluster::run_until interleaves the event queue with SimulatedNetwork delivery times, then steps each ShardLoop for due events (path in the module study table)."
                 },
                 {
                     question: "Where does NodeInput::SubmitTransaction first gossip the transaction and queue validation?",
                     options: [
-                        "In SimulationRunner::new only.",
-                        "In ShardLoop::run_step, in the SubmitTransaction arm (broadcast_to_shard + queue_validation).",
+                        "In SimCluster::new only.",
+                        "In ShardLoop::step, in the SubmitTransaction arm (broadcast_to_shard + queue_validation).",
                         "Only inside RocksDB compaction.",
                         "In the spammer binary exclusively."
                     ],
                     correct: 1,
-                    explanation: "SubmitTransaction is handled in ShardLoop::run_step; simulation and production both use this path once the event reaches step."
+                    explanation: "SubmitTransaction is handled in ShardLoop::step; simulation and production both use this path once the event reaches step."
                 },
                 {
-                    question: "test_production_runner_with_network mainly proves:",
+                    question: "runner_boots_listens_and_shuts_down_cleanly mainly proves:",
                     options: [
                         "That a cross-shard transaction finalizes on two shards.",
                         "That ProductionRunner builds with RocksDB + libp2p, spawns the pinned ShardLoop via run(), and shuts down cleanly—without necessarily submitting a user transaction.",
@@ -1169,13 +1169,13 @@
                 {
                     question: "Production’s pinned event loop (run_shard_loop) differs from simulation mainly because:",
                     options: [
-                        "It never calls ShardLoop::run_step.",
+                        "It never calls ShardLoop::step.",
                         "It uses wall-clock time, crossbeam channel priorities (timer/callback/consensus), flush_expired_batches, and Tokio-backed timers instead of a single global simulated event queue.",
                         "It replaces NodeStateMachine with a different crate.",
                         "It cannot process BFT messages."
                     ],
                     correct: 1,
-                    explanation: "The production pinned loop documents priority recv, wall_clock_duration, flush_expired_batches, and ProdTimerManager—contrasted with SimulationRunner::run_until for simulation (paths in the study table)."
+                    explanation: "The production pinned loop documents priority recv, wall_clock_duration, flush_expired_batches, and ProdTimerManager—contrasted with SimCluster::run_until for simulation (paths in the study table)."
                 }
             ];
             if (typeof initializeQuiz === 'function') {

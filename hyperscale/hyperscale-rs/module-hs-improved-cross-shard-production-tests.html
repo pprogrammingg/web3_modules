@@ -21,7 +21,7 @@
         <div class="section project-hero">
             <h2>Why this lab</h2>
             <p style="margin:0;line-height:1.65;">
-                The repo today has a rich <strong>simulation</strong> cross-shard E2E (<code>test_e2e_cross_shard_transaction</code>) but
+                The repo today has a rich <strong>simulation</strong> cross-shard E2E (<code>cross_shard_tx_sim</code>) but
                 <strong>no dedicated production integration test</strong> that exercises a full cross-shard transaction on live wiring.
                 This module is a <strong>design-and-observability lab</strong>: you map the simulation test to production ingress, threading, and
                 multi-validator topology, then write acceptance criteria for a future <code>test_production_cross_shard_*</code>—the same spirit as
@@ -39,9 +39,9 @@
 
         <div class="section project-step" id="step-1">
             <h3>Step 1 — Simulation spec as source of truth</h3>
-            <p>In <code>crates/simulation/tests/e2e_tests.rs</code>, list (in a short markdown note or comment block you keep locally):</p>
+            <p>In <code>crates/simulation/tests/scenarios.rs</code>, list (in a short markdown note or comment block you keep locally):</p>
             <ol>
-                <li>What <code>multi_shard_config()</code> sets (<code>num_shards</code>, validator count, connectivity).</li>
+                <li>What <code>split_config() / ScenarioConfig</code> sets (<code>num_shards</code>, validator count, connectivity).</li>
                 <li>How the test picks shard-0 and shard-1 accounts (seed loop + <code>shard_for_node</code>).</li>
                 <li>What “done” means in the poll loop (<code>completed</code>, <code>executed</code>, <code>finalized</code>).</li>
             </ol>
@@ -51,7 +51,7 @@
         <div class="section project-step" id="step-2">
             <h3>Step 2 — Production gap analysis</h3>
             <p>Search <code>crates/production/tests/</code> for cross-shard or multi-shard coverage (today: typically none). Re-read
-            <code>test_production_runner_with_network</code> from
+            <code>runner_boots_listens_and_shuts_down_cleanly</code> from
             <a href="module-hs-improved-production-tests.html">single-shard production hands-on</a>.</p>
             <p>Write a table with three columns: <strong>Signal</strong> (e.g. listen address up, tx in mempool, cross-shard receipt),
             <strong>Single-shard prod test today</strong>, <strong>Needed for cross-shard prod E2E</strong>. Aim for at least six rows.</p>

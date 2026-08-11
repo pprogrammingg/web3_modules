@@ -12,7 +12,7 @@ Static HTML/CSS/JS courses: open **`index.html`** for the track picker (**Hypers
    Open `index.html` in your browser (e.g. double‑click, or drag into the browser window).
 
 2. **Option B – Local server (recommended if links behave oddly):**  
-   From the project root (`/Users/chemipoo/wip/web3_modules` or wherever you cloned it), run:
+   From the project root (this repo under `other_projects/`), run:
    ```bash
    # Python 3
    python3 -m http.server 8000

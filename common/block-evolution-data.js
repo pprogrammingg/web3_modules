@@ -118,7 +118,7 @@
       section: 'header',
       label: 'provision_tx_roots',
       glossaryKey: 'block-field-provision-tx-roots',
-      sample: '{ A → 0xPTX…, C → 0xPTY… }',
+      sample: '{ target=2 → Merkle(tx hashes on S1 block) }',
       valueClass: 'hs-block-value--map',
     },
     in_flight: {
@@ -164,6 +164,14 @@
       glossaryKey: 'block-field-settled-waves-root',
       sample: 'None',
     },
+    reveal_chain: {
+      id: 'reveal_chain',
+      section: 'header',
+      label: 'reveal_chain',
+      glossaryKey: 'block-field-reveal-chain',
+      sample: 'RevealChain(0x9a…)',
+      valueClass: 'hs-block-value--hash',
+    },
     body_transactions: {
       id: 'body_transactions',
       section: 'body',
@@ -188,20 +196,13 @@
       sample: '[ Provisions(A→B, h=100), … ]',
       valueClass: 'hs-block-value--list',
     },
-    body_ready_signals: {
-      id: 'body_ready_signals',
+    body_witness_sources: {
+      id: 'body_witness_sources',
       section: 'body',
-      label: 'ready_signals',
-      glossaryKey: 'block-field-body-ready-signals',
-      sample: '[]',
-      valueClass: 'hs-block-value--list',
-    },
-    body_reshape_trigger: {
-      id: 'body_reshape_trigger',
-      section: 'body',
-      label: 'reshape_trigger',
-      glossaryKey: 'block-field-body-reshape-trigger',
-      sample: 'None',
+      label: 'witness_sources',
+      glossaryKey: 'block-field-body-witness-sources',
+      sample: 'WitnessSources { ready_signals: [], reshape_trigger: None, randomness_reveal: VrfProof }',
+      valueClass: 'hs-block-value--struct',
     },
   };
 
@@ -225,6 +226,7 @@
     'beacon_witness_root',
     'beacon_witness_leaf_count',
     'beacon_witness_base',
+    'reveal_chain',
     'split_child_roots',
     'settled_waves_root',
   ];
@@ -233,8 +235,7 @@
     'body_transactions',
     'body_certificates',
     'body_provisions',
-    'body_ready_signals',
-    'body_reshape_trigger',
+    'body_witness_sources',
   ];
 
   /** Canonical teaching order — drives “seen” vs “present” styling across cards. */
@@ -329,9 +330,14 @@
         'certificate_root',
         'provision_root',
         'in_flight',
+        'beacon_witness_root',
+        'beacon_witness_leaf_count',
+        'beacon_witness_base',
+        'reveal_chain',
         'body_transactions',
         'body_certificates',
         'body_provisions',
+        'body_witness_sources',
       ],
       newFields: [
         'timestamp',
@@ -341,6 +347,11 @@
         'body_transactions',
         'state_root',
         'in_flight',
+        'beacon_witness_root',
+        'beacon_witness_leaf_count',
+        'beacon_witness_base',
+        'reveal_chain',
+        'body_witness_sources',
       ],
       sampleOverrides: {
         height: 'BlockHeight(42)',
@@ -350,6 +361,10 @@
         provision_root: 'ProvisionsRoot::ZERO',
         body_certificates: '[] (prior waves not ready yet)',
         body_provisions: '[]',
+        body_witness_sources:
+          'WitnessSources { ready_signals, reshape_trigger?, randomness_reveal }',
+        reveal_chain: 'hash-chain of VRF reveals in this anchor epoch',
+        beacon_witness_root: 'Merkle(window leaves) → 0x1c90…77aa',
       },
     },
     'parent-qc': {
@@ -478,7 +493,7 @@
       newFields: ['provision_tx_roots'],
       sampleOverrides: {
         body_transactions: '[ Tx_cross(0xTX…) touches {A,B} ]',
-        provision_tx_roots: '{ shard_A: Merkle(0xTX…), … }',
+        provision_tx_roots: '{ shard_2: Merkle(0xTxUSDC…) }  ← outbound tx list for target S2',
         provision_root: 'ProvisionsRoot::ZERO (batches not in body yet)',
         body_provisions: '[]',
       },

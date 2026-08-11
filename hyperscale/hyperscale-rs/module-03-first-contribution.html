@@ -54,31 +54,31 @@
                         <h4>Segment 1 — Simulation: trace one canonical E2E</h4>
                         <span class="assignment-time-pill" title="Adjust to your pace">⏱️ ~10–25 min</span>
                     </div>
-                    <p class="assignment-outcome"><strong>By the end:</strong> You ran <code>test_e2e_single_shard_transaction</code> (or another substantial test in the same file) and can name <em>where</em> setup ends and <em>where</em> the harness drives <code>ShardLoop::run_step</code> toward commit.</p>
-                    <p><strong>Where to open:</strong> <a href="#" data-file="crates/simulation/tests/e2e_tests.rs" target="_blank" rel="noopener"><code>crates/simulation/tests/e2e_tests.rs</code></a>. Jump to <code>fn test_e2e_single_shard_transaction</code> (editor search). Skim the module docs (<code>//!</code>) first—they frame what “good” means for this harness.</p>
+                    <p class="assignment-outcome"><strong>By the end:</strong> You ran <code>single_shard_tx_sim</code> (or another substantial test in the same file) and can name <em>where</em> setup ends and <em>where</em> the harness drives <code>ShardLoop::step</code> toward commit.</p>
+                    <p><strong>Where to open:</strong> <a href="#" data-file="crates/simulation/tests/scenarios.rs" target="_blank" rel="noopener"><code>crates/simulation/tests/scenarios.rs</code></a>. Jump to <code>fn single_shard_tx_sim</code> (editor search). Skim the module docs (<code>//!</code>) first—they frame what “good” means for this harness.</p>
                     <p class="e2e-code-caption"><strong>Anchor pattern</strong> — simulation tests usually spin a runner, advance simulated time, and inject work; your trace should follow that spine:</p>
-                    <pre class="code-block-light"><code>// Illustrative shape — follow the real test body in e2e_tests.rs
+                    <pre class="code-block-light"><code>// Illustrative shape — follow the real test body in scenarios.rs
 #[test]
-fn test_e2e_single_shard_transaction() {
-    // 1. Build SimulationRunner + SimulatedNetwork + storage fixtures
+fn single_shard_tx_sim() {
+    // 1. Build SimCluster + SimulatedNetwork + storage fixtures
     // 2. Genesis / shard setup to match the scenario
     // 3. Submit tx / drive inputs (same APIs sibling tests use)
-    // 4. runner.run_until(...) or stepping loop — each tick hits ShardLoop::run_step
+    // 4. runner.run_until(...) or stepping loop — each tick hits ShardLoop::step
     // 5. flush / settle — simulation flushes batches aggressively each step
     // 6. assert committed state, receipts, or cross-check invariants
 }</code></pre>
                     <p><strong>Numbered trace (do this in your journal):</strong> Write <strong>6–10 steps</strong>. For each step, note <em>which symbol or block</em> you are in (example hints below—not line numbers, because they drift between commits).</p>
                     <ol class="assignment-trace-steps">
-                        <li><strong>Fixture arrives:</strong> you see <code>SimulationRunner</code> / builder calls and network/storage wiring.</li>
+                        <li><strong>Fixture arrives:</strong> you see <code>SimCluster</code> / builder calls and network/storage wiring.</li>
                         <li><strong>Clock domain:</strong> simulated <code>Duration</code> advances—no wall clock.</li>
                         <li><strong>Inputs:</strong> transactions or control messages enter the same paths production uses once inside <code>step</code>.</li>
-                        <li><strong>Step boundary:</strong> each iteration ultimately calls into <code>ShardLoop::run_step</code> (find the call site in the runner loop).</li>
+                        <li><strong>Step boundary:</strong> each iteration ultimately calls into <code>ShardLoop::step</code> (find the call site in the runner loop).</li>
                         <li><strong>After step:</strong> simulation-style flushing drains batches immediately—tie this to what you read in module 11.</li>
                         <li><strong>Proof:</strong> assertions on balances, logs, or committed blocks—whatever this test encodes as “done.”</li>
                     </ol>
                     <p><strong>Run it:</strong></p>
-                    <pre class="code-block-light"><code>RUST_LOG=debug cargo test -p hyperscale-simulation --test e2e_tests test_e2e_single_shard_transaction -- --nocapture</code></pre>
-                    <p class="assignment-run-note"><strong>What you should see:</strong> Cargo compiling on first run (coffee moment), then <code>test test_e2e_single_shard_transaction ... ok</code>. <code>RUST_LOG=debug</code> surfaces <code>tracing::debug!</code> lines when you add temporary instrumentation; omit the prefix if you want a quieter run.</p>
+                    <pre class="code-block-light"><code>RUST_LOG=debug cargo test -p hyperscale-simulation --test scenarios single_shard_tx_sim -- --nocapture</code></pre>
+                    <p class="assignment-run-note"><strong>What you should see:</strong> Cargo compiling on first run (coffee moment), then <code>test single_shard_tx_sim ... ok</code>. <code>RUST_LOG=debug</code> surfaces <code>tracing::debug!</code> lines when you add temporary instrumentation; omit the prefix if you want a quieter run.</p>
                     <ul class="assignment-checklist">
                         <li><label class="assignment-check-card" for="assign-trace-sim"><input type="checkbox" id="assign-trace-sim" data-assignment-check="trace-sim" /> <span class="assignment-check-label">Segment 1 done — I ran the sim test and wrote a 6–10 step trace with “where in code” notes.</span></label></li>
                     </ul>
@@ -90,20 +90,20 @@ fn test_e2e_single_shard_transaction() {
                         <span class="assignment-time-pill">⏱️ ~10–25 min</span>
                     </div>
                     <p class="assignment-outcome"><strong>By the end:</strong> You can contrast <em>this</em> test’s startup story with Segment 1: pinned loop, wall clock, real network stack, RocksDB—without losing the thread that “inside <code>step</code>, the story matches.”</p>
-                    <p><strong>Where to open:</strong> <a href="#" data-file="crates/production/tests/e2e_tests.rs" target="_blank" rel="noopener"><code>crates/production/tests/e2e_tests.rs</code></a>. Jump to <code>fn test_production_runner_with_network</code>.</p>
+                    <p><strong>Where to open:</strong> <a href="#" data-file="crates/production/tests/runner.rs" target="_blank" rel="noopener"><code>crates/production/tests/runner.rs</code></a>. Jump to <code>fn runner_boots_listens_and_shuts_down_cleanly</code>.</p>
                     <p class="e2e-code-caption"><strong>Anchor pattern</strong> — production tests pay once for process-realistic wiring; your trace should capture genesis → runner → pinned thread → shutdown:</p>
-                    <pre class="code-block-light"><code>// Illustrative shape — follow the real test in production e2e_tests.rs
+                    <pre class="code-block-light"><code>// Illustrative shape — follow the real test in production runner.rs
 #[test]
-fn test_production_runner_with_network() {
+fn runner_boots_listens_and_shuts_down_cleanly() {
     // 1. ProductionRunner::build / temp dirs / RocksDB open
     // 2. Network + storage adapters — Libp2p path, not SimulatedNetwork
     // 3. Genesis and shard bootstrap (may run on async side before pin)
-    // 4. spawn_shard_loop → run_shard_loop drives ShardLoop::run_step on std::thread
+    // 4. spawn_shard_loop → run_shard_loop drives ShardLoop::step on std::thread
     // 5. Submit work; wall-clock batch flushing (flush_expired_batches)
     // 6. Graceful shutdown + asserts on live behavior
 }</code></pre>
                     <p><strong>Can you run it?</strong> <strong>Yes,</strong> on a normal developer machine that already builds the workspace: it is a standard <code>cargo test</code> integration test. Expect a <strong>slower compile</strong> and test runtime than simulation; native deps (for example RocksDB) must build. Use a single test thread while iterating:</p>
-                    <pre class="code-block-light"><code>RUST_LOG=debug cargo test -p hyperscale-production --test e2e_tests test_production_runner_with_network -- --test-threads=1 --nocapture</code></pre>
+                    <pre class="code-block-light"><code>RUST_LOG=debug cargo test -p hyperscale-production --test runner runner_boots_listens_and_shuts_down_cleanly -- --test-threads=1 --nocapture</code></pre>
                     <p class="assignment-run-note">If the binary fails to link on your machine, finish this segment using <strong>module 11’s walkthrough + reading the test source</strong>, write your numbered trace anyway, and note the blocker in your journal—maintainers see this occasionally; CI still proves the path.</p>
                     <p><strong>Numbered trace:</strong> Again <strong>6–10 steps</strong>, plain English. Explicitly call out one moment where <strong>Tokio/async</strong> hands work to the <strong>pinned <code>shard-loop</code></strong> (channels), per module 11.</p>
                     <ul class="assignment-checklist">
@@ -117,9 +117,9 @@ fn test_production_runner_with_network() {
                         <span class="assignment-time-pill">⏱️ ~10–25 min</span>
                     </div>
                     <p class="assignment-outcome"><strong>By the end:</strong> You have a <strong>new</strong> <code>#[test]</code> next to the ones you studied—small, reviewable, green locally.</p>
-                    <p>Add it to <code>crates/simulation/tests/e2e_tests.rs</code> (or the workspace’s established split if tests moved). Reuse <code>SimulationRunner</code> patterns from <strong>neighbors in the same file</strong>. Target a real gap: behavior not yet asserted, or deeper coverage of a flow <strong>already supported</strong> by test APIs—grep siblings for transaction builders; do not invent unsupported payloads.</p>
+                    <p>Add it to <code>crates/simulation/tests/scenarios.rs</code> (or the workspace’s established split if tests moved). Reuse <code>SimCluster</code> patterns from <strong>neighbors in the same file</strong>. Target a real gap: behavior not yet asserted, or deeper coverage of a flow <strong>already supported</strong> by test APIs—grep siblings for transaction builders; do not invent unsupported payloads.</p>
                     <p>Scope questions: tie to <a href="https://github.com/hyperscalers/hyperscale-rs/issues/18" target="_blank" rel="noopener">issue #18</a> or ask early on a draft PR.</p>
-                    <pre class="code-block-light"><code>RUST_LOG=debug cargo test -p hyperscale-simulation --test e2e_tests &lt;your_test_name&gt; -- --nocapture</code></pre>
+                    <pre class="code-block-light"><code>RUST_LOG=debug cargo test -p hyperscale-simulation --test scenarios &lt;your_test_name&gt; -- --nocapture</code></pre>
                     <p class="assignment-run-note"><strong>What you should see:</strong> Your test name in the summary line ending in <code>ok</code>; failures print panics/asserts—fix by aligning with existing fixtures before widening ambition.</p>
                     <ul class="assignment-checklist">
                         <li><label class="assignment-check-card" for="assign-contrib-sim"><input type="checkbox" id="assign-contrib-sim" data-assignment-check="contrib-sim" /> <span class="assignment-check-label">Segment 3 done — my new simulation E2E passes locally.</span></label></li>
@@ -132,8 +132,8 @@ fn test_production_runner_with_network() {
                         <span class="assignment-time-pill">⏱️ ~10–25 min</span>
                     </div>
                     <p class="assignment-outcome"><strong>By the end:</strong> One focused production change (assertion, invariant, or short scenario on existing setup) is passing under the prod command, and you have (or are ready to open) a PR from your fork.</p>
-                    <p>Prefer a <strong>surgical</strong> edit in <code>crates/production/tests/e2e_tests.rs</code>—extend <code>test_production_runner_with_network</code>’s setup rather than spawning new multi-node complexity unless a maintainer agreed.</p>
-                    <pre class="code-block-light"><code>RUST_LOG=debug cargo test -p hyperscale-production --test e2e_tests &lt;your_test_name&gt; -- --test-threads=1 --nocapture</code></pre>
+                    <p>Prefer a <strong>surgical</strong> edit in <code>crates/production/tests/runner.rs</code>—extend <code>runner_boots_listens_and_shuts_down_cleanly</code>’s setup rather than spawning new multi-node complexity unless a maintainer agreed.</p>
+                    <pre class="code-block-light"><code>RUST_LOG=debug cargo test -p hyperscale-production --test runner &lt;your_test_name&gt; -- --test-threads=1 --nocapture</code></pre>
                     <p class="assignment-run-note"><strong>What you should see:</strong> Same as Segment 2 style output—your test name listed with <code>ok</code>. Keep using <code>--test-threads=1</code> until you are confident the test is deterministic.</p>
                     <p>Then follow <strong>Section 3 — Submitting Your PR</strong> below: fork workflow, PR body with both <code>cargo test</code> lines you ran, link to issue when helpful.</p>
                     <ul class="assignment-checklist">
@@ -204,11 +204,11 @@ fn test_production_runner_with_network() {
                     <tbody>
                         <tr>
                             <td>Simulation E2E</td>
-                            <td><a href="#" data-file="crates/simulation/tests/e2e_tests.rs" target="_blank" rel="noopener">crates/simulation/tests/e2e_tests.rs</a></td>
+                            <td><a href="#" data-file="crates/simulation/tests/scenarios.rs" target="_blank" rel="noopener">crates/simulation/tests/scenarios.rs</a></td>
                         </tr>
                         <tr>
                             <td>Production E2E</td>
-                            <td><a href="#" data-file="crates/production/tests/e2e_tests.rs" target="_blank" rel="noopener">crates/production/tests/e2e_tests.rs</a></td>
+                            <td><a href="#" data-file="crates/production/tests/runner.rs" target="_blank" rel="noopener">crates/production/tests/runner.rs</a></td>
                         </tr>
                         <tr>
                             <td>Guides</td>

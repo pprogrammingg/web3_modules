@@ -3,6 +3,6 @@
  * Override with env: LOCAL_REPO_PATH=/path/to/hyperscale-rs
  */
 module.exports = {
-    /** Relative to web3_modules repo root. Update if your clone lives elsewhere. */
-    DEFAULT_LOCAL_REPO_PATH: '../other_projects/hyperscale-rs',
+    /** Sister project under other_projects/ (relative to this repo root). */
+    DEFAULT_LOCAL_REPO_PATH: '../hyperscale-rs',
 };

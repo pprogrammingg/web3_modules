@@ -46,11 +46,13 @@ console.log('render-contracts: HTML skeleton checks\n');
 page('index.html', [
     { name: 'track picker grid', test: (h) => h.includes('track-grid') },
     {
-        name: 'five track destinations',
+        name: 'active Hyperscale + four coming-soon tracks',
         test: (h) =>
-            ['hyperscale/index.html', 'solana-core/index.html', 'crypto-fintech/index.html', 'zk/index.html', 'evm/index.html'].every(
-                (href) => h.includes(`href="${href}"`)
-            )
+            h.includes('href="hyperscale/index.html"') &&
+            ['solana', 'crypto', 'zk', 'evm'].every((track) =>
+                h.includes(`track-card--${track} track-card--coming-soon`)
+            ) &&
+            h.includes('track-card-soon-label')
     },
     {
         name: 'main stylesheet link',

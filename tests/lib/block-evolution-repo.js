@@ -66,13 +66,13 @@ const FIELD_RUST_MAP = {
   beacon_witness_root: { location: 'header', rust: 'beacon_witness_root' },
   beacon_witness_leaf_count: { location: 'header', rust: 'beacon_witness_leaf_count' },
   beacon_witness_base: { location: 'header', rust: 'beacon_witness_base' },
+  reveal_chain: { location: 'header', rust: 'reveal_chain' },
   split_child_roots: { location: 'header', rust: 'split_child_roots' },
   settled_waves_root: { location: 'header', rust: 'settled_waves_root' },
   body_transactions: { location: 'body', rust: 'transactions' },
   body_certificates: { location: 'body', rust: 'certificates' },
   body_provisions: { location: 'body', rust: 'provisions' },
-  body_ready_signals: { location: 'body', rust: 'ready_signals' },
-  body_reshape_trigger: { location: 'body', rust: 'reshape_trigger' },
+  body_witness_sources: { location: 'body', rust: 'witness_sources' },
 };
 
 function loadGlossaryKeys() {

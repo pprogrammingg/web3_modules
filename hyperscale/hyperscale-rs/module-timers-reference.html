@@ -188,9 +188,9 @@
                 <table class="flow-steps">
                     <thead><tr><th>Concern</th><th>Path</th></tr></thead>
                     <tbody>
-                        <tr><td>View change fires</td><td><code>crates/node/src/state/timers.rs</code> → <code>on_view_change_timer</code> → <code>check_round_timeout</code></td></tr>
+                        <tr><td>View change fires</td><td><code>crates/node/src/state/participation/timers.rs</code> → <code>on_view_change_timer</code> → <code>check_round_timeout</code></td></tr>
                         <tr><td>Timers armed at genesis</td><td><code>crates/shard/src/coordinator.rs</code> — <code>SetTimer</code> ViewChange + Cleanup</td></tr>
-                        <tr><td>Event-driven propose</td><td><code>queue_ready_proposal</code>, <code>try_propose</code>; <code>crates/node/src/state/proposal.rs</code></td></tr>
+                        <tr><td>Event-driven propose</td><td><code>queue_ready_proposal</code>, <code>try_propose</code>; <code>crates/node/src/state/participation/proposal.rs</code></td></tr>
                         <tr><td>Protocol constants</td><td><code>crates/types/src/time/timeouts.rs</code></td></tr>
                         <tr><td>Operator knobs</td><td><code>crates/shard/src/config.rs</code> — <code>ShardConsensusConfig</code></td></tr>
                         <tr><td>Wave / vote retry</td><td><code>crates/execution/src/waves.rs</code>, <code>coordinator.rs</code></td></tr>

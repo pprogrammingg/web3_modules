@@ -87,12 +87,12 @@
         <div class="section">
             <h2>1 — Where execution sits in the commit fan-out</h2>
             <p class="module-footnote module-footnote--tight">Proof snippets are trimmed from the <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a> tree. Ellipsis (<code>...</code>) hides boilerplate.</p>
-            <p>When <code>ProtocolEvent::BlockCommitted</code> arrives, the node orchestrator in <code>crates/node/src/state/shard.rs</code> notifies subsystems in a fixed order. Execution is deliberately <strong>after</strong> mempool and provision bookkeeping on that block, so conflict detection and queue pruning see the committed provision hashes first.</p>
+            <p>When <code>ProtocolEvent::BlockCommitted</code> arrives, the node orchestrator in <code>crates/node/src/state/participation/shard.rs</code> notifies subsystems in a fixed order. Execution is deliberately <strong>after</strong> mempool and provision bookkeeping on that block, so conflict detection and queue pruning see the committed provision hashes first.</p>
             <p>After execution runs, the orchestrator calls <code>shard_coordinator.queue_ready_proposal()</code> again — finalized waves (and freed in-flight counts) may mean the leader should try another block soon.</p>
             <div class="hs-block-evolution-mount" data-block-evolution="waves-assigned" aria-label="Block anatomy — waves after commit"></div>
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — commit order: mempool → remote headers → provisions → execution → proposal latch</p>
-                <div class="code-block"><pre><code class="language-rust">// crates/node/src/state/shard.rs — on_block_committed
+                <div class="code-block"><pre><code class="language-rust">// crates/node/src/state/participation/shard.rs — on_block_committed
 self.shard_coordinator.on_block_committed_verification(block_hash);
 actions.extend(self.mempool.on_block_committed(..., certified));
 actions.extend(self.remote_headers.on_block_committed(..., certified));
@@ -127,10 +127,12 @@ actions.extend(self.check_vote_retry_timeouts(topology));</code></pre></div>
             <h2>3 — Waves: assignment and wave <code>0</code></h2>
             <p><code>assign_waves</code> partitions the block’s transactions by which shards they touch. Wave id <code>0</code> means single-shard: no remote provision set. Cross-shard txs get non-zero wave ids and start in “waiting for provisions” until Phase 4 data arrives.</p>
             <p>At wave creation, single-shard waves mark themselves provisioned immediately; the coordinator can dispatch Radix execution in the same commit tick. Cross-shard waves call <code>absorb_ready_provisions</code> and only dispatch when every required remote shard has supplied verified provision data.</p>
+            <p><strong>Topology note:</strong> wave bucketing uses the <strong>classification</strong> <code>TopologySnapshot</code> at the block anchor (which shards each tx touches). Committee lookups — wave leader, execution-vote quorum — use <code>TopologySchedule::at(weighted_timestamp)</code> so artifacts signed under an earlier epoch still verify against that epoch’s committee (<a href="#" data-file="crates/types/src/topology/schedule.rs" target="_blank" rel="noopener">topology/schedule.rs</a>).</p>
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — wave loop: assign → WaveState → dispatch_if_ready</p>
                 <div class="code-block"><pre><code class="language-rust">// crates/execution/src/coordinator.rs — setup_waves_and_dispatch
-let waves = assign_waves(topology, local_shard, block_height, transactions);
+let waves = assign_waves(classification, local_shard, block_height, transactions);
+let setup_committee = topology_schedule.at(block_ts);
 for (wave_id, txs) in waves {
     let is_single_shard = wave_id.is_zero();
     let mut wave_state = WaveState::new(wave_id.clone(), block_hash, block_ts, txs, is_single_shard);
@@ -150,7 +152,7 @@ for (wave_id, txs) in waves {
             <p><strong>Hyperscale-rs</strong> orders transactions (BFT), coordinates cross-shard provisions, and drives <em>when</em> execution runs. It does not interpret Radix manifests or run Radix Engine instructions.</p>
             <p><strong>Radix Engine</strong> (external) takes a transaction (e.g. a Radix manifest), runs instructions (<code>CallMethod</code>, <code>TakeFromWorktop</code>, …), and updates Radix-style state. Hyperscale-rs may <strong>analyze</strong> a tx for <code>declared_reads</code> / <code>declared_writes</code> (shard routing), then order and coordinate it; the VM runs in the engine, often via a separate worker the node calls.</p>
             <p>The <code>execution</code> crate wires committed blocks to that engine: single-shard apply-in-order; cross-shard uses ProvisionCoordinator then <code>ExecutionCoordinator</code> waves (see <a href="module-phase-04-cross-shard-tx.html">Phase 4</a>). State views and persistence may live in storage crates; canonical execution transitions are engine-owned.</p>
-            <p>The coordinator emits <code>Action::ExecuteTransactions</code>; shard_loop workers return <code>ProtocolEvent::ExecutionComplete</code>. Phase 3 is <strong>orchestration + agreement on outcomes</strong> (waves, ECs, <code>FinalizedWave</code>)—not VM opcode semantics.</p>
+            <p>The coordinator emits <code>Action::ExecuteTransactions</code>; shard-loop workers return <code>ProtocolEvent::ExecutionComplete</code>. Phase 3 is <strong>orchestration + agreement on outcomes</strong> (waves, ECs, <code>FinalizedWave</code>)—not VM opcode semantics.</p>
         </div>
 
         <div class="section">
@@ -163,8 +165,9 @@ for (wave_id, txs) in waves {
             <div class="hs-phase-proof">
                 <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — wave leader creates VoteTracker; early votes replayed</p>
                 <div class="code-block"><pre><code class="language-rust">// crates/execution/src/coordinator.rs — setup_waves_and_dispatch
-let leader = wave_leader(&amp;wave_id, topology.local_committee());
-if topology.local_validator_id() == leader {
+if let Some(committee) = setup_committee
+    &amp;&amp; self.me == wave_leader(&amp;wave_id, committee.consensus_committee_for_shard(local_shard))
+{
     let tracker = VoteTracker::new(wave_id.clone(), block_hash, quorum);
     self.waves.insert_tracker(wave_id.clone(), tracker);
     votes_to_replay.extend(self.early.drain_votes_for_wave(&amp;wave_id));
@@ -218,7 +221,7 @@ vec![Action::Continuation(
             </div>
             <div class="hs-qa-item">
                 <p class="hs-qa-q">Who runs Radix — coordinator or engine?</p>
-                <p>The <code>ExecutionCoordinator</code> schedules <code>ExecuteTransactions</code> actions; the engine/shard_loop workers run the VM and return results as events. The coordinator stays deterministic and free of signing keys for execution votes (those are handled in the shard_loop).</p>
+                <p>The <code>ExecutionCoordinator</code> schedules <code>ExecuteTransactions</code> actions; the engine/shard-loop workers run the VM and return results as events. The coordinator stays deterministic and free of signing keys for execution votes (those are handled in the shard-loop).</p>
             </div>
             <div class="hs-qa-item">
                 <p class="hs-qa-q">How do finalized waves get into the chain?</p>
@@ -272,7 +275,7 @@ vec![Action::Continuation(
                         "Only when the block has zero transactions"
                     ],
                     correct: 1,
-                    explanation: "state/shard.rs on_block_committed orders mempool → remote_headers → provisions → apply_block_to_execution."
+                    explanation: "state/participation/shard.rs on_block_committed orders mempool → remote_headers → provisions → apply_block_to_execution."
                 },
                 {
                     question: "What timestamp drives WAVE_TIMEOUT and vote-retry deadlines on a validator?",
@@ -341,7 +344,7 @@ vec![Action::Continuation(
                     explanation: "Bidirectional node overlap checks at register_tx / provision commit time break deadlock-style conflicts."
                 },
                 {
-                    question: "After execution processes a committed block, why does bft.queue_ready_proposal() run again?",
+                    question: "After execution processes a committed block, why does shard_coordinator.queue_ready_proposal() run again?",
                     options: [
                         "To replay Phase 1 RPC",
                         "New finalized waves / in-flight changes may mean the leader should build the next block",

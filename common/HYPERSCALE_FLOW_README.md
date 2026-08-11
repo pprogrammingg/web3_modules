@@ -10,7 +10,7 @@ Single source of truth: **`common/hyperscale-flow-data.js`**. Teaching modules g
 
 ## When hyperscale-rs is updated
 
-1. **Use the local clone only.** Do not fetch or verify content from GitHub. The clone path is in **`scripts/hyperscale-repo.config.js`** (default `../other_projects/hyperscale-rs`); override with **`LOCAL_REPO_PATH=/path/to/hyperscale-rs`**.
+1. **Use the local clone only.** Do not fetch or verify content from GitHub. The clone path is in **`scripts/hyperscale-repo.config.js`** (default `../hyperscale-rs`); override with **`LOCAL_REPO_PATH=/path/to/hyperscale-rs`**.
 2. **Edit** `common/hyperscale-flow-data.js` — `REPO_BASE_URL`, `CRATES`, `FILE_REFS` as needed (e.g. after renames). For large symbol moves, run **`node scripts/apply-hyperscale-repo-reflect.js`** then hand-fix prose.
 3. **See what to re-check:** Run **`node scripts/reflect-changes.js hyperscale`** (no diff arg). It diffs the **local** hyperscale-rs repo against the stored baseline in **`common/hyperscale-rs-last-synced.txt`** (or `main` if the file is missing). Re-check the listed modules against the local repo. (Legacy: `node scripts/check-hyperscale-changes.js` — same behavior.)
 4. **After updating modules**, run **`node scripts/reflect-changes.js hyperscale --save`** to record current hyperscale-rs HEAD as the new baseline. Paths under `vendor/` are ignored.

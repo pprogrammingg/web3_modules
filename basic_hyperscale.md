@@ -32,8 +32,8 @@ So: **Pending → Committed → Executed → Completed**. (Other outcomes: Defer
 |-------|--------|-----------|
 | **1. First contact** | `hyperscale-production`, `hyperscale-node`, `hyperscale-mempool`, `hyperscale-types`, `hyperscale-core`, `hyperscale-messages` | *Want to see how Hyperscale receives a transaction at the RPC and gets it into the right shards’ mempools? Start here.* |
 | **2. Sharding and routing** | `hyperscale-types`, `hyperscale-core`, `hyperscale-node` | *Once a transaction is decomposed into NodeIds and each shard is responsible for a slice of state, these crates define who does what and where the tx is stored.* |
-| **3. Proposing and building blocks** | `hyperscale-bft`, `hyperscale-mempool`, `hyperscale-types`, `hyperscale-core` | *How does one validator become the proposer and assemble the next block from the mempool? BFT and mempool have the answer.* |
-| **4. Voting and committing** | `hyperscale-bft`, `hyperscale-types`, `hyperscale-core` | *How do validators agree on a block, and when is it finally committed? Follow votes and quorum certificates.* |
+| **3. Proposing and building blocks** | `hyperscale-shard`, `hyperscale-mempool`, `hyperscale-types`, `hyperscale-core` | *How does one validator become the proposer and assemble the next block from the mempool? BFT and mempool have the answer.* |
+| **4. Voting and committing** | `hyperscale-shard`, `hyperscale-types`, `hyperscale-core` | *How do validators agree on a block, and when is it finally committed? Follow votes and quorum certificates.* |
 | **5. Execution after commit** | `hyperscale-execution`, `hyperscale-engine`, `hyperscale-node`, `hyperscale-types`, `hyperscale-core` | *Once a block is committed, who runs the transactions and how do single-shard and cross-shard paths diverge?* |
 | **6. Cross-shard: provisions and livelock** | `hyperscale-provisions`, `hyperscale-execution`, `hyperscale-livelock`, `hyperscale-types`, `hyperscale-core` | *How does state move between shards for cross-shard transactions, and how does Hyperscale avoid deadlock? Provisions and livelock crates hold the answer.* |
 
@@ -105,7 +105,7 @@ So: **Pending → Committed → Executed → Completed**. (Other outcomes: Defer
 
 ## Group 3: Proposing and building blocks
 
-**Crates:** `hyperscale-bft`, `hyperscale-mempool`, `hyperscale-types`, `hyperscale-core`
+**Crates:** `hyperscale-shard`, `hyperscale-mempool`, `hyperscale-types`, `hyperscale-core`
 
 **One-liner:** *How does one validator become the proposer and assemble the next block from the mempool? BFT and mempool have the answer.*
 
@@ -131,7 +131,7 @@ So: **Pending → Committed → Executed → Completed**. (Other outcomes: Defer
 
 ## Group 4: Voting and committing
 
-**Crates:** `hyperscale-bft`, `hyperscale-types`, `hyperscale-core`
+**Crates:** `hyperscale-shard`, `hyperscale-types`, `hyperscale-core`
 
 **One-liner:** *How do validators agree on a block, and when is it finally committed? Follow votes and quorum certificates.*
 

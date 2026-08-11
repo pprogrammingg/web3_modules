@@ -72,7 +72,7 @@
                 <table class="flow-steps flow-steps-wide-first">
                     <thead><tr><th>Big flow step</th><th>This phase</th></tr></thead>
                     <tbody>
-                        <tr><td>7 Proposer selection</td><td>§1 — <code>proposer_for(height, round)</code>, <code>should_propose</code></td></tr>
+                        <tr><td>7 Proposer selection</td><td>§1 — <code>proposer_for(shard, round)</code>, <code>can_propose</code> (parent-anchored committee)</td></tr>
                         <tr><td>8 Block proposal</td><td>§2–4 — <code>try_propose</code>, <code>BuildProposal</code>, <code>on_proposal_built</code></td></tr>
                         <tr><td>9 Validators vote</td><td>§5 — <code>PersistAndBroadcastVote</code>, <code>BlockVote</code> gossip</td></tr>
                         <tr><td>10 QC formed</td><td>§6 — <code>VerifyAndBuildQuorumCertificate</code>, <code>on_qc_formed</code></td></tr>
@@ -88,31 +88,36 @@
             <ul class="module-tight-prose">
                 <li><strong>One BFT instance per shard</strong> — validators in the committee run the same protocol locally; progress requires quorum (typically 2f+1 of n=3f+1).</li>
                 <li><strong>Height</strong> = block slot index; <strong><span class="glossary-term" data-glossary="view">round (view)</span></strong> = attempt number at that height. The round advances via <span class="glossary-term" data-glossary="implicit view change">implicit view change</span> when the <code>ViewChangeTimer</code> fires—not on a “proposal timer.” Details: <a href="module-timers-reference.html">timing module</a>.</li>
-                <li><strong>Proposals are event-driven, not clock-driven.</strong> Hyperscale-rs does not fire a periodic “time to propose” alarm. Instead, whenever something actually changes what could go into the next block—a new mempool transaction, a learned QC, completed cross-shard provisions, or a fresh <span class="glossary-term" data-glossary="block commit">block commit</span>—the node sets a lightweight latch with <code>queue_ready_proposal()</code>: “inputs may have changed; check whether we should build.” After the current <code>NodeInput</code> is handled and its actions are dispatched, <code>try_event_driven_proposal</code> gathers ready material and, if this validator is the leader for the current height and round, calls <code>try_propose</code>. When the round is stuck (slow leader, missing QC), <span class="glossary-term" data-glossary="view change">view change</span> bumps the round so <code>proposer_for(height, round)</code> picks the next leader—there is <strong>no</strong> <code>ProposalTimer</code> in the codebase today.</li>
+                <li><strong>Proposals are event-driven, not clock-driven.</strong> Hyperscale-rs does not fire a periodic “time to propose” alarm. Instead, whenever something actually changes what could go into the next block—a new mempool transaction, a learned QC, completed cross-shard provisions, or a fresh <span class="glossary-term" data-glossary="block commit">block commit</span>—the node sets a lightweight latch with <code>queue_ready_proposal()</code>: “inputs may have changed; check whether we should build.” After the current <code>NodeInput</code> is handled and its actions are dispatched, <code>try_event_driven_proposal</code> gathers ready material and, if this validator is the leader for the current round on the <strong>parent-anchored</strong> committee, calls <code>try_propose</code>. When the round is stuck (slow leader, missing QC), <span class="glossary-term" data-glossary="view change">view change</span> bumps the round so <code>proposer_for(shard, round)</code> picks the next leader—there is <strong>no</strong> <code>ProposalTimer</code> in the codebase today.</li>
                 <li><strong>Quorum certificates ride the chain, not a separate wire.</strong> When enough validators agree on block H, they produce a quorum certificate—QC(H). You might expect a dedicated “here is QC(H)” gossip message; in practice, hyperscale-rs mostly does not work that way. The next proposer carries QC(H) inside block H+1’s header as <code>parent_qc</code>, so the certificate spreads with normal block gossip. If you aggregated votes yourself, you may already hold QC(H) before H+1 lands—but if you are tracing “where did everyone learn QC(H)?”, follow <code>parent_qc</code> on the child block, not a standalone QC broadcast.</li>
             </ul>
         </div>
 
         <div class="section">
             <h2>1 — Who gets to propose this block? (step 7)</h2>
-            <p>The shard does <strong>not</strong> vote on “who should be leader for this block.” Everyone runs the same formula: given block height and round number, look up the next validator in a fixed round-robin over the committee list. If you know height 42 and round 1, every honest node computes the same leader id—no election message required.</p>
-            <p>On your machine, a second check asks: “Is that leader <em>me</em>?” Only then does this process build and broadcast a block. Followers still validate and vote; they just do not assemble the proposal bytes.</p>
+            <p>The shard does <strong>not</strong> vote on “who should be leader for this block.” Everyone runs the same formula on the <strong>consensus committee for the tip’s parent-anchored window</strong> (<code>TopologySchedule</code> entry for <code>epoch_for(parent_qc.wt)</code>): given shard and round, take <code>round % committee.len()</code> over that committee list. If you know the tip’s committee and round 1, every honest node computes the same leader id—no election message required.</p>
+            <p>On your machine, <code>ShardCoordinator::can_propose</code> asks: “Am I that leader, and am I allowed to build again at this round?” Only then does this process build and broadcast a block. Followers still validate and vote; they just do not assemble the proposal bytes.</p>
             <div class="hs-gotcha">
-                <strong>Gotcha — small committees:</strong> With 5 validators, the same node is proposer again every 5 heights at round 0. That is expected round-robin, not “unfair repetition.”
+                <strong>Gotcha — small committees:</strong> With 5 validators, the same node is proposer again every 5 <em>rounds</em> (not every 5 heights). That is expected round-robin, not “unfair repetition.”
             </div>
             <div class="hs-gotcha">
-                <strong>Gotcha — Byzantine header:</strong> Admission checks <code>proposer_for(height, header.round())</code> matches the header’s claimed proposer; wrong proposer → reject before voting.
+                <strong>Gotcha — Byzantine header:</strong> Admission checks <code>proposer_for(shard, header.round())</code> on the parent-anchored committee matches the header’s claimed proposer; wrong proposer → reject before voting.
             </div>
             <div class="hs-phase-proof">
-                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — round-robin proposer; local node proposes only when ids match</p>
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — round-robin proposer; <code>can_propose</code> gates local builds</p>
                 <div class="code-block"><pre><code class="language-rust">// crates/types/src/topology/snapshot.rs
-pub fn proposer_for(&amp;self, height: BlockHeight, round: Round) -&gt; ValidatorId {
-    let index = (height.inner() + round.inner()) % committee.len() as u64;
+pub fn proposer_for(&amp;self, shard: ShardId, round: Round) -&gt; ValidatorId {
+    let committee = self.consensus_committee_for_shard(shard);
+    let index = usize::try_from(round.inner() % committee.len() as u64).unwrap();
     committee[index]
 }
-pub fn should_propose(&amp;self, height: BlockHeight, round: Round) -&gt; bool {
-    self.proposer_for(height, round) == self.local_validator_id
-}</code></pre></div>
+
+// crates/shard/src/coordinator.rs — can_propose (simplified)
+let Some(committee) = self.tip_committee(topology_schedule) else { return false; };
+if committee.proposer_for(self.local_shard, round) != self.me {
+    return false;
+}
+// … also: not dissolved, round &gt; last_voted_round, no in-flight/deferred build</code></pre></div>
             </div>
         </div>
 
@@ -129,8 +134,8 @@ pub fn should_propose(&amp;self, height: BlockHeight, round: Round) -&gt; bool {
 // crates/node/src/state/mod.rs — NodeStateMachine owns shard_coordinator: ShardCoordinator</code></pre></div>
             </div>
             <div class="hs-phase-proof">
-                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — QC builder = first local quorum, not proposer-only (<a href="#" data-file="crates/shard/src/vote_keeper.rs" target="_blank" rel="noopener">vote_keeper.rs</a>, <a href="#" data-file="crates/node/src/state/shard.rs" target="_blank" rel="noopener">state/shard.rs</a>)</p>
-                <div class="code-block"><pre><code class="language-rust">// Every validator runs the same vote handler — no should_propose gate
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — QC builder = first local quorum, not proposer-only (<a href="#" data-file="crates/shard/src/vote_keeper.rs" target="_blank" rel="noopener">vote_keeper.rs</a>, <a href="#" data-file="crates/node/src/state/participation/shard.rs" target="_blank" rel="noopener">state/participation/shard.rs</a>)</p>
+                <div class="code-block"><pre><code class="language-rust">// Every validator runs the same vote handler — no can_propose gate on votes
 ProtocolEvent::BlockVoteReceived { vote } =&gt; {
     self.shard_coordinator.on_block_vote(self.topology.snapshot(), vote)
 }
@@ -217,14 +222,14 @@ if self.shard_coordinator.take_ready_proposal() {
     actions.extend(self.try_event_driven_proposal());
 }
 
-// crates/node/src/state/proposal.rs
+// crates/node/src/state/participation/proposal.rs
 pub(super) fn try_event_driven_proposal(&amp;mut self) -&gt; Vec&lt;Action&gt; {
     let inputs = self.gather_proposal_inputs(...);
     self.shard_coordinator.try_propose(self.topology.snapshot(), &amp;inputs.ready_txs, ...)
 }</code></pre></div>
                 <div class="code-block"><pre><code class="language-rust">// crates/shard/src/coordinator.rs — try_propose (guards)
 if !self.can_propose(topology_snapshot, next_height, round) { return vec![]; }
-// can_propose: should_propose + no duplicate in-flight BuildProposal for (height, round)
+// can_propose: tip-committee proposer_for match + no duplicate in-flight BuildProposal for (height, round)
 ...</code></pre></div>
             </div>
         </div>
@@ -307,7 +312,7 @@ Action::SignAndBroadcastBlockVote { block_hash, height, round, next_proposers, .
             <p><strong>No.</strong> Block at height H is voted on; the QC you build certifies <strong>block H</strong>. That QC is stored as <code>latest_qc</code> locally and carried forward as the chain’s “highest certified block.” It is embedded in the <strong>next</strong> proposal:</p>
             <ul class="module-tight-prose">
                 <li>When height H+1 is proposed, <code>build_proposal</code> / <code>chain_view().proposal_parent()</code> supplies <code>parent_qc</code> = the QC for block H (the parent link in the header).</li>
-                <li>So <strong>the proposer for H+1</strong> (whoever <code>should_propose</code> is for that height/round) copies the certifying QC into the header they broadcast—not the proposer for H “stamping” their own block in flight.</li>
+                <li>So <strong>the proposer for H+1</strong> (whoever <code>can_propose</code> allows for that tip/round) copies the certifying QC into the header they broadcast—not the proposer for H “stamping” their own block in flight.</li>
                 <li>Validators who missed the vote stream still learn QC(H) when they accept block H+1’s header and read <code>parent_qc</code>.</li>
             </ul>
 
@@ -399,7 +404,7 @@ fn try_two_chain_commit(...) -&gt; Vec&lt;Action&gt; {
     })]
 }
 
-// crates/node/src/state/shard.rs — on_block_committed
+// crates/node/src/state/participation/shard.rs — on_block_committed
 actions.extend(self.mempool.on_block_committed(...));
 actions.extend(self.execution.on_block_committed(...));</code></pre></div>
             </div>
@@ -429,7 +434,7 @@ actions.extend(self.execution.on_block_committed(...));</code></pre></div>
                 <div class="code-block"><pre><code class="language-rust">// crates/mempool/src/coordinator.rs
 pool: BTreeMap&lt;TxHash, PoolEntry&gt;,  // status: TransactionStatus
 
-// crates/node/src/state/shard.rs — on_block_committed
+// crates/node/src/state/participation/shard.rs — on_block_committed
 actions.extend(self.mempool.on_block_committed(self.topology.snapshot(), certified));</code></pre></div>
             </div>
             <div class="hs-phase-proof">
@@ -520,7 +525,7 @@ Action::SetTimer { id: TimerId::ViewChange, ... }</code></pre></div>
         <div class="section">
             <h2>13 — Phase 2 checklist</h2>
             <ul>
-                <li>Proposer known: <code>proposer_for(height, round)</code>; only that node dispatches <code>BuildProposal</code></li>
+                <li>Proposer known: <code>proposer_for(shard, round)</code>; only that node dispatches <code>BuildProposal</code></li>
                 <li>Block built off storage via <code>build_proposal</code>; header gossip + votes</li>
                 <li>QC formed at 2f+1; learned via aggregation and/or next <code>parent_qc</code></li>
                 <li><span class="glossary-term" data-glossary="two-chain commit">Two-chain commit</span> applied on every validator; <code>BlockCommitted</code> fired</li>
@@ -559,7 +564,7 @@ Action::SetTimer { id: TimerId::ViewChange, ... }</code></pre></div>
                     question: "When does hyperscale-rs dispatch Action::BuildProposal?",
                     options: [
                         "On a periodic ProposalTimer every N milliseconds",
-                        "When try_propose runs after new content and should_propose + guards pass",
+                        "When try_propose runs after new content and can_propose + guards pass",
                         "Immediately when any tx enters Pending",
                         "Only on CleanupTimer"
                     ],
@@ -622,15 +627,15 @@ Action::SetTimer { id: TimerId::ViewChange, ... }</code></pre></div>
                     explanation: "Inclusion in the block drives Committed path for T; non-included ready txs remain Pending for a later proposal."
                 },
                 {
-                    question: "topology.should_propose(h, r) is true when:",
+                    question: "can_propose (tip committee) is true when:",
                     options: [
                         "Any validator in the shard wants a block",
-                        "This node's validator id equals proposer_for(h, r)",
+                        "This node's validator id equals proposer_for(shard, r)",
                         "The mempool has more than 100 Pending txs",
                         "ViewChangeTimer fired"
                     ],
                     correct: 1,
-                    explanation: "should_propose is local: am I the deterministic leader for this height and round?"
+                    explanation: "can_propose is local: tip-committee proposer_for(shard, round) equals me, plus round/guards."
                 },
                 {
                     question: "A Byzantine proposer spams different headers at the same (height, round). View-change suppression is limited by:",

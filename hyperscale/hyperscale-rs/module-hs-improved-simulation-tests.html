@@ -21,7 +21,7 @@
         <div class="section project-hero">
             <h2>Why this project</h2>
             <p style="margin:0;line-height:1.65;">
-                You already traced <code>test_e2e_single_shard_transaction</code> on paper in <a href="module-hs-simulation-harness-analysis.html">End-to-End Tests</a>.
+                You already traced <code>single_shard_tx_sim</code> on paper in <a href="module-hs-simulation-harness-analysis.html">End-to-End Tests</a>.
                 Here you <strong>change the real test</strong> in the repo: add visible trace points, add a <strong>committed-height check</strong> across validators (and learn when strict equality matches what a single <code>run_until</code> snapshot can show), and relate <strong><code>SimulationStats</code></strong> to how much <strong>simulated time</strong> you allow.
                 Everything runs under <code>cargo test</code> with <code>--nocapture</code> so you see effects immediately—no extra harness.
             </p>
@@ -32,14 +32,14 @@
             <ul>
                 <li>Local clone of <a href="https://github.com/flightofthefox/hyperscale-rs" target="_blank" rel="noopener">hyperscale-rs</a>, <code>cargo</code> and stable Rust working.</li>
                 <li>Comfort reading Rust integration tests and panics.</li>
-                <li>Skim <a href="module-hs-simulation-harness-analysis.html">simulation harness analysis</a> so <code>SimulationRunner</code>, <code>run_until</code>, and <code>SubmitTransaction</code> are not new.</li>
+                <li>Skim <a href="module-hs-simulation-harness-analysis.html">simulation harness analysis</a> so <code>SimCluster</code>, <code>run_until</code>, and <code>SubmitTransaction</code> are not new.</li>
             </ul>
         </div>
 
         <div class="section">
             <h2>Files you will touch</h2>
             <ul>
-                <li><code>crates/simulation/tests/e2e_tests.rs</code> — function <code>test_e2e_single_shard_transaction</code> (starts near the top of the single-shard tests section).</li>
+                <li><code>crates/simulation/tests/scenarios.rs</code> — function <code>single_shard_tx_sim</code> (starts near the top of the single-shard tests section).</li>
                 <li>Optional: <code>crates/simulation/src/runner.rs</code> — <code>SimulationStats</code> (<code>Debug</code>) if you want to read field meanings in source.</li>
             </ul>
         </div>
@@ -47,70 +47,57 @@
         <div class="section project-step" id="step-1">
             <h3>Step 1 — Baseline run</h3>
             <p>From the <strong>hyperscale-rs repository root</strong>:</p>
-            <pre style="overflow-x:auto;padding:1rem;background:var(--bg2);border-radius:6px;font-size:0.9rem;">cargo test -p hyperscale-simulation test_e2e_single_shard_transaction -- --nocapture</pre>
+            <pre style="overflow-x:auto;padding:1rem;background:var(--bg2);border-radius:6px;font-size:0.9rem;">cargo test -p hyperscale-simulation --test scenarios single_shard_tx_sim -- --nocapture</pre>
             <p>Confirm the test passes. Scroll the output once: note genesis message, transaction hash, “initial consensus”, mempool status, and the final pass banner. You will align your own prints with this rhythm.</p>
         </div>
 
         <div class="section project-step" id="step-2">
             <h3>Step 2 — Trace markers</h3>
-            <p>In <code>test_e2e_single_shard_transaction</code>, add two clear markers (either <code>println!</code> or <code>tracing::info!</code>):</p>
-            <ol>
-                <li>Immediately after <code>runner.initialize_genesis();</code> — e.g. <code>println!("[lab] genesis done");</code></li>
-                <li>Immediately after the <code>runner.schedule_initial_event(... SubmitTransaction ...)</code> call — e.g. <code>println!("[lab] submit scheduled on node 0");</code></li>
-            </ol>
-            <p>Re-run the same <code>cargo test</code> command. Verify <strong>[lab] genesis done</strong> appears before <strong>[lab] submit scheduled</strong> and before the long simulation output. If you use <code>tracing</code>, set <code>RUST_LOG=info</code> for that crate as needed; <code>println!</code> is enough for this lab.</p>
+            <p>In <code>single_shard_tx_sim</code> (<code>scenarios.rs</code>), wrap the portable scenario so you can see setup vs drive:</p>
+            <pre style="overflow-x:auto;padding:1rem;background:var(--bg2);border-radius:6px;font-size:0.85rem;">#[test]
+fn single_shard_tx_sim() {
+    let mut cluster = SimCluster::new(&amp;liveness_config(), 42);
+    println!("[lab] cluster ready (4 hosts, 1 shard)");
+    single_shard_tx(&amp;mut cluster);
+    println!("[lab] single_shard_tx returned");
+}</pre>
+            <p>Optional deeper cut: add markers inside <code>hyperscale_scenarios::single_shard_tx</code> around <code>c.submit(...)</code> and the accept assertion (portable body shared with production CI). Re-run the same <code>cargo test</code> command and confirm <strong>[lab] cluster ready</strong> appears before the scenario completes.</p>
         </div>
 
         <div class="section project-step" id="step-3">
             <h3>Step 3 — Committed heights across validators</h3>
-            <p>With full connectivity and shared simulated time, validators <strong>eventually</strong> agree on the same committed tip—but a <strong>single</strong> call to <code>run_until</code> gives you a <em>snapshot</em> at a discrete event boundary, not a proof that every node has applied every message by that instant.</p>
+            <p><code>Cluster::committed_height(shard)</code> returns the <strong>cluster-wide max</strong> tip. To see per-host lag, use <code>host_committed_height(host, shard)</code> on <code>SimCluster</code> (FaultableCluster trait).</p>
             <div class="bft-design-callout" style="margin-top:1rem;margin-bottom:1rem;">
                 <span class="callout-label">Important caveat</span>
-                <h3>Why you might see <code>[2, 2, 2, 1]</code> (or similar) right after <code>run_until(2s)</code></h3>
-                <p>Commits propagate through the simulated network with <strong>nonzero latency</strong>. When simulated time hits your cutoff, the message that would advance the last validator’s <code>committed_height()</code> may still be <strong>scheduled for delivery after</strong> that cutoff. The runner stops when the next event time would exceed <code>end_time</code> (see <code>run_until</code> in <code>crates/simulation/src/runner.rs</code>)—so one node can legitimately be <strong>one block behind</strong> at that moment. That usually means <strong>eventual sync</strong>, not a fork or a broken chain.</p>
-                <p><strong>Takeaway:</strong> requiring <code>heights.iter().all(|h| h == heights[0])</code> immediately after a fixed <code>Duration::from_secs(2)</code> is <strong>stricter than the harness guarantees</strong>. If your assertion panics with one node one height lower, the lesson is real; adjust the lab so the test stays meaningful and green.</p>
-                <h4>Ways to align the exercise with the simulator</h4>
-                <ul>
-                    <li><strong>Eventual equality:</strong> After the first <code>run_until(2s)</code>, loop with small extra <code>run_until</code> steps (or one longer slice) until all heights match, with a safety cap on iterations so the test cannot hang.</li>
-                    <li><strong>Weaker invariant:</strong> Assert that the highest and lowest <code>committed_height</code> in your vector differ by at most one, and print the vector—then explain in notes why a spread of one can happen at a hard time stop.</li>
-                    <li><strong>Strict equality after more time:</strong> Keep the strict <code>all(|h| h == heights[0])</code> only once you have enough simulated time (or the spin loop above) that all four nodes have caught up.</li>
-                </ul>
+                <h3>Why you might see <code>[2, 2, 2, 1]</code> (or similar) mid-run</h3>
+                <p>Commits propagate through the simulated network with <strong>nonzero latency</strong>. A snapshot while messages are still in flight can leave one host one height behind. That usually means <strong>eventual sync</strong>, not a fork.</p>
+                <p><strong>Takeaway:</strong> requiring strict equality at an arbitrary midpoint is stricter than the harness guarantees. Prefer asserting after the scenario’s own <code>await_tx_terminal</code> succeeds, or document a weaker max−min ≤ 1 check.</p>
             </div>
-            <p>After the <strong>first</strong></p>
-            <pre style="overflow-x:auto;padding:0.75rem;background:var(--bg2);border-radius:6px;font-size:0.88rem;">runner.run_until(Duration::from_secs(2));</pre>
-            <p>insert code that collects <code>committed_height()</code> for node indices <code>0..4</code> (this test uses four validators on one shard). Use <code>runner.node(i).expect("node").bft().committed_height()</code>.</p>
-            <p><strong>Requirements:</strong></p>
-            <ul>
-                <li>Always <strong>print</strong> the <code>Vec</code> of heights (e.g. <code>println!(&quot;[lab] committed heights … {:?}&quot;, heights)</code>) so you can see alignment or lag at a glance.</li>
-                <li>Use an <strong>assertion strategy</strong> you can justify: either strict equality after a spin/longer run, or a documented weaker check, per the caveat above. If you use strict equality right at 2s only, expect occasional failure unless your network timing always delivers in time.</li>
-                <li>Whatever you assert, the panic or failure path should still print the full height vector so a mismatch is obvious.</li>
-            </ul>
-            <p>Example shape (adapt names, message, and assertion to match the option you chose):</p>
-            <pre style="overflow-x:auto;padding:1rem;background:var(--bg2);border-radius:6px;font-size:0.85rem;">let heights: Vec&lt;u64&gt; = (0..4u32)
-    .map(|i| runner.node(i).expect("node").bft().committed_height())
+            <p>After <code>single_shard_tx(&amp;mut cluster)</code> returns (tx accepted), collect per-host heights:</p>
+            <pre style="overflow-x:auto;padding:1rem;background:var(--bg2);border-radius:6px;font-size:0.85rem;">use hyperscale_types::ShardId;
+let heights: Vec&lt;u64&gt; = (0..4usize)
+    .map(|host| {
+        cluster
+            .host_committed_height(host, ShardId::ROOT)
+            .expect("host seats ROOT")
+            .inner()
+    })
     .collect();
-// Strict snapshot (may fail under latency + fixed cutoff—see caveat above):
+println!("[lab] per-host committed heights: {:?}", heights);
 assert!(
     heights.iter().all(|&amp;h| h == heights[0]),
     "validators not aligned on committed height: {:?}",
     heights
-);
-println!("[lab] committed heights after 2s sim time: {:?}", heights);</pre>
-            <p>If your test sometimes returns early (transaction already executed), your check still runs on the path that reaches it—if you hit an early <code>return</code> before this line, move the height logic to a small helper and call it from each exit path, or document which path you tested; for grading yourself, the main path after the first <code>run_until</code> is enough.</p>
+);</pre>
+            <p><strong>Requirements:</strong> always print the vector; if equality fails right after accept, try one more short <code>cluster.run_until(...)</code> budget or document max−min ≤ 1 as your lab note.</p>
         </div>
 
         <div class="section project-step" id="step-4">
             <h3>Step 4 — SimulationStats vs time</h3>
-            <p>Still after that first <code>run_until(2s)</code> (and ideally after your height assertion), print <code>runner.stats()</code>:</p>
-            <pre style="overflow-x:auto;padding:0.75rem;background:var(--bg2);border-radius:6px;font-size:0.88rem;">println!("[lab] stats after 2s: {:?}", runner.stats());</pre>
-            <p>Run again and note <code>events_processed</code>, <code>messages_sent</code>, and <code>timers_set</code>.</p>
-            <p>Now change <strong>only</strong> that first <code>run_until</code> duration to <code>Duration::from_millis(15)</code> (very tight). Re-run with <code>--nocapture</code>.</p>
-            <ul>
-                <li>Are committed heights still equal across nodes (or within your Step 3 tolerance)? (With only 15ms they often still match but stay at <code>0</code>.)</li>
-                <li>How do the stats compare to the 2-second run?</li>
-                <li>Does the test still pass end-to-end, or does it fail later because the transaction never finishes?</li>
-            </ul>
-            <p><strong>Restore</strong> <code>Duration::from_secs(2)</code> before you finish so you do not leave the suite flaky for others.</p>
+            <p>Still inside the test (after height checks), peek at the underlying runner stats:</p>
+            <pre style="overflow-x:auto;padding:0.75rem;background:var(--bg2);border-radius:6px;font-size:0.88rem;">println!("[lab] stats: {:?}", cluster.runner().stats()); // or access via SimCluster fields if public</pre>
+            <p>If <code>runner()</code> is not exposed, open <code>crates/simulation/src/runner.rs</code> and note which <code>SimulationStats</code> fields (<code>events_processed</code>, <code>messages_sent</code>, <code>timers_set</code>) the harness updates — then temporarily log them from a local branch of <code>SimCluster</code> or the scenario body.</p>
+            <p>Compare a full <code>single_shard_tx</code> run to a deliberately starved budget (e.g. call <code>run_until</code> with a tiny <code>Budget</code> before submit and observe the accept assertion fail). Restore the normal scenario before you finish.</p>
         </div>
 
         <div class="section project-step" id="step-5">

@@ -80,12 +80,12 @@
                     </tr>
                     <tr>
                         <td>3</td>
-                        <td><code>ShardLoop::run_step</code>: <code>NodeInput::TransactionGossipReceived</code> arm (<code>crates/node/src/shard_loop/mod.rs</code> + <code>shard_loop/step/tx_validation.rs</code>) — queues batched validation for inbound gossip; locally submitted txs skip this arm because step 2 already queued validation.</td>
+                        <td><code>ShardLoop::step</code>: <code>NodeInput::TransactionGossipReceived</code> arm (<code>crates/node/src/shard/mod.rs</code> + <code>shard/mempool/validation.rs</code>) — queues batched validation for inbound gossip; locally submitted txs skip this arm because step 2 already queued validation.</td>
                         <td><code>tracing::debug!(tx_hash = ?tx_hash, "shard_loop: gossip tx received, queued for validation");</code></td>
                     </tr>
                     <tr>
                         <td>4</td>
-                        <td>Node state: <code>ProtocolEvent::TransactionValidated</code> handled in <code>crates/node/src/state/transactions.rs</code> → <code>mempool.on_transaction_gossip</code>.</td>
+                        <td>Node state: <code>ProtocolEvent::TransactionValidated</code> handled in <code>crates/node/src/state/participation/transactions.rs</code> → <code>mempool.on_transaction_gossip</code>.</td>
                         <td><code>tracing::debug!(tx_hash = ?tx.hash(), submitted_locally = submitted_locally, "node state: TransactionValidated -> mempool");</code></td>
                     </tr>
                     <tr>
@@ -316,7 +316,7 @@
                         </tr>
                         <tr>
                             <td>Flow 1 — steps 2–4</td>
-                            <td><a href="#" data-file="crates/node/src/shard_loop/mod.rs" target="_blank" rel="noopener">crates/node/src/shard_loop/mod.rs</a>, <a href="#" data-file="crates/node/src/shard_loop/step/tx_validation.rs" target="_blank" rel="noopener">crates/node/src/shard_loop/step/tx_validation.rs</a> (<code>SubmitTransaction</code>, gossip ingress, validation batches), <a href="#" data-file="crates/node/src/process_io/network_handlers.rs" target="_blank" rel="noopener">crates/node/src/process_io/network_handlers.rs</a> (wire → <code>TransactionGossipReceived</code>), <a href="#" data-file="crates/node/src/state/transactions.rs" target="_blank" rel="noopener">crates/node/src/state/transactions.rs</a> (<code>ProtocolEvent::TransactionValidated</code> → mempool)</td>
+                            <td><a href="#" data-file="crates/node/src/shard/mod.rs" target="_blank" rel="noopener">crates/node/src/shard/mod.rs</a>, <a href="#" data-file="crates/node/src/shard/mempool/validation.rs" target="_blank" rel="noopener">crates/node/src/shard/mempool/validation.rs</a> (<code>SubmitTransaction</code>, gossip ingress, validation batches), <a href="#" data-file="crates/node/src/process/network_handlers.rs" target="_blank" rel="noopener">crates/node/src/process/network_handlers.rs</a> (wire → <code>TransactionGossipReceived</code>), <a href="#" data-file="crates/node/src/state/participation/transactions.rs" target="_blank" rel="noopener">crates/node/src/state/participation/transactions.rs</a> (<code>ProtocolEvent::TransactionValidated</code> → mempool)</td>
                         </tr>
                         <tr>
                             <td>Flow 1 — step 5</td>

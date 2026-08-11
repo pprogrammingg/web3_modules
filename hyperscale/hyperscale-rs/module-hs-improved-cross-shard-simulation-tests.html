@@ -23,7 +23,7 @@
             <p style="margin:0;line-height:1.65;">
                 After <a href="module-phase-04-cross-shard-tx.html">Phase 4: Cross-Shard Transactions</a>, you run the
                 <strong>deterministic multi-shard simulation E2E</strong> in the repo:
-                <code>test_e2e_cross_shard_transaction</code> (six validators, <code>multi_shard_config()</code>).
+                <code>cross_shard_tx_sim</code> (<code>split_config()</code>: split armed, pool surplus seats child committees).
                 You add trace markers, print per-shard committed heights and transaction status, and relate the polling loop
                 (mempool → committed → executed → finalized) to the five-phase cross-shard story—not a repeat of the single-shard height lab.
             </p>
@@ -41,21 +41,21 @@
         <div class="section">
             <h2>Files you will touch</h2>
             <ul>
-                <li><code>crates/simulation/tests/e2e_tests.rs</code> — <code>test_e2e_cross_shard_transaction</code> (multi-shard section; uses <code>multi_shard_config()</code>).</li>
-                <li>Optional: same file — <code>multi_shard_config()</code> helper near the top of the cross-shard tests.</li>
+                <li><code>crates/simulation/tests/scenarios.rs</code> — <code>cross_shard_tx_sim</code> (multi-shard section; uses <code>split_config()</code>).</li>
+                <li>Optional: same file — <code>split_config()</code> helper near the top of the cross-shard tests.</li>
             </ul>
         </div>
 
         <div class="section project-step" id="step-1">
             <h3>Step 1 — Baseline run</h3>
             <p>From the <strong>hyperscale-rs repository root</strong>:</p>
-            <pre style="overflow-x:auto;padding:1rem;background:var(--bg2);border-radius:6px;font-size:0.9rem;">cargo test -p hyperscale-simulation test_e2e_cross_shard_transaction -- --nocapture</pre>
+            <pre style="overflow-x:auto;padding:1rem;background:var(--bg2);border-radius:6px;font-size:0.9rem;">cargo test -p hyperscale-simulation --test scenarios cross_shard_tx_sim -- --nocapture</pre>
             <p>Confirm the test passes. Note the ASCII diagram in the test comment (withdraw on shard 0, deposit on shard 1), seed discovery for accounts on different shards, and the final per-shard validator dump (nodes 0–2 vs 3–5).</p>
         </div>
 
         <div class="section project-step" id="step-2">
             <h3>Step 2 — Trace markers</h3>
-            <p>In <code>test_e2e_cross_shard_transaction</code>, add two markers:</p>
+            <p>In <code>cross_shard_tx_sim</code>, add two markers:</p>
             <ol>
                 <li>After <code>runner.initialize_genesis_with_balances(...)</code> — e.g. <code>println!("[lab-xshard] genesis balances set");</code></li>
                 <li>After <code>runner.schedule_initial_event(... SubmitTransaction ...)</code> — e.g. <code>println!("[lab-xshard] cross-shard tx scheduled: {:?}", tx_hash);</code></li>
@@ -83,7 +83,7 @@
         <div class="section project-step" id="step-5">
             <h3>Step 5 — Stretch (optional)</h3>
             <ul>
-                <li>Temporarily increase <code>num_shards</code> in <code>multi_shard_config()</code> only in a local branch and document why the seed search loop must find accounts on distinct shards.</li>
+                <li>Temporarily change <code>split_bytes</code> / <code>pool_surplus</code> in <code>split_config()</code> only in a local branch and document how that changes when children appear.</li>
                 <li>Compare one line from this test’s final assertions with the provision narrative in <a href="module-phase-04-cross-shard-tx.html">Phase 4</a>.</li>
             </ul>
         </div>
@@ -93,7 +93,7 @@
             <ul>
                 <li>Markers prove you can locate genesis funding and cross-shard submit in the event timeline.</li>
                 <li>Per-shard height/finalization prints show you can read both validator groups (0–2 and 3–5).</li>
-                <li>You can explain in one paragraph how this test differs from <code>test_e2e_single_shard_transaction</code> (routing, two shard groups, cross-shard manifest).</li>
+                <li>You can explain in one paragraph how this test differs from <code>single_shard_tx_sim</code> (routing, two shard groups, cross-shard manifest).</li>
             </ul>
         </div>
 

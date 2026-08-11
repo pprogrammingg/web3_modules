@@ -144,7 +144,7 @@ const COURSE_DATA = {
                     path: 'hyperscale/hyperscale-rs/module-phase-02-propose-vote-commit.html',
                     description: 'In-depth drill on propose → vote → QC → commit; shard coordinator paths and in-repo proofs.',
                     objectives: [
-                        'Explain proposer_for vs should_propose and why there is no ProposalTimer',
+                        'Explain proposer_for(shard, round) vs can_propose and why there is no ProposalTimer',
                         'Trace BuildProposal → ProposalBuilt → vote → QC → commit_block',
                         'Separate revote from equivocation and QC-via-parent_qc from “QC gossip”',
                     ],
@@ -222,11 +222,11 @@ const COURSE_DATA = {
                     duration: '2–2.5 hours',
                     difficulty: 'Level 5',
                     path: 'hyperscale/hyperscale-rs/module-hs-simulation-harness-analysis.html',
-                    description: 'SimulationRunner/EventKey plus production pinned shard-loop, RPC ingress, and observability—reading before hands-on labs.',
+                    description: 'SimCluster/EventKey plus production pinned shard-loop, RPC ingress, and observability—reading before hands-on labs.',
                     objectives: [
-                        'Separate sim time from wall clock and trace test_e2e_single_shard_transaction',
+                        'Separate sim time from wall clock and trace single_shard_tx_sim',
                         'Map RPC SubmitTransaction vs tx_submission_sender to consensus_rx',
-                        'Contrast SimulationRunner with run_shard_loop production wiring',
+                        'Contrast SimCluster with run_shard_loop production wiring',
                     ],
                     hyperscaleSpecific: true,
                     contributionModule: false,
@@ -239,7 +239,7 @@ const COURSE_DATA = {
                     duration: '1.5–2 hours',
                     difficulty: 'Level 5',
                     path: 'hyperscale/hyperscale-rs/module-hs-improved-simulation-tests.html',
-                    description: 'Hands-on: instrument test_e2e_single_shard_transaction and explore SimulationStats vs simulated time.',
+                    description: 'Hands-on: instrument single_shard_tx_sim and explore SimulationStats vs simulated time.',
                     objectives: [
                         'Add trace markers to an existing single-shard simulation E2E test',
                         'Assert height synchronization with harness-aware tolerance',
@@ -256,7 +256,7 @@ const COURSE_DATA = {
                     duration: '1.5–2 hours',
                     difficulty: 'Level 5',
                     path: 'hyperscale/hyperscale-rs/module-hs-improved-production-tests.html',
-                    description: 'Hands-on: instrument test_production_runner_with_network and document ingress hooks.',
+                    description: 'Hands-on: instrument runner_boots_listens_and_shuts_down_cleanly and document ingress hooks.',
                     objectives: [
                         'Add tracing markers to a production integration test',
                         'Assert network listen addresses and clean shutdown',
@@ -289,7 +289,7 @@ const COURSE_DATA = {
                     duration: '1.5–2 hours',
                     difficulty: 'Level 6',
                     path: 'hyperscale/hyperscale-rs/module-hs-improved-cross-shard-simulation-tests.html',
-                    description: 'Hands-on: instrument test_e2e_cross_shard_transaction (multi_shard_config, six validators).',
+                    description: 'Hands-on: instrument cross_shard_tx_sim (multi_shard_config, six validators).',
                     objectives: [
                         'Run and trace the deterministic cross-shard simulation E2E',
                         'Add markers around genesis funding and cross-shard submit',

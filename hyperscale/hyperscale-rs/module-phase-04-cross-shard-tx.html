@@ -71,7 +71,7 @@
                         <tr><td>2</td><td><a href="#part-2-provisions">Provisions deep dive</a></td><td>Bundle shape, inbound vs outbound, shadow base, snapshot timing</td></tr>
                         <tr><td>3</td><td><a href="#part-3-block-fields">Block fields map</a></td><td>Which header/body field does which job</td></tr>
                         <tr><td>4</td><td><a href="#part-4-merkle">Why Merkle / JMT</a></td><td>Business + security logic of each commitment</td></tr>
-                        <tr><td>5</td><td><a href="#part-5-qa">Q&amp;A (33 items)</a></td><td>Sharp details — provision_tx_roots, lying, staleness, conflicts</td></tr>
+                        <tr><td>5</td><td><a href="#part-5-qa">Q&amp;A (37 items)</a></td><td>Sharp details — provision_tx_roots, lying, staleness, conflicts</td></tr>
                         <tr><td>6</td><td><a href="#part-6-mental-model">One-page mental model</a></td><td>Whole pipeline on one screen</td></tr>
                     </tbody>
                 </table>
@@ -104,12 +104,12 @@
             <p><strong>Setup:</strong> Account <strong>A</strong> + component <strong>Ca</strong> live on <strong>Shard 1</strong>. Account <strong>B</strong> + component <strong>Cb</strong> live on <strong>Shard 2</strong>.</p>
             <p><strong>Manifest (one transaction):</strong></p>
             <ol class="module-tight-prose">
-                <li>Take <strong>50 USDC</strong> from <strong>A</strong></li>
-                <li>Call <strong>Cb-Method-1</strong> — balance check on <strong>A</strong>, move <strong>25 USDC</strong> to bucket <strong>B1</strong></li>
-                <li>Take <strong>B1</strong></li>
-                <li>Deposit <strong>10</strong> to <strong>B</strong></li>
-                <li>Call <strong>Cb-Method-2</strong> — deposit to <strong>Ca</strong></li>
-                <li>LP tokens to <strong>B</strong></li>
+                <li>Take <strong>50 USDC</strong> from account <strong>A</strong> (vault on Shard 1)</li>
+                <li>Call <strong>Cb-Method-1</strong> on component <strong>Cb</strong> (Shard 2) — balance check on <strong>A</strong>, move <strong>25 USDC</strong> into worktop bucket <strong>BUCKET_1</strong></li>
+                <li>Deposit <strong>BUCKET_1</strong> into account <strong>B</strong>’s vault (buckets cannot dangle — funds must land in a vault)</li>
+                <li>Deposit <strong>10 USDC</strong> from worktop to <strong>B</strong></li>
+                <li>Call <strong>Cb-Method-2</strong> — deposit to component <strong>Ca</strong> (Shard 1)</li>
+                <li>Deposit LP tokens to account <strong>B</strong></li>
             </ol>
             <div class="hs-gotcha">
                 <strong>Two clocks — don’t mix them:</strong><br>
@@ -117,6 +117,9 @@
                 <strong>Protocol order</strong> = gossip tx to both shards → both commit → exchange <em>pre-tx</em> provisions at height H → then run the whole manifest once per shard.
             </div>
             <p class="module-footnote">Trace in sim: <a href="module-hs-improved-cross-shard-simulation-tests.html">cross-shard E2E lab</a> · JMT keys: <a href="module-jmt-deep-dive.html">JMT deep dive</a></p>
+            <div class="hs-gotcha">
+                <strong>ValidatorId ↔ ShardId?</strong> Not 1:1 globally. <strong>Many validators</strong> serve each shard committee; each <code>ValidatorId</code> is assigned to <strong>one home shard</strong> per epoch in <code>TopologySnapshot</code>. One physical node may host several <code>ShardLoop</code>s if it runs validators on multiple shards.
+            </div>
         </div>
 
         <!-- Part 1 -->
@@ -128,8 +131,8 @@
             <ol class="hs-phase-flow-list module-tight-prose">
                 <li id="flow-1"><strong>Submit.</strong> User posts signed bytes via RPC → <code>SubmitTransaction</code> on a shard loop; async Radix validation extracts <strong>declared reads/writes</strong> from manifest instructions (<a href="#" data-file="crates/types/src/transaction/manifest_analysis.rs" target="_blank" rel="noopener">manifest_analysis.rs</a>). <em>Plain English:</em> the node reads the manifest like a checklist of every account the tx might touch.</li>
                 <li id="flow-2"><strong>Declared sets are static.</strong> <code>RoutableTransaction</code> carries <code>declared_reads</code> / <code>declared_writes</code> as <code>NodeId</code> lists — routing, waves, and provisions all derive from these, not runtime discovery (<a href="#" data-file="crates/types/src/transaction/routable.rs" target="_blank" rel="noopener">routable.rs</a>). <em>Plain English:</em> the protocol decides shards <em>before</em> execution, from the signed tx, not from “whatever the VM happens to read.”</li>
-                <li id="flow-3"><strong>Multi-shard hosting.</strong> One <code>NodeHost</code> can run <strong>multiple</strong> <code>ShardLoop</code>s (one per hosted shard); validator <strong>identity</strong> is seated on a shard committee via topology — process ↔ shard is N:M, not 1:1 (<a href="#" data-file="crates/node/src/host.rs" target="_blank" rel="noopener">host.rs</a>). <em>Plain English:</em> one computer can participate on several shard teams at once.</li>
-                <li id="flow-4"><strong>Admission fan-out.</strong> If the node hosts both shards, <strong>source</strong> shard <code>AdmitAndGossipTransaction</code>; <strong>passive</strong> shards <code>AdmitTransaction</code> only (mempool without <code>submitted_locally</code> / gossip) (<a href="#" data-file="crates/node/src/process_io/mod.rs" target="_blank" rel="noopener">process_io/mod.rs</a>). <em>Plain English:</em> one shard “owns” the submit; siblings still admit the tx locally but don’t re-broadcast it.</li>
+                <li id="flow-3"><strong>Multi-shard hosting.</strong> One <code>NodeHost</code> can run <strong>multiple</strong> <code>ShardLoop</code>s (one per hosted shard). <em>Validator ↔ shard:</em> each <code>ValidatorId</code> sits on <strong>one</strong> shard committee per epoch (<code>TopologySnapshot</code>), but each shard has <strong>many</strong> validators — so it is <strong>not</strong> 1 validator : 1 shard globally; it is <strong>N validators → 1 shard</strong>. Process ↔ shard is still N:M (one machine can host several loops) (<a href="#" data-file="crates/node/src/host.rs" target="_blank" rel="noopener">host.rs</a>, <a href="#" data-file="crates/types/src/topology/snapshot.rs" target="_blank" rel="noopener">topology/snapshot.rs</a>).</li>
+                <li id="flow-4"><strong>Admission fan-out.</strong> If the node hosts both shards, <strong>source</strong> shard <code>AdmitAndGossipTransaction</code>; <strong>passive</strong> shards <code>AdmitTransaction</code> only (mempool without <code>submitted_locally</code> / gossip) (<a href="#" data-file="crates/node/src/host.rs" target="_blank" rel="noopener">host.rs</a>). <em>Plain English:</em> one shard “owns” the submit; siblings still admit the tx locally but don’t re-broadcast it.</li>
                 <li id="flow-5"><strong>Mempool is per-validator, per-shard.</strong> Gossip/fetch gets tx bodies onto remote shard mempools separately from provisions; cross-shard txs may sit in <strong>quiesce</strong> until remote <code>in_flight</code> eases (<a href="#" data-file="crates/mempool/src/coordinator.rs" target="_blank" rel="noopener">mempool/coordinator.rs</a>). <em>Plain English:</em> getting the tx <em>into</em> a block is separate from getting <em>state proofs</em> later.</li>
                 <li id="flow-6"><strong>Every touched shard executes the whole tx.</strong> <code>all_shards_for_transaction</code> unions reads ∪ writes; symmetric for routing (<a href="#" data-file="crates/types/src/topology/snapshot.rs" target="_blank" rel="noopener">topology/snapshot.rs</a>). <em>Plain English:</em> Shard 2 doesn’t run “only line 2” — it runs the entire manifest when dispatched.</li>
             </ol>
@@ -138,9 +141,9 @@
             <ol class="hs-phase-flow-list module-tight-prose" start="7">
                 <li id="flow-7"><strong>Proposal (pre-execution).</strong> Proposer builds header from tx list; <code>compute_waves</code> groups txs by identical remote-shard dependency sets (<a href="#" data-file="crates/types/src/wave/computation.rs" target="_blank" rel="noopener">wave/computation.rs</a>).</li>
                 <li id="flow-8"><strong>Wave identity.</strong> <code>WaveId { local_shard, block_height, remote_shards }</code> — Shard 1 wave <code>{2}</code> and Shard 2 wave <code>{1}</code> are <strong>different</strong> ids (<a href="#" data-file="crates/types/src/wave/id.rs" target="_blank" rel="noopener">wave/id.rs</a>).</li>
-                <li id="flow-9"><strong>First provision commitment — <code>provision_tx_roots</code>.</strong> Per <strong>target</strong> shard, Merkle root over <strong>tx hashes</strong> that must receive outbound provisions from this block; hashes in <strong>block order</strong> (strict tx-hash ascending) (<a href="#" data-file="crates/types/src/shard/roots/provision_tx.rs" target="_blank" rel="noopener">shard/roots/provision_tx.rs</a>, <a href="#" data-file="crates/shard/src/validation.rs" target="_blank" rel="noopener">validation.rs</a>).</li>
-                <li id="flow-10"><strong>“Bucket” = one map entry</strong> <code>provision_tx_roots[target]</code> — not mempool; it commits <strong>which txs’ state bundles</strong> must be delivered, not tx body admission.</li>
-                <li id="flow-11"><strong>Incoming provisions in block.</strong> Proposer selects <code>Provisions</code> bundles into <code>Block::Live.provisions</code>; header <code>provision_root</code> = Merkle of those bundle hashes (<a href="#" data-file="crates/types/src/shard/header.rs" target="_blank" rel="noopener">shard/header.rs</a>, <a href="#" data-file="crates/types/src/shard/block.rs" target="_blank" rel="noopener">block.rs</a>).</li>
+                <li id="provision-tx-roots-commit"><strong>First provision commitment — <code>provision_tx_roots</code>.</strong> On the <strong>source</strong> shard’s block header: for each <strong>target</strong> shard, collect every cross-shard tx in this block that needs outbound state toward that target → list of <strong>tx hashes</strong> (in strict block order) → <code>compute_merkle_root</code> → one <code>ProvisionTxRoot</code> stored as <code>provision_tx_roots[target]</code> (<a href="#" data-file="crates/types/src/shard/roots/provision_tx.rs" target="_blank" rel="noopener">provision_tx.rs</a>). <em>Plain English:</em> “Shard 1 block H promises Shard 2: you will receive state bundles for txs {TxUSDC, …}.”</li>
+                <li id="flow-10"><strong>Why “roots” (plural map, one Merkle root each)?</strong> The header field is a <strong>map</strong> <code>target_shard → root</code>. Each value is <strong>one</strong> Merkle root summarizing that target’s tx-hash list. Hyperscale name = <code>provision_tx_roots</code>; mentally: <code>outbound_provision_tx_merkle_for_target</code>. Not mempool — only “which committed txs’ state must ship outbound.”</li>
+                <li id="flow-11"><strong>Incoming provisions in block — <code>provision_root</code>.</strong> On the <strong>receiving</strong> shard: proposer embeds inbound <code>Provisions</code> bundles in <code>Block::Live.provisions</code>; header <code>provision_root</code> = Merkle root of those bundles’ <strong>content hashes</strong> (inbound list commitment — separate from outbound <code>provision_tx_roots</code>) (<a href="#" data-file="crates/types/src/shard/roots/provisions.rs" target="_blank" rel="noopener">shard/roots/provisions.rs</a>, <a href="#" data-file="crates/types/src/shard/block.rs" target="_blank" rel="noopener">block.rs</a>).</li>
                 <li id="flow-12"><strong>BFT commit.</strong> Validators verify roots (<code>waves</code>, <code>provision_tx_roots</code>, <code>provision_root</code>, <code>state_root</code>, …) then vote; QC attests header including <code>state_root</code> at height H.</li>
             </ol>
             <div class="hs-block-evolution-mount" data-block-evolution="provision-tx-roots" aria-label="Block anatomy — provision_tx_roots"></div>
@@ -149,14 +152,26 @@
             <ol class="hs-phase-flow-list module-tight-prose" start="13">
                 <li id="flow-13"><strong>“Committed state at H”.</strong> RocksDB substates + versioned <strong>JMT</strong>; <code>state_root</code> in header H = tree root <strong>after applying block H’s certificates</strong>, <strong>before</strong> executing txs newly committed in H. <em>Plain English:</em> the header’s balance sheet is “after old finished work,” not “after the txs we just added to this block.”</li>
                 <li id="flow-14"><strong>Outbound provisions (post-commit, proposer only).</strong> <code>build_provision_requests</code> → <code>FetchAndBroadcastProvisions</code>; <code>build_provisions</code> reads JMT at <strong>source height H</strong>, ships <code>SubstateEntry</code> bytes + multiproof (<a href="#" data-file="crates/provisions/src/coordinator.rs" target="_blank" rel="noopener">provisions/coordinator.rs</a>, <a href="#" data-file="crates/provisions/src/build.rs" target="_blank" rel="noopener">build.rs</a>, <a href="#" data-file="crates/execution/src/lookups.rs" target="_blank" rel="noopener">execution/lookups.rs</a>).</li>
-                <li id="flow-15"><strong>Inbound verification.</strong> Completeness — bundle tx-hash Merkle vs source <code>provision_tx_roots[us]</code>; authenticity — JMT multiproof vs source QC’d <code>state_root</code> (<a href="#" data-file="crates/provisions/src/verification.rs" target="_blank" rel="noopener">verification.rs</a>, <a href="#" data-file="crates/types/src/provisioning/provisions.rs" target="_blank" rel="noopener">provisions.rs</a> <code>Verify</code>).</li>
+                <li id="flow-15"><strong>Inbound verification (where <code>provision_tx_roots</code> is used).</strong> Target shard receives gossip <code>Provisions</code> + source <code>CertifiedBlockHeader(H)</code>. <code>build_verify_action</code> (<a href="#" data-file="crates/provisions/src/verification.rs" target="_blank" rel="noopener">verification.rs</a>): (1) read <code>expected_root = header.provision_tx_roots[local_shard]</code>; (2) hash each <code>ProvisionEntry.tx_hash</code> in the bundle → <code>compute_merkle_root</code> → <code>computed_root</code>; (3) if <code>computed_root ≠ expected_root</code>, drop bundle (incomplete/tampered) and retry fetch; (4) else emit <code>VerifyProvisions</code> → JMT multiproof vs QC’d <code>state_root</code>. <em>This is the only place the target compares against <code>provision_tx_roots</code>.</em></li>
             </ol>
             <div class="hs-block-evolution-mount" data-block-evolution="provisions-in-block" aria-label="Block anatomy — provision_root and body"></div>
 
+            <h3 id="provision-tx-roots-receive">How the target uses <code>provision_tx_roots</code></h3>
+            <p>Only on <strong>inbound</strong> gossip/fetch — not when building the source block.</p>
+            <div class="hs-phase-proof">
+                <p class="hs-phase-proof-caption"><strong>In-repo proof</strong> — completeness check before JMT verify (<a href="#" data-file="crates/provisions/src/verification.rs" target="_blank" rel="noopener">verification.rs</a>)</p>
+                <div class="code-block"><pre><code class="language-rust">let expected_root = certified_header.header().provision_tx_roots().get(&amp;local_shard)?;
+let leaves: Vec&lt;Hash&gt; = provisions.transactions().iter().map(|t| t.tx_hash.into_raw()).collect();
+let computed_root = ProvisionTxRoot::from_raw(compute_merkle_root(&amp;leaves));
+if computed_root != expected_root { return None; }  // drop → fetch retry
+Some(Action::VerifyProvisions { provisions, certified_header })</code></pre></div>
+            </div>
+            <p><code>provision_root</code> on the <strong>receiver’s own</strong> block is different: Merkle of <strong>inbound bundle hashes</strong> this shard committed in <code>body.provisions</code> — voters recompute before voting (<a href="#part-3-block-fields">Part 3</a>).</p>
+
             <h3>D — Execution &amp; finish (steps 16–20)</h3>
             <ol class="hs-phase-flow-list module-tight-prose" start="16">
-                <li id="flow-16"><strong>Wave setup on commit.</strong> <code>assign_waves</code> + <code>ProvisioningTracker.record_required</code>; conflict detector registers bidirectional node overlap (<a href="#" data-file="crates/execution/src/lookups.rs" target="_blank" rel="noopener">lookups.rs</a>, <a href="#" data-file="crates/execution/src/provisioning.rs" target="_blank" rel="noopener">provisioning.rs</a>, <a href="#" data-file="crates/execution/src/conflict.rs" target="_blank" rel="noopener">conflict.rs</a>).</li>
-                <li id="flow-17"><strong>Anchor at H.</strong> <code>ExecuteCrossShardTransactions</code> uses <code>pending_chain.view_at(wave_start_block_hash, H)</code> — not chain tip (<a href="#" data-file="crates/node/src/shard_loop/action_handlers.rs" target="_blank" rel="noopener">action_handlers.rs</a>, <a href="#" data-file="crates/execution/src/wave_state.rs" target="_blank" rel="noopener">wave_state.rs</a>, <a href="#" data-file="crates/storage/src/shard/pending_chain.rs" target="_blank" rel="noopener">pending_chain.rs</a>).</li>
+                <li id="flow-16"><strong>Wave setup on commit.</strong> After block H commits on a shard: (1) <code>assign_waves</code> buckets each tx into exactly <strong>one</strong> <code>WaveId</code> on that shard (key = remote shard set) — a tx is <strong>not</strong> in multiple waves on the same shard in the same block; (2) for each cross-shard tx, <code>record_required(tx, remote_shards)</code> records which peer shards must still deliver provision bundles; (3) <code>ConflictDetector.register_tx</code> checks bidirectional <code>NodeId</code> overlap against already-committed remote provisions and may abort the lower-hash tx before execution (<a href="#" data-file="crates/execution/src/lookups.rs" target="_blank" rel="noopener">lookups.rs</a>, <a href="#" data-file="crates/execution/src/provisioning.rs" target="_blank" rel="noopener">provisioning.rs</a>, <a href="#" data-file="crates/execution/src/conflict.rs" target="_blank" rel="noopener">conflict.rs</a>).</li>
+                <li id="flow-17"><strong>Anchor at H.</strong> <code>ExecuteCrossShardTransactions</code> uses <code>pending_chain.view_at(wave_start_block_hash, H)</code> — not chain tip (<a href="#" data-file="crates/node/src/shard/actions.rs" target="_blank" rel="noopener">action_handlers.rs</a>, <a href="#" data-file="crates/execution/src/wave_state.rs" target="_blank" rel="noopener">wave_state.rs</a>, <a href="#" data-file="crates/storage/src/shard/pending_chain.rs" target="_blank" rel="noopener">pending_chain.rs</a>).</li>
                 <li id="flow-18"><strong>Overlay execution.</strong> <code>ProvisionedSnapshot</code> — provision map shadows local DB per key; Radix VM sees unified state (<a href="#" data-file="crates/engine/src/provisioned_snapshot.rs" target="_blank" rel="noopener">provisioned_snapshot.rs</a>, <a href="#" data-file="crates/engine/src/executor.rs" target="_blank" rel="noopener">executor.rs</a>).</li>
                 <li id="flow-19"><strong>Votes → EC → wave certificate.</strong> Wave leader aggregates BLS execution votes; collect ECs from all participating shards → <code>FinalizedWave</code> → later block <code>certificates</code> (<a href="#" data-file="crates/execution/src/wave_state.rs" target="_blank" rel="noopener">wave_state.rs</a>, <a href="#" data-file="crates/execution/src/coordinator.rs" target="_blank" rel="noopener">coordinator.rs</a>).</li>
                 <li id="flow-20"><strong>Terminal.</strong> Mempool <code>Completed</code> when <code>FinalizedWave</code> commits; node locks released after wave finalization (<a href="#" data-file="crates/mempool/src/lock_tracker.rs" target="_blank" rel="noopener">mempool/lock_tracker.rs</a>).</li>
@@ -183,9 +198,40 @@
                 <li><strong>Target shard state is not in the bundle</strong> — receiver already has local DB; bundle only adds <strong>source-owned</strong> slices to overlay.</li>
             </ul>
 
+            <h3>What is a JMT <code>MultiProof</code>?</h3>
+            <p>A Merkle tree proof normally shows “this one leaf is in the tree.” A <strong>multiproof</strong> is one compact proof that proves <strong>many leaves at once</strong> belong to the same <code>state_root</code> — shared internal nodes are included once. The provision bundle carries <strong>one</strong> multiproof for all <code>SubstateEntry</code> rows in that bundle, so the target can check every balance/field byte without a separate proof per key.</p>
+
+            <h3>Concrete example — USDC scenario (Shard 1 → Shard 2 @ H=42)</h3>
+            <p>Assume our reference tx has hash <code>TxUSDC = 0x7f3a…c901</code>. After Shard 1 commits block <strong>42</strong>, the proposer builds outbound provisions toward Shard 2:</p>
+            <div class="table-wrap table-wrap--fit-rows">
+                <table class="flow-steps flow-steps-fit-rows">
+                    <thead><tr><th>Field</th><th>Example value (teaching)</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>source_shard</code></td><td><code>ShardId::leaf(1, 0)</code></td></tr>
+                        <tr><td><code>target_shard</code></td><td><code>ShardId::leaf(2, 0)</code></td></tr>
+                        <tr><td><code>block_height</code></td><td><code>BlockHeight(42)</code></td></tr>
+                        <tr><td><code>proof</code></td><td>JMT <code>MultiProof</code> vs <code>header(42).state_root</code> on Shard 1</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p><strong>One <code>ProvisionEntry</code> for <code>TxUSDC</code>:</strong></p>
+            <div class="table-wrap table-wrap--fit-rows">
+                <table class="flow-steps flow-steps-fit-rows">
+                    <thead><tr><th>Sub-field</th><th>Example</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>tx_hash</code></td><td><code>0x7f3a…c901</code></td></tr>
+                        <tr><td><code>entries[0]</code></td><td><code>SubstateEntry</code> — A’s USDC vault: SBOR balance <strong>120 USDC</strong> (pre-tx @ H; not 70 after line 1)</td></tr>
+                        <tr><td><code>entries[1]</code></td><td>Ca component field bytes Shard 2’s <code>Cb-Method-2</code> will read via overlay</td></tr>
+                        <tr><td><code>owned_nodes</code></td><td><code>(vault_usdc_A, account_A)</code>, <code>(Ca_internal, account_A)</code></td></tr>
+                        <tr><td><code>target_nodes</code></td><td><code>B</code>, <code>Cb</code>, <code>BUCKET_1</code> resource node (Shard 2 — conflict detection only)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p>Shard 2 verifies: Merkle of <code>[TxUSDC]</code> equals Shard 1 header <code>provision_tx_roots[2]</code>; multiproof shows 120 USDC really lived under Shard 1’s <code>state_root@42</code>. Symmetric bundle Shard 2 → Shard 1 carries <code>B</code>’s vault / <code>Cb</code> fields for the same tx.</p>
+
             <h3>Inbound vs outbound</h3>
-            <div class="table-wrap">
-                <table class="flow-steps flow-steps-wide-first">
+            <div class="table-wrap table-wrap--fit-rows">
+                <table class="flow-steps flow-steps-fit-rows flow-steps-wide-first">
                     <thead><tr><th>Direction</th><th>Who builds</th><th>When</th><th>Block field</th><th>Wire path</th></tr></thead>
                     <tbody>
                         <tr><td><strong>Outbound</strong></td><td>Source shard <strong>proposer</strong> after commit</td><td>Post-commit H</td><td>Source header <code>provision_tx_roots[target]</code> commits tx list</td><td>Gossip / fetch (<code>FetchAndBroadcastProvisions</code>)</td></tr>
@@ -194,6 +240,10 @@
                 </table>
             </div>
             <p><strong>Outbound</strong> = “I promise these txs’ state at H.” <strong>Inbound</strong> = “I received and committed (or verified) those bundles.”</p>
+
+            <div class="hs-gotcha">
+                <strong>Retention clock:</strong> <code>ProvisionCoordinator</code> keys eviction and orphan sweeps on the <strong>source block’s</strong> weighted timestamp — <code>certified_header.header().parent_qc().weighted_timestamp()</code> — not the receiver’s local commit time. Verified bundles expire at <code>source_block_ts + RETENTION_HORIZON</code>; expectations whose fallback fetch never resolves are dropped in the same orphan sweep and emit <code>AbandonFetch</code> (<a href="#" data-file="crates/provisions/src/coordinator.rs" target="_blank" rel="noopener">provisions/coordinator.rs</a>).
+            </div>
 
             <h3>Shadow base (one line)</h3>
             <p class="hs-gotcha"><strong>Lookup rule:</strong> provision key → use shipped bytes; else → local <code>view@H</code>. Remote snapshot wins for those keys only.</p>
@@ -212,16 +262,16 @@ let receipt = provisioned.execute(&amp;executable, &amp;vm_modules, &amp;exec_co
         <!-- Part 3 -->
         <div class="section section-tight module-tight-prose" id="part-3-block-fields">
             <h2>Part 3 — Block fields map (cross-shard)</h2>
-            <div class="table-wrap">
-                <table class="flow-steps flow-steps-wide-first flow-steps-wide-last">
+            <div class="table-wrap table-wrap--fit-rows">
+                <table class="flow-steps flow-steps-fit-rows flow-steps-wide-first flow-steps-wide-last">
                     <thead><tr><th>Field</th><th>Layer</th><th>Business purpose</th></tr></thead>
                     <tbody>
                         <tr><td><code>transaction_root</code></td><td>Header</td><td>Commits tx bodies in block</td></tr>
                         <tr><td><code>state_root</code></td><td>Header</td><td>Commits <strong>entire</strong> shard JMT after cert deltas in this block</td></tr>
                         <tr><td><code>certificate_root</code> / <code>local_receipt_root</code></td><td>Header</td><td>Commits <strong>finished</strong> prior waves’ execution results applied here</td></tr>
-                        <tr><td><code>provision_root</code></td><td>Header</td><td>Commits <strong>hashes</strong> of inbound provision bundles in this block</td></tr>
+                        <tr><td><code>provision_root</code></td><td>Header (receiver)</td><td>Inbound: Merkle of <strong>provision bundle content hashes</strong> in this block’s <code>body.provisions</code></td></tr>
                         <tr><td><code>waves</code></td><td>Header</td><td>Declares which cross-shard wave shapes exist (remote dependency sets)</td></tr>
-                        <tr><td><span class="glossary-term" data-glossary="block-field-provision-tx-roots"><code>provision_tx_roots</code></span></td><td>Header</td><td>Per target: Merkle of tx hashes that <strong>must</strong> get outbound provisions</td></tr>
+                        <tr><td><span class="glossary-term" data-glossary="block-field-provision-tx-roots"><code>provision_tx_roots</code></span></td><td>Header (source)</td><td>Outbound: per target, Merkle of tx hashes that <strong>must</strong> get state bundles</td></tr>
                         <tr><td><code>in_flight</code></td><td>Header</td><td>Backpressure signal for cross-shard congestion</td></tr>
                         <tr><td><code>transactions</code></td><td>Body</td><td>Full tx bytes (sorted by hash)</td></tr>
                         <tr><td><code>certificates</code></td><td>Body</td><td><code>FinalizedWave</code> objects (cross-shard execution <strong>done</strong>)</td></tr>
@@ -235,8 +285,8 @@ let receipt = provisioned.execute(&amp;executable, &amp;vm_modules, &amp;exec_co
         <!-- Part 4 -->
         <div class="section section-tight module-tight-prose" id="part-4-merkle">
             <h2>Part 4 — Why Merkle / JMT (logic + business)</h2>
-            <div class="table-wrap">
-                <table class="flow-steps flow-steps-wide-first flow-steps-wide-last">
+            <div class="table-wrap table-wrap--fit-rows">
+                <table class="flow-steps flow-steps-fit-rows flow-steps-wide-first flow-steps-wide-last">
                     <thead><tr><th>Mechanism</th><th>What it compresses</th><th>What dishonesty it prevents</th></tr></thead>
                     <tbody>
                         <tr><td><strong>Tx-hash Merkle</strong> (<code>provision_tx_roots</code>)</td><td>List of tx hashes per target</td><td>Proposer dropping txs on gossip while claiming full block</td></tr>
@@ -253,56 +303,60 @@ let receipt = provisioned.execute(&amp;executable, &amp;vm_modules, &amp;exec_co
         <!-- Part 5 QA -->
         <div class="section section-tight module-tight-prose" id="part-5-qa">
             <h2>Part 5 — Q&amp;A (sharp details)</h2>
-            <p>All 33 teaching bullets. Use as self-check after Parts 1–4.</p>
+            <p>All 37 teaching bullets. Use as self-check after Parts 1–4.</p>
 
-            <h3 id="qa-provision-tx-roots"><code>provision_tx_roots</code></h3>
-            <div class="hs-qa-item"><p class="hs-qa-q">1. Can we say <code>provision_tx_roots[target]</code> is a Merkle root of tx hashes the target needs from the source?</p><p><strong>A:</strong> Yes — one entry per target shard with ≥1 cross-shard tx; empty if none (<code>ProvisionTxRootsMap::compute</code>).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">2. Why Merkle instead of a plain list?</p><p><strong>A:</strong> Single header field binds <strong>membership + order</strong>; receiver recomputes from bundle and catches partial drops (<code>verification.rs</code> tx-root check).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">3. Why hash-ascending block order?</p><p><strong>A:</strong> Block txs are strictly sorted by tx hash (<code>validate_transaction_ordering</code>); bucket hashes appended in that order so all nodes agree on Merkle input.</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">4. Why not “tx lands in remote mempool” via this field?</p><p><strong>A:</strong> Mempool = tx <strong>body</strong> admission (gossip/submit/fetch). <code>provision_tx_roots</code> = commitment to <strong>state bundles</strong> for already-committed txs.</p></div>
+            <h3 id="qa-provision-tx-roots"><code>provision_tx_roots</code> (outbound tx-list commitment)</h3>
+            <div class="hs-qa-item"><p class="hs-qa-q">1. Plain sentence?</p><p><strong>A:</strong> Source block H says: “For target shard T, I will ship state bundles for txs {hash₁, hash₂, …}” — stored as one Merkle root per T in <code>provision_tx_roots[T]</code>.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">2. Can we say <code>provision_tx_roots[target]</code> is the outbound tx-list Merkle for that target?</p><p><strong>A:</strong> Yes — txs live on the <strong>source</strong> block; the map value is Merkle of their hashes that require outbound state bundles <strong>to</strong> `target`. Target later checks the received bundle’s tx list against this root.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">3. Why Merkle instead of a plain list?</p><p><strong>A:</strong> Single header field binds <strong>membership + order</strong>; receiver recomputes from bundle and catches partial drops (<code>verification.rs</code> tx-root check).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">4. Why hash-ascending block order?</p><p><strong>A:</strong> Block txs are strictly sorted by tx hash (<code>validate_transaction_ordering</code>); bucket hashes appended in that order so all nodes agree on Merkle input.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">5. Why not “tx lands in remote mempool” via this field?</p><p><strong>A:</strong> Mempool = tx <strong>body</strong> admission (gossip/submit/fetch). <code>provision_tx_roots</code> = commitment to <strong>state bundles</strong> for already-committed txs.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">6. When does the target compare against it?</p><p><strong>A:</strong> On inbound <code>Provisions</code> gossip/fetch — <code>build_verify_action</code> recomputes Merkle of bundle’s <code>tx_hash</code> list vs <code>source_header.provision_tx_roots[local_shard]</code> before JMT verify.</p></div>
 
             <h3 id="qa-payload">Payload, proof, “state at H”</h3>
-            <div class="hs-qa-item"><p class="hs-qa-q">5. What is “committed state at height H”?</p><p><strong>A:</strong> Versioned JMT + RocksDB at block H; summarized by <code>state_root</code> in header after cert replay — not a separate product type (<code>pending_chain.rs</code>, header docs).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">6. How is it communicated?</p><p><strong>A:</strong> <code>SubstateEntry</code> bytes on wire + one JMT <code>MultiProof</code> + reference to <code>CertifiedBlockHeader(H)</code> for <code>state_root</code> (<code>provisions.rs</code>).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">7. Roots only or real balances?</p><p><strong>A:</strong> <strong>Real SBOR values</strong> in entries; roots used for verification and header commitments, not as execution input.</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">8. Does provision include target shard state?</p><p><strong>A:</strong> No — only <strong>source-owned</strong> substates; <code>target_nodes</code> / <code>owned_nodes</code> are <strong>metadata</strong> for conflicts and keying (<code>provisioning/entry.rs</code>).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">7. What is “committed state at height H”?</p><p><strong>A:</strong> Versioned JMT + RocksDB at block H; summarized by <code>state_root</code> in header after cert replay — not a separate product type (<code>pending_chain.rs</code>, header docs).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">8. How is it communicated?</p><p><strong>A:</strong> <code>SubstateEntry</code> bytes on wire + one JMT <code>MultiProof</code> + reference to <code>CertifiedBlockHeader(H)</code> for <code>state_root</code> (<code>provisions.rs</code>).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">9. Roots only or real balances?</p><p><strong>A:</strong> <strong>Real SBOR values</strong> in entries; roots used for verification and header commitments, not as execution input.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">10. Does provision include target shard state?</p><p><strong>A:</strong> No — only <strong>source-owned</strong> substates; <code>target_nodes</code> / <code>owned_nodes</code> are <strong>metadata</strong> for conflicts and keying (<code>provisioning/entry.rs</code>).</p></div>
 
             <h3 id="qa-inbound-outbound">Inbound / outbound</h3>
-            <div class="hs-qa-item"><p class="hs-qa-q">9. Outbound — who, when?</p><p><strong>A:</strong> Source shard <strong>block proposer</strong> immediately after <strong>that</strong> block commits; <code>build_provision_requests</code> + <code>FetchAndBroadcastProvisions</code> (<code>coordinator.rs</code> <code>on_live_block_committed</code>).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">10. Outbound built from execution results?</p><p><strong>A:</strong> No — from <strong>declared</strong> nodes on source shard at height H (<code>lookups.rs</code>, <code>build.rs</code>).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">11. Inbound — when absorbed?</p><p><strong>A:</strong> From <code>Block::Live.provisions</code> on commit, or after gossip/fetch + <code>VerifyProvisions</code> (<code>provisioning.rs</code> <code>absorb_provisions</code>).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">12. Same-block provisions?</p><p><strong>A:</strong> Wave setup runs first; then inline provisions applied so waves can become provisioned immediately (<code>on_live_block_committed</code> ordering).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">13. Multiple provision calculation times?</p><p><strong>A:</strong> Yes — (1) proposal: <code>waves</code> + <code>provision_tx_roots</code> declarative; (2) post-commit outbound build from JMT; (3) inbound verify; execution <strong>consumes</strong>, does not rebuild outbound.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">11. Outbound — who, when?</p><p><strong>A:</strong> Source shard <strong>block proposer</strong> immediately after <strong>that</strong> block commits; <code>build_provision_requests</code> + <code>FetchAndBroadcastProvisions</code> (<code>coordinator.rs</code> <code>on_live_block_committed</code>).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">12. Outbound built from execution results?</p><p><strong>A:</strong> No — from <strong>declared</strong> nodes on source shard at height H (<code>lookups.rs</code>, <code>build.rs</code>).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">13. Inbound — when absorbed?</p><p><strong>A:</strong> From <code>Block::Live.provisions</code> on commit, or after gossip/fetch + <code>VerifyProvisions</code> (<code>provisioning.rs</code> <code>absorb_provisions</code>).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">14. Same-block provisions?</p><p><strong>A:</strong> Wave setup runs first; then inline provisions applied so waves can become provisioned immediately (<code>on_live_block_committed</code> ordering).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">15. Multiple provision calculation times?</p><p><strong>A:</strong> Yes — (1) proposal: <code>waves</code> + <code>provision_tx_roots</code> declarative; (2) post-commit outbound build from JMT; (3) inbound verify; execution <strong>consumes</strong>, does not rebuild outbound.</p></div>
 
             <h3 id="qa-lying">Lying, voting, trust</h3>
-            <div class="hs-qa-item"><p class="hs-qa-q">14. Separate provision vote?</p><p><strong>A:</strong> No — trust chain: QC on source <code>state_root</code> (BFT) + per-bundle JMT verify on receiver (<code>ProvisionsContext</code>, <code>from_committed_block</code> comment).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">15. Can one validator fake A’s balance?</p><p><strong>A:</strong> Receiver rejects <code>BadInclusion</code> unless leaves match QC’d <code>state_root</code> — can't pass verify with wrong bytes.</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">16. Can source shard committee lie collectively?</p><p><strong>A:</strong> They could sign wrong <code>state_root</code> and consistent fake provisions; cross-shard safety relies on <strong>both</strong> shards’ ECs agreeing on global receipt root for the wave.</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">17. Provisions in Live block — extra check?</p><p><strong>A:</strong> Voters run <code>provision_root</code> + per-bundle verify before voting (<code>initiate_provision_root_verification</code>).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">16. Separate provision vote?</p><p><strong>A:</strong> No — trust chain: QC on source <code>state_root</code> (BFT) + per-bundle JMT verify on receiver (<code>ProvisionsContext</code>, <code>from_committed_block</code> comment).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">17. Can one validator fake A’s balance?</p><p><strong>A:</strong> Receiver rejects <code>BadInclusion</code> unless leaves match QC’d <code>state_root</code> — can't pass verify with wrong bytes.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">18. Can source shard committee lie collectively?</p><p><strong>A:</strong> They could sign wrong <code>state_root</code> and consistent fake provisions; cross-shard safety relies on <strong>both</strong> shards’ ECs agreeing on global receipt root for the wave.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">19. Provisions in Live block — extra check?</p><p><strong>A:</strong> Voters run <code>provision_root</code> + per-bundle verify before voting (<code>initiate_provision_root_verification</code>).</p></div>
 
             <h3 id="qa-overlay">Overlay, anchor H, staleness</h3>
-            <div class="hs-qa-item"><p class="hs-qa-q">18. “Shadow base” meaning?</p><p><strong>A:</strong> Executing shard uses provision values for keys present; else local <code>view@H</code> (<code>provisioned_snapshot.rs</code> <code>get_raw_substate_by_db_key</code>).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">19. Why anchor execution at H not tip?</p><p><strong>A:</strong> Prevents per-validator drift and leaking writes from blocks after wave start (<code>wave_state.rs</code> dispatch comment, <code>view_at</code> height assert).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">20. Which code pins H?</p><p><strong>A:</strong> <code>WaveId.block_height</code>, <code>ExecuteCrossShardTransactions { block_hash, block_height }</code>, <code>view_at(block_hash, block_height)</code> (<code>action_handlers.rs</code>, <code>pending_chain.rs</code>).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">21. Stale snapshot example (A = 120 at H, 200 at execution wall-clock)?</p><p><strong>A:</strong> Correct — execution uses H snapshot; live source head may advance; <strong>by design</strong> for committee-identical VM input.</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">22. Is 120 “stale” wrong?</p><p><strong>A:</strong> Not wrong — it's <strong>authoritative for wave at H</strong>; also <strong>pre-this-tx</strong> because H’s txs aren't executed until after commit when provisions are built.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">20. “Shadow base” meaning?</p><p><strong>A:</strong> Executing shard uses provision values for keys present; else local <code>view@H</code> (<code>provisioned_snapshot.rs</code> <code>get_raw_substate_by_db_key</code>).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">21. Why anchor execution at H not tip?</p><p><strong>A:</strong> Prevents per-validator drift and leaking writes from blocks after wave start (<code>wave_state.rs</code> dispatch comment, <code>view_at</code> height assert).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">22. Which code pins H?</p><p><strong>A:</strong> <code>WaveId.block_height</code>, <code>ExecuteCrossShardTransactions { block_hash, block_height }</code>, <code>view_at(block_hash, block_height)</code> (<code>action_handlers.rs</code>, <code>pending_chain.rs</code>).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">23. Stale snapshot example (A = 120 at H, 200 at execution wall-clock)?</p><p><strong>A:</strong> Correct — execution uses H snapshot; live source head may advance; <strong>by design</strong> for committee-identical VM input.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">24. Is 120 “stale” wrong?</p><p><strong>A:</strong> Not wrong — it's <strong>authoritative for wave at H</strong>; also <strong>pre-this-tx</strong> because H’s txs aren't executed until after commit when provisions are built.</p></div>
 
             <h3 id="qa-scenario">Scenario: <code>Cb-Method-1</code> balance check</h3>
-            <div class="hs-qa-item"><p class="hs-qa-q">23. Do provisions “decide” the check?</p><p><strong>A:</strong> No — they <strong>supply</strong> the balance the VM reads; method logic (<code>== 51</code> or <code>&gt; 100</code>) runs in Radix on overlaid state.</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">24. What if A not in declared sets?</p><p><strong>A:</strong> Static analysis won't ship A’s vault; overlay empty/wrong → check fails or wrong branch — <strong>manifest must declare</strong> touched nodes (<code>manifest_analysis.rs</code>).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">25. Declared sets for scenario (conceptual)?</p><p><strong>A:</strong> Shard 1: A, Ca; Shard 2: B, Cb, USDC/B1 resource nodes; union drives waves <code>{2}</code> / <code>{1}</code> and both provision directions.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">25. Do provisions “decide” the check?</p><p><strong>A:</strong> No — they <strong>supply</strong> the balance the VM reads; method logic (<code>== 51</code> or <code>&gt; 100</code>) runs in Radix on overlaid state.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">26. What if A not in declared sets?</p><p><strong>A:</strong> Static analysis won't ship A’s vault; overlay empty/wrong → check fails or wrong branch — <strong>manifest must declare</strong> touched nodes (<code>manifest_analysis.rs</code>).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">27. Declared sets for scenario (conceptual)?</p><p><strong>A:</strong> Shard 1: A, Ca; Shard 2: B, Cb, USDC / <code>BUCKET_1</code> resource nodes; union drives waves <code>{2}</code> / <code>{1}</code> and both provision directions.</p></div>
 
             <h3 id="qa-waves">Waves, conflicts, failure modes</h3>
-            <div class="hs-qa-item"><p class="hs-qa-q">26. One global wave?</p><p><strong>A:</strong> No — per local shard <code>WaveId</code>; cross-shard finalization collects <strong>EC per participating shard</strong> into <code>WaveCertificate</code>.</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">27. Wave timeout?</p><p><strong>A:</strong> If provisions never complete, <code>WAVE_TIMEOUT</code> → vote abort path (<code>coordinator.rs</code> <code>scan_complete_waves</code>).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">28. Incomplete gossip bundle?</p><p><strong>A:</strong> Tx-root mismatch → drop → fetch retry (<code>verification.rs</code>).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">29. Bidirectional conflict?</p><p><strong>A:</strong> Overlap both ways between local tx and remote provision node sets → lower tx hash wins, loser aborted (<code>conflict.rs</code>).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">30. <code>build_cross_shard_ownership</code> conflict?</p><p><strong>A:</strong> Same vault claimed on both shards → fast <code>Failed</code> on all validators (<code>action_handlers.rs</code>).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">28. Can one tx sit in multiple waves on the same shard?</p><p><strong>A:</strong> <strong>No</strong> for the same committed block — <code>assign_waves</code> places each tx in exactly one <code>WaveId</code> bucket (keyed by its remote-shard set). Different blocks → different <code>WaveId.block_height</code>.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">29. One global wave?</p><p><strong>A:</strong> No — per local shard <code>WaveId</code>; cross-shard finalization collects <strong>EC per participating shard</strong> into <code>WaveCertificate</code>.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">30. Wave timeout?</p><p><strong>A:</strong> If provisions never complete, <code>WAVE_TIMEOUT</code> → vote abort path (<code>coordinator.rs</code> <code>scan_complete_waves</code>).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">31. Incomplete gossip bundle?</p><p><strong>A:</strong> Tx-root mismatch vs <code>provision_tx_roots[us]</code> → drop → fetch retry (<code>verification.rs</code>).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">32. Bidirectional conflict?</p><p><strong>A:</strong> Overlap both ways between local tx and remote provision node sets → lower tx hash wins, loser aborted (<code>conflict.rs</code>).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">33. <code>build_cross_shard_ownership</code> conflict?</p><p><strong>A:</strong> Same vault claimed on both shards → fast <code>Failed</code> on all validators (<code>action_handlers.rs</code>).</p></div>
 
             <h3 id="qa-misc">Validator / mempool misc</h3>
-            <div class="hs-qa-item"><p class="hs-qa-q">31. Passive admit?</p><p><strong>A:</strong> Co-hosted shard puts tx in mempool without owning <code>submitted_locally</code> or originating gossip (<code>SubmitFanout::Admit</code> passive list).</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">32. Node locks vs provision snapshot?</p><p><strong>A:</strong> Locks block <strong>new</strong> mempool txs on declared nodes while <code>Committed</code>; they don't rewrite an already-built provision snapshot at H.</p></div>
-            <div class="hs-qa-item"><p class="hs-qa-q">33. Per-shard vs global provision compute?</p><p><strong>A:</strong> Each shard computes its own header fields and builds outbound to its targets; no single global coordinator clock.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">34. Passive admit?</p><p><strong>A:</strong> Co-hosted shard puts tx in mempool without owning <code>submitted_locally</code> or originating gossip (<code>SubmitFanout::Admit</code> passive list).</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">35. Node locks vs provision snapshot?</p><p><strong>A:</strong> Locks block <strong>new</strong> mempool txs on declared nodes while <code>Committed</code>; they don't rewrite an already-built provision snapshot at H.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">36. Per-shard vs global provision compute?</p><p><strong>A:</strong> Each shard computes its own header fields and builds outbound to its targets; no single global coordinator clock.</p></div>
+            <div class="hs-qa-item"><p class="hs-qa-q">37. Is <code>provision_root</code> the inbound provisions Merkle?</p><p><strong>A:</strong> Yes — Merkle over <strong>hashes of provision bundles</strong> committed in this block’s <code>body.provisions</code> (<code>ProvisionsRoot::compute(batch_hashes)</code>). Distinct from per-target <code>provision_tx_roots</code> on the <strong>source</strong> block.</p></div>
         </div>
 
         <!-- Part 6 -->
@@ -333,7 +387,7 @@ let receipt = provisioned.execute(&amp;executable, &amp;vm_modules, &amp;exec_co
                 <li><a href="#" data-file="crates/execution/src/coordinator.rs" target="_blank" rel="noopener">crates/execution/src/coordinator.rs</a></li>
                 <li><a href="#" data-file="crates/execution/src/provisioning.rs" target="_blank" rel="noopener">crates/execution/src/provisioning.rs</a></li>
                 <li><a href="#" data-file="crates/engine/src/provisioned_snapshot.rs" target="_blank" rel="noopener">crates/engine/src/provisioned_snapshot.rs</a></li>
-                <li><a href="#" data-file="crates/node/src/process_io/mod.rs" target="_blank" rel="noopener">crates/node/src/process_io/mod.rs</a></li>
+                <li><a href="#" data-file="crates/node/src/host.rs" target="_blank" rel="noopener">crates/node/src/host.rs</a></li>
             </ul>
         </div>
 

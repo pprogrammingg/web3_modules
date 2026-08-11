@@ -167,10 +167,14 @@ function assertLandingPage() {
     if (!html.includes('track-card--zk')) fail('index.html: missing ZK card');
     if (!html.includes('track-card--evm')) fail('index.html: missing EVM card');
     if (!html.includes('href="hyperscale/index.html"')) fail('index.html: missing Hyperscale card href');
-    if (!html.includes('href="solana-core/index.html"')) fail('index.html: missing Solana card href');
-    if (!html.includes('href="crypto-fintech/index.html"')) fail('index.html: missing Cryptography card href');
-    if (!html.includes('href="zk/index.html"')) fail('index.html: missing ZK card href');
-    if (!html.includes('href="evm/index.html"')) fail('index.html: missing EVM card href');
+    const comingSoonTracks = ['solana', 'crypto', 'zk', 'evm'];
+    for (const track of comingSoonTracks) {
+        if (!html.includes(`track-card--${track}`)) fail(`index.html: missing ${track} card`);
+        if (!html.includes(`track-card--${track} track-card--coming-soon`)) {
+            fail(`index.html: ${track} card should be marked coming soon`);
+        }
+    }
+    if (!html.includes('track-card-soon-label')) fail('index.html: missing coming soon label on inactive tracks');
     if (!html.includes('href="common/glossary.html"')) fail('index.html: missing glossary footer link');
     else ok('Landing: track cards + glossary link present');
 }

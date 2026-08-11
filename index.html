@@ -63,80 +63,110 @@
             border-radius: 14px;
             padding: 1.75rem 1.5rem;
             text-decoration: none;
-            color: rgba(255,255,255,0.92);
-            border: 1px solid rgba(255,255,255,0.14);
+            color: #1a2838;
+            border: 1px solid rgba(255,255,255,0.72);
             box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.2),
-                inset 0 -1px 0 rgba(0,0,0,0.18),
-                0 12px 40px rgba(0,0,0,0.25);
+                inset 0 1px 0 rgba(255,255,255,0.85),
+                inset 0 -1px 0 rgba(0,0,0,0.04),
+                0 10px 32px rgba(30, 50, 80, 0.12);
             transition: transform 0.18s ease, box-shadow 0.18s ease;
             position: relative;
             overflow: hidden;
         }
-        .track-card:hover {
+        .track-card:not(.track-card--coming-soon):hover {
             transform: translateY(-4px);
             box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.26),
-                inset 0 -1px 0 rgba(0,0,0,0.2),
-                0 18px 48px rgba(0,0,0,0.35);
+                inset 0 1px 0 rgba(255,255,255,0.92),
+                inset 0 -1px 0 rgba(0,0,0,0.05),
+                0 16px 42px rgba(30, 50, 80, 0.18);
         }
-        /* Stone tint + “light” angles: each track reads as a different polished gem */
+        /* Light pastel gradients — active track slightly richer */
         .track-card--hyperscale {
-            /* Navy base fused with magenta — blue at top-left, violet-magenta through mid/deep stops */
-            background: linear-gradient(145deg, #1e3a5f 0%, #3d2a6a 30%, #4a1f6f 55%, #5c1f5c 75%, #1a0a28 100%);
+            background: linear-gradient(145deg, #b8d4f8 0%, #c8b8f0 32%, #d8b0e8 58%, #a8c8f0 82%, #98b8e8 100%);
             --stone-hue: 248;
             --stone-hue-accent: 302;
-            --stone-sat: 46%;
-            --stone-sat-accent: 58%;
+            --stone-sat: 42%;
+            --stone-sat-accent: 52%;
             --stone-light-angle: 118deg;
             --stone-light-angle-2: 36deg;
-            /* Stronger cabochon shine (diffused in global .polished-stone-surface) */
-            --stone-shine: 0.78;
-            --stone-depth-gloss: 0.66;
+            --stone-shine: 0.48;
+            --stone-depth-gloss: 0.38;
         }
         .track-card--solana {
-            background: linear-gradient(145deg, #3d1f5c 0%, #241438 50%, #140a22 100%);
+            background: linear-gradient(145deg, #f0e6fa 0%, #e4d8f2 48%, #d8cce8 100%);
             --stone-hue: 278;
             --stone-hue-accent: 310;
-            --stone-sat: 48%;
-            --stone-sat-accent: 62%;
+            --stone-sat: 32%;
+            --stone-sat-accent: 38%;
             --stone-light-angle: 154deg;
             --stone-light-angle-2: 62deg;
-            --stone-shine: 0.8;
-            --stone-depth-gloss: 0.68;
+            --stone-shine: 0.32;
+            --stone-depth-gloss: 0.28;
         }
         .track-card--crypto {
-            background: linear-gradient(145deg, #fb923c 0%, #ea580c 46%, #7c2d12 100%);
+            background: linear-gradient(145deg, #ffe8d4 0%, #ffd4b0 46%, #f8c8a0 100%);
             --stone-hue: 24;
             --stone-hue-accent: 8;
-            --stone-sat: 88%;
-            --stone-sat-accent: 72%;
+            --stone-sat: 48%;
+            --stone-sat-accent: 42%;
             --stone-light-angle: 132deg;
             --stone-light-angle-2: 22deg;
-            --stone-shine: 0.62;
-            --stone-depth-gloss: 0.42;
+            --stone-shine: 0.3;
+            --stone-depth-gloss: 0.26;
         }
         .track-card--zk {
-            background: linear-gradient(145deg, #059669 0%, #047857 44%, #064e3b 100%);
+            background: linear-gradient(145deg, #d8f4e8 0%, #c0ead8 44%, #b0e0cc 100%);
             --stone-hue: 158;
             --stone-hue-accent: 172;
-            --stone-sat: 52%;
-            --stone-sat-accent: 48%;
+            --stone-sat: 36%;
+            --stone-sat-accent: 32%;
             --stone-light-angle: 108deg;
             --stone-light-angle-2: 214deg;
-            --stone-shine: 0.54;
-            --stone-depth-gloss: 0.48;
+            --stone-shine: 0.28;
+            --stone-depth-gloss: 0.24;
         }
         .track-card--evm {
-            background: linear-gradient(145deg, #5eead4 0%, #0d9488 46%, #134e4a 100%);
+            background: linear-gradient(145deg, #d4faf4 0%, #b8f0e8 46%, #a8e4dc 100%);
             --stone-hue: 173;
             --stone-hue-accent: 195;
-            --stone-sat: 72%;
-            --stone-sat-accent: 58%;
+            --stone-sat: 40%;
+            --stone-sat-accent: 36%;
             --stone-light-angle: 122deg;
             --stone-light-angle-2: 38deg;
-            --stone-shine: 0.56;
-            --stone-depth-gloss: 0.52;
+            --stone-shine: 0.3;
+            --stone-depth-gloss: 0.26;
+        }
+        .track-card--coming-soon {
+            pointer-events: none;
+            cursor: default;
+        }
+        .track-card--coming-soon .track-card-dim {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            border-radius: inherit;
+            background: linear-gradient(
+                160deg,
+                rgba(255, 255, 255, 0.58) 0%,
+                rgba(255, 255, 255, 0.72) 50%,
+                rgba(248, 250, 252, 0.68) 100%
+            );
+            backdrop-filter: blur(0.5px);
+        }
+        .track-card-soon-label {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Outfit', system-ui, sans-serif;
+            font-size: 0.82rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(26, 40, 56, 0.55);
+            pointer-events: none;
         }
         .track-card-badge {
             display: inline-block;
@@ -145,7 +175,7 @@
             font-weight: 600;
             letter-spacing: 0.1em;
             text-transform: uppercase;
-            color: rgba(255,255,255,0.72);
+            color: rgba(26, 40, 56, 0.52);
             margin-bottom: 0.75rem;
         }
         .track-card h2 {
@@ -156,7 +186,7 @@
             margin: 0 0 0.35rem;
             font-size: 1.5rem;
             line-height: 1.25;
-            color: rgba(255,255,255,0.98);
+            color: #152233;
         }
         .track-card-scope {
             margin: 0;
@@ -164,7 +194,7 @@
             line-height: 1.35;
             font-weight: 500;
             letter-spacing: 0.04em;
-            color: rgba(255,255,255,0.82);
+            color: rgba(26, 40, 56, 0.72);
         }
         .track-card-scope--long {
             letter-spacing: 0.01em;
@@ -178,7 +208,8 @@
             right: 1.25rem;
             bottom: 1.25rem;
             font-size: 1.35rem;
-            opacity: 0.9;
+            opacity: 0.65;
+            color: #152233;
         }
         .track-footer-links {
             margin-top: 2rem;
@@ -205,30 +236,38 @@
                 <p class="track-card-scope track-card-scope--long">Get familiar with super scalable, multi-sharded and composable L1</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
             </a>
-            <a href="solana-core/index.html" class="track-card track-card--solana polished-stone-surface">
+            <div class="track-card track-card--solana track-card--coming-soon polished-stone-surface" aria-label="Solana Core — coming soon">
+                <span class="track-card-dim" aria-hidden="true"></span>
+                <span class="track-card-soon-label">Coming soon</span>
                 <span class="track-card-badge">Validator · runtime · BPF</span>
                 <h2>Solana Core</h2>
                 <p class="track-card-scope track-card-scope--long">Get familiar with super fast L1 nuts and bolts</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
-            </a>
-            <a href="crypto-fintech/index.html" class="track-card track-card--crypto polished-stone-surface">
+            </div>
+            <div class="track-card track-card--crypto track-card--coming-soon polished-stone-surface" aria-label="Cryptography — coming soon">
+                <span class="track-card-dim" aria-hidden="true"></span>
+                <span class="track-card-soon-label">Coming soon</span>
                 <span class="track-card-badge">Primitives · keys · FinTech</span>
                 <h2>Cryptography</h2>
                 <p class="track-card-scope">Keys &amp; primitives</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
-            </a>
-            <a href="zk/index.html" class="track-card track-card--zk polished-stone-surface">
+            </div>
+            <div class="track-card track-card--zk track-card--coming-soon polished-stone-surface" aria-label="Zero-Knowledge — coming soon">
+                <span class="track-card-dim" aria-hidden="true"></span>
+                <span class="track-card-soon-label">Coming soon</span>
                 <span class="track-card-badge">Proofs · circuits · rollups</span>
                 <h2>Zero-Knowledge</h2>
                 <p class="track-card-scope">Proofs &amp; rollups</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
-            </a>
-            <a href="evm/index.html" class="track-card track-card--evm polished-stone-surface">
+            </div>
+            <div class="track-card track-card--evm track-card--coming-soon polished-stone-surface" aria-label="EVM / Ethereum — coming soon">
+                <span class="track-card-dim" aria-hidden="true"></span>
+                <span class="track-card-soon-label">Coming soon</span>
                 <span class="track-card-badge">Execution · gas · rollups</span>
                 <h2>EVM / Ethereum</h2>
                 <p class="track-card-scope track-card-scope--long">Consensus-constrained compute, DA, and MEV—protocol interview depth</p>
                 <span class="track-card-arrow" aria-hidden="true">→</span>
-            </a>
+            </div>
         </div>
         <p class="track-footer-links"><a href="common/glossary.html">📚 Glossary</a></p>
     </div>

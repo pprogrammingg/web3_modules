@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Sharded Transactions in HyperScale — Deep Dive</title>
+    <link rel="stylesheet" href="../../../common/styles.css" id="main-styles">
+    <link rel="stylesheet" href="article.css">
+    <script src="../../../common/ensure-styles.js"></script>
+</head>
+<body class="mst-article">
+    <nav class="site-home-bar">
+        <a href="../../index.html" class="site-home-link">← Hyperscale</a>
+        <a href="../../../index.html" class="site-home-link">All tracks</a>
+    </nav>
+
+    <button type="button" class="mst-toc-toggle" id="mst-toc-toggle" aria-expanded="false" aria-controls="mst-toc">
+        Topics
+    </button>
+
+    <nav class="mst-toc" id="mst-toc" aria-label="Table of topics">
+        <p class="mst-toc-title">Topics</p>
+        <ol>
+            <li><a href="#why-shards">1. Why shards exist</a></li>
+            <li><a href="#what-mst">2. What multi-shard means</a></li>
+            <li><a href="#composability">3. Atomic composability</a></li>
+            <li><a href="#engines">4. Order ≠ result</a></li>
+            <li><a href="#example">5. Working example</a></li>
+            <li><a href="#ingredients">6. Three ingredients</a></li>
+            <li><a href="#pipeline">7. End-to-end pipeline</a></li>
+            <li><a href="#code">8. Code that matters</a></li>
+            <li><a href="#big-deal">9. Why it matters</a></li>
+            <li><a href="#failures">10. What can go wrong</a></li>
+            <li><a href="#close">11. Closing map</a></li>
+        </ol>
+    </nav>
+
+    <article class="mst-layout">
+        <header class="mst-hero">
+            <p class="mst-kicker">HyperScale · Articles</p>
+            <h1>Multi-Sharded Transactions</h1>
+            <p class="mst-lede">
+                Split the work, not the world.
+                One signed intent across shards must finish the same way everywhere—or nowhere—without async half-states, optimistic rollbacks, or bridge islands.
+                This article follows that claim from first principles through a concrete payment, then through the exits the protocol refuses to leave unsignposted.
+            </p>
+            <div class="mst-meta">
+                <span>Deep dive</span>
+                <span>~30–40 min</span>
+                <span>Insights: <a href="https://hyperscale.rs/" target="_blank" rel="noopener">hyperscale.rs</a></span>
+            </div>
+        </header>
+
+        <section id="why-shards">
+            <h2>1. Why shards exist</h2>
+            <p>
+                A single chain has a hard ceiling: every validator re-executes every transaction, so adding validators adds security, never throughput.
+                Sharding splits state and committees into parallel groups—but then a transaction touching two shards needs both to agree, and the usual answers all compromise.
+            </p>
+
+            <div class="mst-table-wrap">
+                <table class="mst-table">
+                    <thead>
+                        <tr>
+                            <th>Usual fix</th>
+                            <th>What users inherit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Async messages / sagas</td>
+                            <td>Visible half-done states—“your swap left one shard before it arrived at the other.”</td>
+                        </tr>
+                        <tr>
+                            <td>Optimistic execute + rollback</td>
+                            <td>Finality becomes “probably final”; contracts must survive being un-run.</td>
+                        </tr>
+                        <tr>
+                            <td>Walled gardens</td>
+                            <td>Composability only inside a shard; ecosystems fragment into bridge islands.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="mst-caption">Framing from <a href="https://hyperscale.rs/" target="_blank" rel="noopener">hyperscale.rs</a> §01 — the problem HyperScale refuses.</p>
+
+            <p>
+                HyperScale’s answer: a transaction <strong>declares the state it touches</strong>, every shard that owns any of it participates, and the intent
+                <strong>commits atomically on all of them or none</strong>—synchronous, composable, final.
+                Placement is prefix-based, not random hashing of txs: a binary <code>ShardTrie</code> walks owner address bits to a leaf.
+                Contiguous owners stay together; a single account’s substates never straddle a boundary—so the world stays one tree even as leaves multiply.
+            </p>
+
+            <div class="mst-bars" aria-label="Throughput intuition chart">
+                <div class="mst-bar-row">
+                    <span>1 shard</span>
+                    <div class="mst-bar-track"><div class="mst-bar-fill mst-bar-fill--muted" style="width:22%"></div></div>
+                    <span class="mst-bar-val">1× capacity</span>
+                </div>
+                <div class="mst-bar-row">
+                    <span>4 shards</span>
+                    <div class="mst-bar-track"><div class="mst-bar-fill" style="width:72%"></div></div>
+                    <span class="mst-bar-val">~4× local work</span>
+                </div>
+                <div class="mst-bar-row">
+                    <span>Cross-shard tax</span>
+                    <div class="mst-bar-track"><div class="mst-bar-fill" style="width:38%;background:#b45309"></div></div>
+                    <span class="mst-bar-val">provisions + ECs</span>
+                </div>
+            </div>
+            <p class="mst-caption">Throughput scales with shards for local work; cross-shard traffic pays an explicit pipeline cost—slower than local, never partial.</p>
+        </section>
+
+        <section id="what-mst">
+            <h2>2. What a multi-shard transaction is</h2>
+            <p>
+                A transaction is <strong>multi-shard</strong> (cross-shard) when its derived effect set touches more than one leaf of the shard trie.
+                HyperScale derives that set locally from the signed envelope—never from a sender-claimed shard list—so you cannot advertise a placement your content does not earn.
+            </p>
+
+            <div class="mst-table-wrap">
+                <table class="mst-table">
+                    <thead>
+                        <tr>
+                            <th>Notion</th>
+                            <th>Meaning</th>
+                            <th>In code</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Touched shards</td>
+                            <td>Every shard whose prefixes appear in the tx’s routing</td>
+                            <td><code>all_shards_for_transaction</code></td>
+                        </tr>
+                        <tr>
+                            <td>Write / consensus participation</td>
+                            <td>Shards that own cells the tx mutates</td>
+                            <td><code>write_prefixes</code> → local writes</td>
+                        </tr>
+                        <tr>
+                            <td>Provision dependency</td>
+                            <td>Shards that must ship <em>prior values</em> of fresh reads / RMW keys</td>
+                            <td><code>provision_prefixes</code></td>
+                        </tr>
+                        <tr>
+                            <td>Fee payer shard</td>
+                            <td>Where the fee account lives; engagement evidence fans out from here</td>
+                            <td><code>fee_payer</code> → trie walk</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p>
+                Crucially: <strong>every touched shard executes the full manifest</strong>.
+                Each persists only the writes it owns. Shard A does not “call” Shard B like an RPC—both run the same intent against a merged view of local state plus proven remote inputs.
+            </p>
+
+            <div class="mst-callout mst-callout--accent">
+                <p><strong class="label">One-line test</strong>
+                If Alice’s vault is on shard A and Bob’s on shard B, a transfer that debits Alice and credits Bob is multi-shard—even though each vault “lives” on only one shard—because the intent’s prefixes span both leaves.</p>
+            </div>
+        </section>
+
+        <section id="composability">
+            <h2>3. Atomic composability (and why this is not 2PC)</h2>
+            <p>
+                <strong>Atomic composability</strong> means one user intent that spans shards ends with the <em>same terminal outcome</em> on every participant—accept with identical receipt hashes, or abort everywhere—with BFT finality on each shard’s chain.
+                Manifest lines still compose in order inside one engine session; the protocol’s job is to make that session safe when the inputs live in different committees.
+            </p>
+            <p>
+                The Two Generals problem says you cannot make both sides certain by messengers alone.
+                HyperScale refuses that game: <strong>nobody decides the outcome; everyone computes it</strong> from quorum-certified chain facts both sides can eventually hold.
+                A provision is a sunrise, not a handshake—a merkle proof against a committed block is either visible or not; there is nothing to acknowledge.
+                Certificates <em>attest</em> an answer already computed; they do not choose one. Divergent certificates simply cannot assemble into a valid commit—atomicity is enforced by the shape of the artifact.
+                (<a href="https://hyperscale.rs/generals" target="_blank" rel="noopener">The generals</a>.)
+            </p>
+
+            <div class="mst-table-wrap">
+                <table class="mst-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Classic 2PC</th>
+                            <th>HyperScale</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Who decides?</td>
+                            <td>Coordinator tallies yes/no</td>
+                            <td>Pure function of committed facts</td>
+                        </tr>
+                        <tr>
+                            <td>Coordinator failure</td>
+                            <td>Can block with locks held</td>
+                            <td>No coordinator to crash</td>
+                        </tr>
+                        <tr>
+                            <td>Outcome open?</td>
+                            <td>Hangs until votes land</td>
+                            <td>Never “could go either way” once inputs are fixed</td>
+                        </tr>
+                        <tr>
+                            <td>Participant</td>
+                            <td>Often one fragile process</td>
+                            <td>BFT committee; even death resolves via settled-set fence</td>
+                        </tr>
+                        <tr>
+                            <td>Finalization rule</td>
+                            <td>Collect prepares/commits</td>
+                            <td>Success needs every shard’s success; any abort is terminal for all</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="engines">
+            <h2>4. Order ≠ result — three engines, one clock</h2>
+            <p>
+                HyperScale runs <strong>three agreements</strong>, each shaped for its job (<a href="https://hyperscale.rs/" target="_blank" rel="noopener">aerial view §02</a>):
+            </p>
+            <ul>
+                <li><strong>Shard consensus</strong> — many HotStuff-2 chains order transactions in parallel. Shards never wait on each other to progress; that is where linear scaling comes from.</li>
+                <li><strong>Execution consensus</strong> — a lighter quorum certifies what the transactions <em>did</em>. Ordering a tx and agreeing on its result are different problems.</li>
+                <li><strong>Beacon consensus</strong> — one slow chain never sees a user tx; it publishes the schedule: who governs which shard at which moment.</li>
+            </ul>
+            <p>
+                Splitting order from execution is the quiet enabler of multi-shard work:
+                a shard can <strong>commit to running</strong> a cross-shard transaction (locks engaged, tx in history) <strong>before it can know the result</strong>.
+                The result arrives later, once every counterparty’s proven state is in hand and the deterministic engine has run.
+            </p>
+            <p>
+                The glue is a <strong>clock made of votes</strong>: every QC carries an averaged, clamped timestamp no minority of liars can meaningfully move.
+                Deadlines, committee lookups, and retention windows read that attested time—not anyone’s wall clock
+                (<a href="https://hyperscale.rs/clock" target="_blank" rel="noopener">the clock</a>).
+                Cross-shard proofs also assume each shard has <em>one</em> history: quorum intersection makes conflicting commits impossible under the honesty bound
+                (<a href="https://hyperscale.rs/overlap" target="_blank" rel="noopener">the overlap</a>)—a forked shard would poison every provision drawn from it.
+            </p>
+        </section>
+
+        <section id="example">
+            <h2>5. Working example — one payment across two shards</h2>
+            <p>
+                Follow Ada → Bo the way <a href="https://hyperscale.rs/journey" target="_blank" rel="noopener">the journey</a> does.
+                Ada’s account lives on <strong>Shard&nbsp;01</strong>; Bo’s on <strong>Shard&nbsp;10</strong>.
+                Two independent chains that never pause for each other—and the money must arrive entirely on both, or not at all.
+                Ada’s fee payer is on 01, so engagement evidence fans out from there.
+            </p>
+
+            <div class="mst-callout mst-callout--accent">
+                <p><strong class="label">What Ada never sees</strong>
+                Two committees, proofs fording the gap, the identical computation running twice, certificates matching outcome vectors.
+                The apparatus exists so a sharded world feels like one machine.</p>
+            </div>
+
+            <div class="mst-swim" aria-label="Ada and Bo shard swimlanes">
+                <div class="mst-lane mst-lane--a">
+                    <div class="mst-lane-head">Shard 01 · Ada</div>
+                    <ol>
+                        <li><strong>Gate</strong> — admit; wait until no other in-flight tx shares her declared cells.</li>
+                        <li><strong>Order</strong> — tx in a block; QC = custody receipt; locks engage. Success not decided.</li>
+                        <li><strong>Provision</strong> — ship Ada-side state + multiproof; absorb Bo’s engagement echo.</li>
+                        <li><strong>Execute</strong> — byte-identical inputs → same receipts; write Ada’s cells only.</li>
+                        <li><strong>Seal</strong> — EC<sub>01</sub>; assemble with EC<sub>10</sub>; locks release.</li>
+                    </ol>
+                </div>
+                <div class="mst-lane mst-lane--b">
+                    <div class="mst-lane-head">Shard 10 · Bo</div>
+                    <ol>
+                        <li><strong>Gate</strong> — same bytes admitted under the same hash-order rule.</li>
+                        <li><strong>Order</strong> — independent commit; locks on Bo’s cells; result still unknown.</li>
+                        <li><strong>Provision</strong> — verify Ada’s facts against QC’d header; echo commitment to payer.</li>
+                        <li><strong>Execute</strong> — same engine, same inputs; write Bo’s cells only.</li>
+                        <li><strong>Seal</strong> — EC<sub>10</sub>; success only if both ECs agree on the result hash.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <h3>Two clocks</h3>
+            <p>
+                Inside the VM, instructions run in manifest order.
+                Across the network: both shards <em>order</em> first, then exchange <em>pre-tx</em> facts, then execute.
+                Neither waits for the other’s <em>permission</em>—facts cross; decisions don’t need to.
+            </p>
+
+            <div class="mst-table-wrap">
+                <table class="mst-table">
+                    <thead>
+                        <tr>
+                            <th>Stop</th>
+                            <th>Shard 01</th>
+                            <th>Shard 10</th>
+                            <th>Shared truth</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Order</td>
+                            <td>Tx committed; roots announce 10</td>
+                            <td>Tx committed; echo owed to 01</td>
+                            <td>Same hash ordered twice—result undecided</td>
+                        </tr>
+                        <tr>
+                            <td>Provision</td>
+                            <td>Proven Ada state → 10</td>
+                            <td>Verify vs QC’d header; DA fetch if gossip drops</td>
+                            <td>Facts, not trusted messages</td>
+                        </tr>
+                        <tr>
+                            <td>Execute</td>
+                            <td>Full manifest; write Ada</td>
+                            <td>Full manifest; write Bo</td>
+                            <td>Identical receipt hashes (sunrise)</td>
+                        </tr>
+                        <tr>
+                            <td>Seal</td>
+                            <td>EC<sub>01</sub> + EC<sub>10</sub></td>
+                            <td>EC<sub>10</sub> + EC<sub>01</sub></td>
+                            <td><span class="mst-chip mst-chip--ok">Accept both</span> or <span class="mst-chip mst-chip--fail">Abort both</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mst-pipeline" aria-label="Protocol timeline">
+                <div class="mst-pipe-row">
+                    <div class="mst-pipe-label">Time →</div>
+                    <div class="mst-pipe-track">
+                        <div class="mst-pipe-step mst-pipe-step--both"><strong>Declare</strong> Route from signed access</div>
+                        <div class="mst-pipe-step mst-pipe-step--both"><strong>Gate</strong> No shared cells in flight</div>
+                        <div class="mst-pipe-step mst-pipe-step--both"><strong>Order</strong> Commit on each chain</div>
+                        <div class="mst-pipe-step mst-pipe-step--a"><strong>Provision</strong> Proven state / echoes</div>
+                        <div class="mst-pipe-step mst-pipe-step--both"><strong>Execute</strong> Same inputs → same result</div>
+                        <div class="mst-pipe-step mst-pipe-step--both"><strong>Seal</strong> Matching ECs</div>
+                    </div>
+                </div>
+            </div>
+
+            <p>
+                Finalization is asymmetric on purpose: <strong>success requires a success from every participating shard; an abort from any one is terminal for all</strong>.
+                No reconciliation phase, no “pending” limbo, no rollback window.
+            </p>
+        </section>
+
+        <section id="ingredients">
+            <h2>6. Three ingredients</h2>
+
+            <h3>Declared access</h3>
+            <p>
+                Before submit, the itinerary is written into the transaction: every account (prefix) it will touch.
+                Nothing is discovered en route. That declaration routes the payment, bounds what it may write, and lets shards reason about conflicts without executing
+                (<a href="https://hyperscale.rs/asterisks" target="_blank" rel="noopener">asterisk: you must say what you touch</a>).
+                In code: a locally derived <code>Routing</code>—read/write keys, provision keys, modes—never a sender-claimed shard list.
+            </p>
+
+            <h3>Provisions (facts, not claims)</h3>
+            <p>
+                A <code>Provisions</code> bundle carries the exact remote cells needed under a multiproof against a quorum-signed block.
+                Trust no node—verify against the sender’s certified header. Headers pre-announce shipments so <em>absence</em> is actionable; if gossip drops a bundle, fetch from the committee obligated to serve it (archive / DA path).
+                Role-shaped fan-out still applies: payer and read-set owners attest toward every participant; others send an engagement echo to the payer.
+            </p>
+
+            <h3>Execution certificates &amp; finalization</h3>
+            <p>
+                After a <strong>tick</strong> runs on byte-identical inputs, validators sign what they computed—an attestation, not a vote.
+                2f+1 on the same receipt root yields an <code>ExecutionCertificate</code>.
+                A <code>Finalization</code> assembles matching ECs from every participant; locks release; the user sees one terminal status.
+            </p>
+        </section>
+
+        <section id="pipeline">
+            <h2>7. End-to-end pipeline (absolute beginning → end)</h2>
+
+            <div class="mst-table-wrap">
+                <table class="mst-table">
+                    <thead>
+                        <tr>
+                            <th>Stage</th>
+                            <th>What happens</th>
+                            <th>Home</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1. Sign &amp; submit</td>
+                            <td>Wallet signs; RPC hits a node; host fans out admit/gossip to hosted touched shards.</td>
+                            <td><code>node</code> process I/O</td>
+                        </tr>
+                        <tr>
+                            <td>2. Route &amp; park</td>
+                            <td>Routing derived; non-payer legs may park until payer engagement evidence commits.</td>
+                            <td><code>mempool</code></td>
+                        </tr>
+                        <tr>
+                            <td>3. Propose &amp; commit</td>
+                            <td>Shard leaders include the tx; header commits <code>provision_tx_roots</code>; BFT QC seals height H.</td>
+                            <td><code>shard</code> + types roots</td>
+                        </tr>
+                        <tr>
+                            <td>4. Build / verify provisions</td>
+                            <td>Source builds multiproofed bundles; destination verifies against remote QC’d header + announced roots.</td>
+                            <td><code>provisions</code></td>
+                        </tr>
+                        <tr>
+                            <td>5. Compose tick</td>
+                            <td>Candidates enter when provisioned, engagement settled, and provisional cells compatible.</td>
+                            <td><code>execution</code> candidates</td>
+                        </tr>
+                        <tr>
+                            <td>6. Execute</td>
+                            <td>Engine runs full manifest on local view @ H plus provision overlay; each shard writes owned cells only.</td>
+                            <td><code>engine</code> + storage view</td>
+                        </tr>
+                        <tr>
+                            <td>7. Certify</td>
+                            <td>Execution votes → EC; remote ECs fetched/gossiped.</td>
+                            <td><code>execution</code></td>
+                        </tr>
+                        <tr>
+                            <td>8. Finalize</td>
+                            <td><code>Finalization</code> commits; receipts applied; mempool releases; user sees terminal status.</td>
+                            <td>types + mempool locks</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mst-callout">
+                <p><strong class="label">Vocabulary note</strong>
+                Older write-ups say “waves.” The live protocol’s execution identity is a <strong>tick</strong> (<code>TickId { shard, height }</code>) and a <strong>Finalization</strong>. Same story; sharper names.</p>
+            </div>
+        </section>
+
+        <section id="code">
+            <h2>8. Code that matters</h2>
+            <p>Snippets trimmed from the protocol sources. Ellipsis hides ceremony.</p>
+
+            <div class="mst-code">
+                <div class="mst-code-caption">crates/types/src/topology/snapshot.rs — cross-shard test</div>
+                <pre><code><span class="cmt">/// Every shard a transaction touches via its derived effect sets.</span>
+pub fn all_shards_for_transaction(&amp;self, tx: &amp;Transaction) -&gt; Vec&lt;ShardId&gt; {
+    tx.routing()
+        .all_prefixes()
+        .into_iter()
+        .map(|prefix| self.shard_for_prefix(prefix))
+        .collect::&lt;BTreeSet&lt;_&gt;&gt;()
+        .into_iter()
+        .collect()
+}
+
+pub fn is_cross_shard_transaction(&amp;self, tx: &amp;Transaction) -&gt; bool {
+    self.all_shards_for_transaction(tx).len() &gt; 1
+}</code></pre>
+            </div>
+
+            <div class="mst-code">
+                <div class="mst-code-caption">crates/types/src/transaction/vm.rs — Routing (declared access)</div>
+                <pre><code>pub struct Routing {
+    pub read_keys: Vec&lt;DeclaredKey&gt;,
+    pub write_keys: Vec&lt;DeclaredKey&gt;,
+    pub read_prefixes: Vec&lt;Address&gt;,
+    pub write_prefixes: Vec&lt;Address&gt;,
+    <span class="cmt">/// Fresh reads + RMW priors counterparts must carry.</span>
+    pub provision_keys: Vec&lt;DeclaredKey&gt;,
+    pub provision_prefixes: Vec&lt;Address&gt;,
+    pub declared_modes: Vec&lt;(DeclaredKey, Mode)&gt;,
+}</code></pre>
+            </div>
+
+            <div class="mst-code">
+                <div class="mst-code-caption">crates/types/src/shard/roots/provision_tx.rs — role-shaped fan-out</div>
+                <pre><code>pub fn compute(
+    local_shard: ShardId,
+    topology_snapshot: &amp;TopologySnapshot,
+    transactions: &amp;[Arc&lt;Verifiable&lt;Transaction&gt;&gt;],
+) -&gt; Self {
+    <span class="cmt">// ...</span>
+    for tx in transactions {
+        if topology_snapshot.is_single_shard_transaction(tx) {
+            continue;
+        }
+        let payer_shard = trie.shard_for_prefix(tx.body().fee_payer);
+        let owns_read_set = tx.routing().provision_prefixes.iter()
+            .any(|prefix| trie.shard_for_prefix(*prefix) == local_shard);
+        if payer_shard != local_shard &amp;&amp; !owns_read_set {
+            <span class="cmt">// Engagement echo toward the payer only.</span>
+            per_target.entry(payer_shard).or_default().push(Hash::from(tx.hash()));
+            continue;
+        }
+        for shard in topology_snapshot.all_shards_for_transaction(tx) {
+            if shard == local_shard { continue; }
+            per_target.entry(shard).or_default().push(Hash::from(tx.hash()));
+        }
+    }
+    <span class="cmt">// ... merkle each bucket → ProvisionTxRoot</span>
+}</code></pre>
+            </div>
+
+            <div class="mst-code">
+                <div class="mst-code-caption">crates/execution/src/coordinator.rs — phase map (module docs)</div>
+                <pre><code><span class="cmt">//! Phase 1: State Provisioning — bundles + proofs between shards</span>
+<span class="cmt">//! Phase 2: Tick-Atomic Execution — compose_tick → engine batch</span>
+<span class="cmt">//! Phase 3: Vote Aggregation — ExecutionVote → ExecutionCertificate</span>
+<span class="cmt">//! Phase 5: Finalization — local EC + remote ECs → Finalization</span></code></pre>
+            </div>
+        </section>
+
+        <section id="big-deal">
+            <h2>9. Why this is a big deal</h2>
+            <p>
+                Other families buy throughput with footnotes users feel: half-done swaps, challenge windows, bridge risk
+                (see <a href="https://hyperscale.rs/asterisks" target="_blank" rel="noopener">asterisks</a>).
+                HyperScale’s claim is the matrix’s hard columns—atomic cross-shard, one composable world, final means final, scales with shard count—with fine print moved to the programming model and security sizing, not the user-visible path.
+            </p>
+
+            <div class="mst-table-wrap">
+                <table class="mst-table">
+                    <thead>
+                        <tr>
+                            <th>HyperScale asterisk</th>
+                            <th>What it means</th>
+                            <th>What it does <em>not</em> mean</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Declared access</td>
+                            <td>You name state up front</td>
+                            <td>Not “composability only within one shard”</td>
+                        </tr>
+                        <tr>
+                            <td>Cross-shard latency</td>
+                            <td>Pipeline spans blocks on multiple chains</td>
+                            <td>Not a half-done state while waiting</td>
+                        </tr>
+                        <tr>
+                            <td>Committee honesty</td>
+                            <td>Sampling must keep each committee under ⅓ corrupt</td>
+                            <td>Not “finality is probabilistic for the user”</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p>
+                Product sentence: <em>sharding without surrendering atomic composability</em>—paid for with declared access, proven state transfer, and certified deterministic execution.
+                Ada signs once; she never orchestrates a bridge.
+            </p>
+        </section>
+
+        <section id="failures">
+            <h2>10. What can go wrong — and how it is overcome</h2>
+            <p>
+                The happy path is short. Character shows in the detours—each ending in the <strong>same identical verdict on every shard</strong>
+                (<a href="https://hyperscale.rs/journey" target="_blank" rel="noopener">journey · detours</a>).
+                If happy-path outcomes are deterministic but abort paths depend on who heard what, the Two Generals are back.
+            </p>
+
+            <div class="mst-table-wrap">
+                <table class="mst-table">
+                    <thead>
+                        <tr>
+                            <th>Detour</th>
+                            <th>What happens</th>
+                            <th>Sunrise (deterministic exit)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Account busy at the gate</td>
+                            <td>Another in-flight tx holds a declared cell</td>
+                            <td>Wait in line; contention costs latency, never correctness</td>
+                        </tr>
+                        <tr>
+                            <td>Genuine cross-shard tangle</td>
+                            <td>Deadlock across shards from committed facts</td>
+                            <td>Both sides apply the same rule (e.g. lower hash wins); loser aborts before run</td>
+                        </tr>
+                        <tr>
+                            <td>Provisions never come</td>
+                            <td>Gossip loss / stalled counterparty</td>
+                            <td>Deadline on the <em>voted</em> clock → whole batch aborts identically</td>
+                        </tr>
+                        <tr>
+                            <td>Shard dying mid-flight</td>
+                            <td>Counterparty terminates in a reshape</td>
+                            <td>Settled-set fence: finalize iff the dying chain settled it; else abort—never message luck</td>
+                        </tr>
+                        <tr>
+                            <td>Missing / bad provision artifact</td>
+                            <td>Root mismatch vs header announcement</td>
+                            <td>Drop; expected-provision fetch from obligated committee</td>
+                        </tr>
+                        <tr>
+                            <td>Remote header lag</td>
+                            <td>Cannot verify multiproof yet</td>
+                            <td>Sync QC’d header before accept</td>
+                        </tr>
+                        <tr>
+                            <td>Execution divergence</td>
+                            <td>Local receipt ≠ peers</td>
+                            <td>Mark divergent; sync canonical Finalization</td>
+                        </tr>
+                        <tr>
+                            <td>Network partition</td>
+                            <td>Shard BFT below quorum</td>
+                            <td>Halt rather than fork; deadline abort if stuck; heal resumes</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mst-callout mst-callout--warn">
+                <p><strong class="label">Design posture</strong>
+                An abort is a first-class terminal outcome sealed inside certificates with the same finality as success—not a half-state.
+                Prefer <span class="mst-chip mst-chip--fail">abort everywhere</span> over a half-applied credit.</p>
+            </div>
+        </section>
+
+        <section id="close">
+            <h2>11. Closing map</h2>
+            <p>
+                Shards exist to parallelize work without splitting the user’s world.
+                A multi-shard transaction declares its route, orders independently on each chain, exchanges proven facts, computes one result twice, and seals only when certificates match.
+                Atomic composability is computation over shared sunrise facts—not 2PC negotiation.
+            </p>
+            <p>
+                Ada→Bo is the smallest complete story. Everything harder (DeFi legs, reshape fences, partitions) reuses that spine.
+            </p>
+
+            <div class="mst-table-wrap">
+                <table class="mst-table">
+                    <thead>
+                        <tr>
+                            <th>Read next</th>
+                            <th>Why</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><a href="https://hyperscale.rs/journey" target="_blank" rel="noopener">hyperscale.rs/journey</a></td>
+                            <td>Narrative payment with every detour</td>
+                        </tr>
+                        <tr>
+                            <td><a href="https://hyperscale.rs/generals" target="_blank" rel="noopener">hyperscale.rs/generals</a></td>
+                            <td>Why messengers are refused; why certificates aren’t votes</td>
+                        </tr>
+                        <tr>
+                            <td><a href="https://hyperscale.rs/asterisks" target="_blank" rel="noopener">hyperscale.rs/asterisks</a></td>
+                            <td>Where the fine print deliberately lives</td>
+                        </tr>
+                        <tr>
+                            <td><code>docs/04-atomic-commitment.md</code></td>
+                            <td>Canonical protocol write-up in the repository docs</td>
+                        </tr>
+                        <tr>
+                            <td><a href="../../hyperscale-rs/module-phase-04-cross-shard-tx.html">Phase 4 module</a></td>
+                            <td>Course drill paired with this article</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <nav class="mst-footer-nav" aria-label="Related">
+            <a href="../../index.html">← Hyperscale hub</a>
+            <a href="https://hyperscale.rs/" target="_blank" rel="noopener">hyperscale.rs →</a>
+            <a href="../../hyperscale-rs/module-phase-04-cross-shard-tx.html">Phase 4 module →</a>
+            <a href="../../../common/glossary.html">Glossary →</a>
+        </nav>
+    </article>
+
+    <script src="article.js"></script>
+</body>
+</html>

@@ -2046,6 +2046,29 @@ th { background: var(--bg2); }
 .flow-steps-wide-last.flow-steps-wide-first :is(th, td):nth-child(3) { width: 22%; }
 .flow-steps-wide-last.flow-steps-wide-first :is(th, td):nth-child(4) { width: 38%; }
 
+/* Dense tables: one row per line, horizontal scroll if needed (Phase 4 field maps, etc.) */
+.course-content .table-wrap.table-wrap--fit-rows {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.course-content table.flow-steps.flow-steps-fit-rows {
+    table-layout: auto;
+    width: max-content;
+    min-width: 100%;
+}
+.course-content table.flow-steps.flow-steps-fit-rows th,
+.course-content table.flow-steps.flow-steps-fit-rows td {
+    white-space: nowrap;
+    word-break: normal;
+    overflow-wrap: normal;
+    vertical-align: middle;
+}
+.course-content table.flow-steps.flow-steps-fit-rows td code,
+.course-content table.flow-steps.flow-steps-fit-rows th code {
+    white-space: nowrap;
+    word-break: normal;
+}
+
 /* Messaging inventory (module-01b): six-column flow tables + handler lists */
 .messaging-inventory-table.flow-steps :is(th, td):first-child:nth-last-child(6) { width: 9%; }
 .messaging-inventory-table.flow-steps :is(th, td):nth-child(2):nth-last-child(5) { width: 11%; }

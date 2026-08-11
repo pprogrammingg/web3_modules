@@ -88,7 +88,7 @@
                     </thead>
                     <tbody>
                         <tr>
-                            <td><code>crates/node/shard_loop</code> — <code>event_sender</code> + <code>NodeInput</code></td>
+                            <td><code>crates/node/src/shard</code> — <code>event_sender</code> + <code>NodeInput</code></td>
                             <td>Cross-thread handoff is explicit; failed <code>send</code> usually means shutdown—no implicit cross-thread garbage of graph edges.</td>
                             <td>Watch for <strong>lock order</strong> when combining <code>Mutex</code> with channel backpressure (e.g. provision dedup); document ordering or shrink critical sections if contention shows up in prod metrics.</td>
                         </tr>
