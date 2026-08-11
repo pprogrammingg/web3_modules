@@ -44,8 +44,8 @@
         .track-grid {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 1.5rem;
-            max-width: 1400px;
+            gap: 1.65rem;
+            max-width: 1540px;
             width: 100%;
         }
         @media (min-width: 640px) {
@@ -55,13 +55,17 @@
         }
         @media (min-width: 1024px) {
             .track-grid {
-                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(308px, 1fr));
             }
         }
         .track-card {
-            display: block;
-            border-radius: 12px;
-            padding: 1.75rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            aspect-ratio: 5 / 3;
+            width: 100%;
+            border-radius: 13px;
+            padding: calc(1.75rem * 1.1) calc(1.5rem * 1.1);
             text-decoration: none;
             color: rgba(255, 255, 255, 0.96);
             border: 1px solid rgba(255, 255, 255, 0.18);
